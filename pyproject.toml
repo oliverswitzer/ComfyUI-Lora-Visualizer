@@ -1,44 +1,39 @@
 [project]
 name = "comfyui-lora-visualizer"
 description = "A ComfyUI custom node that parses prompt text for LoRA tags and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images."
-version = "1.2.0"
+version = "1.3.0"
 requires-python = "==3.10.*"
-dependencies = [
-    "pytest>=8.4.1",
-    "black>=22.0.0",
-    "pylint>=2.12.0",
-]
-authors = [
-    {name = "Oliver Switzer", email = "oliverswitzer@gmail.com"},
-]
+dependencies = [ "pytest>=8.4.1", "black>=22.0.0", "pylint>=2.12.0",]
 readme = "README.md"
-
-[tool.setuptools.packages.find]
-include = ["nodes*"]
-
-[tool.pdm]
-distribution = false
-[tool.pdm.dev-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "black>=22.0.0",
-    "pylint>=2.12.0",
-]
-
-[tool.pdm.scripts]
-format = "black ."
-lint = "pylint nodes/ tests/"
-# Use the working script for tests (avoids PDM environment import issues)
-test = "pytest tests"
-check = {composite = ["format", "lint"]}
+[[project.authors]]
+name = "Oliver Switzer"
+email = "oliverswitzer@gmail.com"
 
 [project.license]
 file = "LICENSE"
 text = "MIT"
+
 [project.urls]
 Repository = "https://github.com/oliverswitzer/ComfyUI-Lora-Visualizer"
+
+[tool.pdm]
+distribution = false
 
 [tool.comfy]
 PublisherId = "switzerswish"
 DisplayName = "LoRA Visualizer"
 Icon = ""
+
+[tool.pdm.dev-dependencies]
+dev = [ "pytest>=7.0.0", "black>=22.0.0", "pylint>=2.12.0",]
+
+[tool.pdm.scripts]
+format = "black ."
+lint = "pylint nodes/ tests/"
+test = "pytest tests"
+
+[tool.setuptools.packages.find]
+include = [ "nodes*",]
+
+[tool.pdm.scripts.check]
+composite = [ "format", "lint",]
