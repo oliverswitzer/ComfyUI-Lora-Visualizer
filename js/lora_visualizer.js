@@ -183,12 +183,22 @@ function loadLoRAMetadata(lora, node) {
 // ============================================================================
 
 function calculateItemDimensions(width) {
-  // Ensure thumbnail doesn't exceed available space
-  // Account for: left margin (20px) + thumbnail margin (10px) + text space + right margin (10px)
-  const maxThumbSize = Math.min(width * 0.25, 150); // Reduced from 20% to ensure space for text
-  const thumbSize = Math.max(Math.min(maxThumbSize, width - 200), 60); // Ensure at least 200px for text
-  const itemHeight = Math.max(thumbSize + 20, 130);
-  return { thumbSize, itemHeight };
+  // Conservative space allocation to ensure everything fits within bounds
+  // Account for: left margin (20px) + thumbnail margin (10px) + text space (min 150px) + right margin (10px)
+  const reservedSpace = 190; // 20 + 10 + 150 + 10
+  const availableForThumbnail = Math.max(width - reservedSpace, 60);
+  
+  // Cap thumbnail size to reasonable maximum and ensure it fits
+  const maxThumbSize = Math.min(width * 0.2, 120); // More conservative 20% with lower max
+  const thumbSize = Math.min(maxThumbSize, availableForThumbnail);
+  
+  // Ensure minimum viable thumbnail size
+  const actualThumbSize = Math.max(thumbSize, 60);
+  
+  // Item height should accommodate thumbnail + padding
+  const itemHeight = Math.max(actualThumbSize + 20, 130);
+  
+  return { thumbSize: actualThumbSize, itemHeight };
 }
 
 function drawLoRAItem(ctx, lora, x, y, width, accentColor, node) {
@@ -203,13 +213,21 @@ function drawLoRAItem(ctx, lora, x, y, width, accentColor, node) {
   // Components - ensure thumbnail fits within bounds
   const thumbX = x + 10;
   const thumbY = y + 10;
-  const maxThumbX = Math.min(thumbX, width - thumbSize - 10); // Ensure thumbnail doesn't exceed right edge
-  const textX = maxThumbX + thumbSize + 10;
+  
+  // Ensure thumbnail doesn't exceed available width
+  const availableWidth = width - 20; // Account for left and right margins
+  const maxThumbnailWidth = Math.min(thumbSize, availableWidth - 150); // Reserve 150px minimum for text
+  const actualThumbSize = Math.max(maxThumbnailWidth, 60); // Minimum 60px thumbnail
+  
+  const textX = thumbX + actualThumbSize + 10;
   const textStartY = y + 25;
+  
+  // Ensure text doesn't exceed right boundary
+  const textAreaWidth = width - textX - 10;
 
-  drawThumbnail(ctx, lora, maxThumbX, thumbY, thumbSize, node);
-  const triggerY = drawLoRAText(ctx, lora, textX, textStartY);
-  drawLoRAButtons(ctx, lora, textX, triggerY, node);
+  drawThumbnail(ctx, lora, thumbX, thumbY, actualThumbSize, node);
+  const triggerY = drawLoRAText(ctx, lora, textX, textStartY, textAreaWidth);
+  drawLoRAButtons(ctx, lora, textX, triggerY, node, textAreaWidth);
 
   return y + itemHeight + 5;
 }
@@ -241,12 +259,19 @@ function drawThumbnail(ctx, lora, x, y, size, node) {
   storeThumbnailArea(lora, x, y, size, node);
 }
 
-function drawLoRAText(ctx, lora, x, startY) {
+function drawLoRAText(ctx, lora, x, startY, maxWidth = null) {
   // LoRA name
   ctx.fillStyle = "#fff";
   ctx.font = "bold 16px Arial";
-  const nameText =
-    lora.name.length > 25 ? lora.name.substring(0, 25) + "..." : lora.name;
+  let nameText = lora.name;
+  if (maxWidth) {
+    // Use canvas measureText to ensure text fits within bounds
+    while (ctx.measureText(nameText).width > maxWidth && nameText.length > 3) {
+      nameText = nameText.substring(0, nameText.length - 4) + "...";
+    }
+  } else {
+    nameText = lora.name.length > 25 ? lora.name.substring(0, 25) + "..." : lora.name;
+  }
   ctx.fillText(nameText, x, startY);
 
   // Strength
@@ -257,8 +282,14 @@ function drawLoRAText(ctx, lora, x, startY) {
   // Tag
   ctx.fillStyle = "#999";
   ctx.font = "12px monospace";
-  const tagText =
-    lora.tag.length > 35 ? lora.tag.substring(0, 35) + "..." : lora.tag;
+  let tagText = lora.tag;
+  if (maxWidth) {
+    while (ctx.measureText(tagText).width > maxWidth && tagText.length > 3) {
+      tagText = tagText.substring(0, tagText.length - 4) + "...";
+    }
+  } else {
+    tagText = lora.tag.length > 35 ? lora.tag.substring(0, 35) + "..." : lora.tag;
+  }
   ctx.fillText(tagText, x, startY + 40);
 
   // Base model
@@ -273,34 +304,47 @@ function drawLoRAText(ctx, lora, x, startY) {
   if (lora.triggerWords?.length > 0) {
     ctx.fillStyle = "#aaa";
     ctx.font = "12px Arial";
-    const triggerText = `Triggers: ${lora.triggerWords.join(", ")}`;
-    const maxTriggerText =
-      triggerText.length > 50
-        ? triggerText.substring(0, 50) + "..."
-        : triggerText;
-    ctx.fillText(maxTriggerText, x, triggerY);
+    let triggerText = `Triggers: ${lora.triggerWords.join(", ")}`;
+    if (maxWidth) {
+      while (ctx.measureText(triggerText).width > maxWidth && triggerText.length > 12) {
+        // Keep at least "Triggers: ..."
+        const words = triggerText.split(": ")[1];
+        if (words && words.length > 3) {
+          triggerText = `Triggers: ${words.substring(0, words.length - 4)}...`;
+        } else {
+          break;
+        }
+      }
+    } else {
+      triggerText = triggerText.length > 50 ? triggerText.substring(0, 50) + "..." : triggerText;
+    }
+    ctx.fillText(triggerText, x, triggerY);
   }
 
   return triggerY;
 }
 
-function drawLoRAButtons(ctx, lora, textX, triggerY, node) {
+function drawLoRAButtons(ctx, lora, textX, triggerY, node, maxWidth = null) {
   if (!lora.triggerWords?.length) return;
 
   const copyButtonY = triggerY + 16;
 
+  // Calculate available width for buttons
+  const availableButtonWidth = maxWidth || 300; // Fallback to reasonable default
+  const copyButtonWidth = Math.min(120, availableButtonWidth - 10);
+  
   // Copy button
   drawButton(
     ctx,
     textX,
     copyButtonY - 10,
-    120,
+    copyButtonWidth,
     16,
     "Copy Trigger Words",
     "#555",
     "#777"
   );
-  storeButtonArea(node, "copy", textX, copyButtonY - 10, 120, 16, {
+  storeButtonArea(node, "copy", textX, copyButtonY - 10, copyButtonWidth, 16, {
     triggerWords: lora.triggerWords,
     lora: lora,
   });
@@ -310,21 +354,26 @@ function drawLoRAButtons(ctx, lora, textX, triggerY, node) {
   const metadata = node.loraMetadataCache?.[loraKey];
 
   if (metadata?.civitaiUrl) {
-    const linkButtonX = textX + 125;
-    drawButton(
-      ctx,
-      linkButtonX,
-      copyButtonY - 10,
-      80,
-      16,
-      "Open Civitai",
-      "#2196F3",
-      "#1976D2"
-    );
-    storeButtonArea(node, "link", linkButtonX, copyButtonY - 10, 80, 16, {
-      civitaiUrl: metadata.civitaiUrl,
-      lora: lora,
-    });
+    const linkButtonX = textX + copyButtonWidth + 5;
+    const linkButtonWidth = Math.min(80, availableButtonWidth - copyButtonWidth - 5);
+    
+    // Only show if there's enough space
+    if (linkButtonWidth > 40) {
+      drawButton(
+        ctx,
+        linkButtonX,
+        copyButtonY - 10,
+        linkButtonWidth,
+        16,
+        "Open Civitai",
+        "#2196F3",
+        "#1976D2"
+      );
+      storeButtonArea(node, "link", linkButtonX, copyButtonY - 10, linkButtonWidth, 16, {
+        civitaiUrl: metadata.civitaiUrl,
+        lora: lora,
+      });
+    }
   }
 }
 
@@ -753,7 +802,14 @@ function drawLoRASection(ctx, title, loras, startY, width, accentColor, node) {
 
 function updateNodeSize(node) {
   if (!node.manuallyResized) {
-    node.setSize(node.computeSize());
+    // Force recalculation of widget size based on current content
+    if (node.loraVisualizationWidget) {
+      const currentSize = node.size;
+      const newSize = node.loraVisualizationWidget.computeSize(currentSize[0]);
+      node.setSize([currentSize[0], newSize[1]]);
+    } else {
+      node.setSize(node.computeSize());
+    }
   }
 }
 
@@ -814,7 +870,37 @@ function createVisualizationWidget(node) {
   );
 
   widget.computeSize = function (width) {
-    return [width, 300];
+    // Calculate dynamic height based on content
+    const standardLoras = node.loraData?.standard_loras || [];
+    const wanloras = node.loraData?.wanloras || [];
+    
+    if (standardLoras.length === 0 && wanloras.length === 0) {
+      return [width, 60]; // Minimal height for empty state
+    }
+    
+    let totalHeight = 30; // Initial padding
+    
+    // Calculate height for standard LoRAs section
+    if (standardLoras.length > 0) {
+      totalHeight += 40; // Section header height
+      standardLoras.forEach(() => {
+        const { itemHeight } = calculateItemDimensions(width);
+        totalHeight += itemHeight + 5; // Item height + spacing
+      });
+    }
+    
+    // Calculate height for WanLoRAs section  
+    if (wanloras.length > 0) {
+      totalHeight += 40; // Section header height
+      wanloras.forEach(() => {
+        const { itemHeight } = calculateItemDimensions(width);
+        totalHeight += itemHeight + 5; // Item height + spacing
+      });
+    }
+    
+    totalHeight += 20; // Bottom padding
+    
+    return [width, Math.max(totalHeight, 150)]; // Minimum 150px height
   };
 
   widget.draw = function (ctx, node, widgetWidth, y, height) {
@@ -886,6 +972,7 @@ function setupWebSocketHandler() {
     // Update the target nodes with new data
     targetNodes.forEach((node) => {
       node.loraData = messageData.data;
+      updateNodeSize(node); // Recalculate size based on new content
       node.setDirtyCanvas(true, true);
     });
   });
