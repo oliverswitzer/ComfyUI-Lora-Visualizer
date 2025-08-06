@@ -261,6 +261,157 @@ class TestVisualizeLoras(unittest.TestCase):
         self.assertEqual(metadata["wanloras"][0]["name"], "Woman877.v2")
         self.assertEqual(processed_prompt, prompt)
 
+    def test_extract_civitai_url_from_metadata(self):
+        """Test that Civitai URLs are correctly extracted from metadata."""
+        # Test data based on our fixture files
+        lora_data = {
+            'name': 'DetailAmplifier wan480p v1.0',
+            'strength': '0.7',
+            'type': 'lora',
+            'tag': '<lora:DetailAmplifier wan480p v1.0:0.7>'
+        }
+        
+        # Mock metadata with civitai modelId (like our fixture files)
+        metadata = {
+            'civitai': {
+                'modelId': 1716960,
+                'trainedWords': ['detail', 'enhance'],
+                'images': []
+            },
+            'base_model': 'Wan Video 14B i2v 480p',
+            'preview_url': '/some/path/preview.mp4'
+        }
+        
+        info = self.node.extract_lora_info(lora_data, metadata)
+        
+        # Check that civitai_url was correctly constructed
+        expected_url = "https://civitai.com/models/1716960"
+        self.assertEqual(info['civitai_url'], expected_url)
+        self.assertEqual(info['name'], 'DetailAmplifier wan480p v1.0')
+        self.assertEqual(info['strength'], '0.7')
+        self.assertEqual(info['trigger_words'], ['detail', 'enhance'])
+        self.assertEqual(info['base_model'], 'Wan Video 14B i2v 480p')
+
+    def test_extract_civitai_url_missing_metadata(self):
+        """Test behavior when metadata doesn't contain civitai information."""
+        lora_data = {
+            'name': 'some_lora',
+            'strength': '1.0',
+            'type': 'lora',
+            'tag': '<lora:some_lora:1.0>'
+        }
+        
+        # Metadata without civitai section
+        metadata = {
+            'base_model': 'SDXL',
+            'preview_url': '/some/path/preview.jpg'
+        }
+        
+        info = self.node.extract_lora_info(lora_data, metadata)
+        
+        # civitai_url should be None when no civitai data is available
+        self.assertIsNone(info['civitai_url'])
+        self.assertEqual(info['name'], 'some_lora')
+        self.assertEqual(info['base_model'], 'SDXL')
+
+    def test_extract_civitai_url_no_metadata(self):
+        """Test behavior when no metadata is provided."""
+        lora_data = {
+            'name': 'another_lora',
+            'strength': '0.5',
+            'type': 'wanlora',
+            'tag': '<wanlora:another_lora:0.5>'
+        }
+        
+        info = self.node.extract_lora_info(lora_data, None)
+        
+        # All metadata fields should be None/empty when no metadata provided
+        self.assertIsNone(info['civitai_url'])
+        self.assertEqual(info['name'], 'another_lora')
+        self.assertEqual(info['strength'], '0.5')
+        self.assertEqual(info['type'], 'wanlora')
+        self.assertEqual(info['trigger_words'], [])
+        self.assertIsNone(info['base_model'])
+
+    def test_civitai_url_in_raw_output(self):
+        """Test that civitai_url is included in the raw JSON output."""
+        # Mock the load_metadata method to return test metadata
+        test_metadata = {
+            'civitai': {
+                'modelId': 971952,
+                'trainedWords': ['stabilizer'],
+                'images': []
+            },
+            'base_model': 'Illustrious'
+        }
+        
+        with patch.object(self.node, 'load_metadata', return_value=test_metadata):
+            prompt = "A beautiful scene <lora:test_stabilizer:0.8>"
+            result, processed_prompt = self.node.visualize_loras(prompt)
+            
+            # Parse the JSON result
+            metadata = json.loads(result)
+            
+            # Check that civitai_url is present in the output
+            self.assertEqual(len(metadata["standard_loras"]), 1)
+            lora_info = metadata["standard_loras"][0]
+            self.assertEqual(lora_info["civitai_url"], "https://civitai.com/models/971952")
+            self.assertEqual(lora_info["name"], "test_stabilizer")
+            self.assertEqual(lora_info["trigger_words"], ["stabilizer"])
+
+    def test_real_fixture_files(self):
+        """Test with actual fixture files to ensure complete integration."""
+        # Get the test directory path
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Test cases for our fixture files
+        test_cases = [
+            {
+                'fixture': 'fixtures/DetailAmplifier wan480p v1.0.metadata.json',
+                'expected_model_id': 1716960,
+                'lora_name': 'DetailAmplifier wan480p v1.0'
+            },
+            {
+                'fixture': 'fixtures/illustriousXLv01_stabilizer_v1.198.metadata.json',
+                'expected_model_id': 971952,
+                'lora_name': 'illustriousXLv01_stabilizer_v1.198'
+            }
+        ]
+        
+        for test_case in test_cases:
+            fixture_path = os.path.join(test_dir, test_case['fixture'])
+            
+            # Skip if fixture file doesn't exist
+            if not os.path.exists(fixture_path):
+                self.skipTest(f"Fixture file not found: {fixture_path}")
+            
+            # Load the actual fixture file
+            with open(fixture_path, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            
+            # Create test LoRA data
+            lora_data = {
+                'name': test_case['lora_name'],
+                'strength': '1.0',
+                'type': 'lora',
+                'tag': f'<lora:{test_case["lora_name"]}:1.0>'
+            }
+            
+            # Extract info using our method
+            info = self.node.extract_lora_info(lora_data, metadata)
+            
+            # Verify the Civitai URL is correctly extracted
+            expected_url = f"https://civitai.com/models/{test_case['expected_model_id']}"
+            self.assertEqual(info['civitai_url'], expected_url, 
+                           f"Failed for {test_case['lora_name']}")
+            
+            # Verify other important fields are also extracted
+            self.assertEqual(info['name'], test_case['lora_name'])
+            self.assertIsNotNone(info['base_model'])
+            
+            # Check that model ID exists in the metadata
+            self.assertEqual(metadata['civitai']['modelId'], test_case['expected_model_id'])
+
 
 if __name__ == '__main__':
     unittest.main()

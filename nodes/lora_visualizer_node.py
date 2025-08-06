@@ -159,12 +159,18 @@ class LoRAVisualizerNode:
             'model_description': None,
             'base_model': None,
             'nsfw_level': 0,
+            'civitai_url': None,
         }
         
         if metadata:
             # Extract trigger words
             if 'civitai' in metadata and 'trainedWords' in metadata['civitai']:
                 info['trigger_words'] = metadata['civitai']['trainedWords']
+            
+            # Extract Civitai URL
+            if 'civitai' in metadata and 'modelId' in metadata['civitai']:
+                model_id = metadata['civitai']['modelId']
+                info['civitai_url'] = f"https://civitai.com/models/{model_id}"
             
             # Extract preview image
             if 'preview_url' in metadata:
@@ -305,6 +311,7 @@ class LoRAVisualizerNode:
                     "tag": lora['tag'],
                     "trigger_words": lora.get('trigger_words', []),
                     "base_model": lora.get('base_model', 'Unknown'),
+                    "civitai_url": lora.get('civitai_url'),
                     "has_metadata": bool(lora.get('preview_url') or lora.get('trigger_words'))
                 }
                 for lora in standard_loras_info
@@ -316,6 +323,7 @@ class LoRAVisualizerNode:
                     "tag": lora['tag'],
                     "trigger_words": lora.get('trigger_words', []),
                     "base_model": lora.get('base_model', 'Unknown'),
+                    "civitai_url": lora.get('civitai_url'),
                     "has_metadata": bool(lora.get('preview_url') or lora.get('trigger_words'))
                 }
                 for lora in wanloras_info

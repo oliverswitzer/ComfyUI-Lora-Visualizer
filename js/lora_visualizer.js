@@ -62,7 +62,7 @@ function processLoRAMetadata(metadata) {
     previewUrl: metadata.preview_url,
     exampleImages: metadata.civitai?.images || [],
     baseModel: metadata.base_model,
-    civitaiUrl: metadata.civitai?.url || metadata.url || null,
+    civitaiUrl: metadata.civitai_url || null, // Use civitai_url from backend
     thumbnailImage: null,
   };
 }
@@ -325,43 +325,53 @@ function drawLoRAText(ctx, lora, x, startY, maxWidth = null) {
 }
 
 function drawLoRAButtons(ctx, lora, textX, triggerY, node, maxWidth = null) {
-  if (!lora.triggerWords?.length) return;
-
   const copyButtonY = triggerY + 16;
 
   // Calculate available width for buttons
   const availableButtonWidth = maxWidth || 300; // Fallback to reasonable default
-  const copyButtonWidth = Math.min(120, availableButtonWidth - 10);
   
-  // Copy button
-  drawButton(
-    ctx,
-    textX,
-    copyButtonY - 10,
-    copyButtonWidth,
-    16,
-    "Copy Trigger Words",
-    "#555",
-    "#777"
-  );
-  storeButtonArea(node, "copy", textX, copyButtonY - 10, copyButtonWidth, 16, {
-    triggerWords: lora.triggerWords,
-    lora: lora,
-  });
-
-  // Civitai button (if available)
+  // Get Civitai URL first to determine button layout
   const loraKey = `${lora.name}_${lora.type}`;
   const metadata = node.loraMetadataCache?.[loraKey];
+  const civitaiUrl = lora.civitai_url || metadata?.civitaiUrl;
+  
+  // If no trigger words and no civitai URL, don't show any buttons
+  if (!lora.triggerWords?.length && !civitaiUrl) return;
+  
+  let currentX = textX;
+  
+  // Copy button (only if there are trigger words)
+  if (lora.triggerWords?.length) {
+    const copyButtonWidth = Math.min(120, availableButtonWidth - 10);
+    
+    drawButton(
+      ctx,
+      currentX,
+      copyButtonY - 10,
+      copyButtonWidth,
+      16,
+      "Copy Trigger Words",
+      "#555",
+      "#777"
+    );
+    storeButtonArea(node, "copy", currentX, copyButtonY - 10, copyButtonWidth, 16, {
+      triggerWords: lora.triggerWords,
+      lora: lora,
+    });
+    
+    currentX += copyButtonWidth + 5;
+  }
 
-  if (metadata?.civitaiUrl) {
-    const linkButtonX = textX + copyButtonWidth + 5;
-    const linkButtonWidth = Math.min(80, availableButtonWidth - copyButtonWidth - 5);
+  // Civitai button (if available)
+  if (civitaiUrl) {
+    const remainingWidth = availableButtonWidth - (currentX - textX);
+    const linkButtonWidth = Math.min(80, remainingWidth);
     
     // Only show if there's enough space
     if (linkButtonWidth > 40) {
       drawButton(
         ctx,
-        linkButtonX,
+        currentX,
         copyButtonY - 10,
         linkButtonWidth,
         16,
@@ -369,8 +379,8 @@ function drawLoRAButtons(ctx, lora, textX, triggerY, node, maxWidth = null) {
         "#2196F3",
         "#1976D2"
       );
-      storeButtonArea(node, "link", linkButtonX, copyButtonY - 10, linkButtonWidth, 16, {
-        civitaiUrl: metadata.civitaiUrl,
+      storeButtonArea(node, "link", currentX, copyButtonY - 10, linkButtonWidth, 16, {
+        civitaiUrl: civitaiUrl,
         lora: lora,
       });
     }
@@ -549,7 +559,14 @@ function showHoverGallery(lora, x, y, thumbnailSize, node) {
 
   addGalleryTitle(gallery, lora.name);
   addGalleryImages(gallery, metadata, thumbnailSize);
-  addGalleryCivitaiLink(gallery, metadata);
+  
+  // Create combined metadata object with fallback to lora data
+  const combinedMetadata = {
+    ...metadata,
+    civitaiUrl: lora.civitai_url || metadata.civitaiUrl
+  };
+  
+  addGalleryCivitaiLink(gallery, combinedMetadata);
   setupGalleryEventHandlers(gallery, node);
 
   document.body.appendChild(gallery);
