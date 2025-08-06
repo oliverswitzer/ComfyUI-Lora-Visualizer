@@ -160,19 +160,20 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.semver.outputs.next }}
-          fetch-depth: 1
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify updated version
+      - name: Wait longer for Git changes to propagate
+        if: ${{ github.event.inputs.action_type == 'release' && github.event.inputs.dry_run != 'true' }}
+        run: sleep 15
+
+      - name: Verify version before publish
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
-          echo "## 🔍 Version Verification" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔍 Version Check" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f "pyproject.toml" ]; then
-            CURRENT_VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])" 2>/dev/null || echo "Unable to read version")
-            echo "- **pyproject.toml version**: $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Error**: pyproject.toml not found" >> $GITHUB_STEP_SUMMARY
-          fi
+          CURRENT_VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])" 2>/dev/null || echo "Unable to read version")
+          echo "- **pyproject.toml version**: $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
       - name: Publish to ComfyUI Registry
