@@ -1,6 +1,11 @@
 # LoRA Visualizer - ComfyUI Custom Node
 
-A ComfyUI custom node that parses prompt text for LoRA tags and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images.
+A ComfyUI custom node that parses prompt text for LoRA tags (wan and image gen) and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images.
+
+![Just the node](docs/images/node-in-workflow.png)
+![Just the node](docs/images/node-hover.png)
+![Just the node](docs/images/just-node.png)
+
 
 ## Features
 
