@@ -1,5 +1,5 @@
 [project]
-name = "switzerswish-lora-visualizer"
+name = "ComfyUI-Lora-Visualizer"
 description = "A ComfyUI custom node that parses prompt text for LoRA tags and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images."
 version = "1.0.1"
 license = { file = "LICENSE" }
