@@ -1,0 +1,8 @@
+# Requirements for LoRA Visualizer Custom Node
+# This node depends on ComfyUI's built-in modules and doesn't require additional packages
+# However, if using PDM for development, these would be useful:
+
+# Development dependencies (optional)
+pytest>=7.0.0
+black>=22.0.0
+pylint>=2.12.0
