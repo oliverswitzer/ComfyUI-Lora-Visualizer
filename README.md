@@ -197,6 +197,91 @@ Alternatively, use the ComfyUI CLI: `comfy node publish`
 
 For more details, see the [ComfyUI Registry Publishing Guide](https://docs.comfy.org/registry/publishing).
 
+## Development
+
+### Prerequisites
+
+- [PDM](https://pdm.fming.dev/latest/) for dependency management
+- Python 3.8+ (same as ComfyUI requirement)
+
+### Setup Development Environment
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/oliverswitzer/ComfyUI-Lora-Visualizer.git
+   cd ComfyUI-Lora-Visualizer
+   ```
+
+2. **Install development dependencies**:
+   ```bash
+   pdm install
+   ```
+   This creates a virtual environment and installs pytest, black, and pylint.
+
+### Running Tests
+
+pdm run test
+
+### Code Quality
+
+**Format code with Black**:
+```bash
+pdm run format
+```
+
+**Lint with Pylint**:
+```bash
+pdm run lint
+```
+
+**Run all checks (format + lint + test)**:
+```bash
+pdm run check
+```
+
+### Test Structure
+
+- **`tests/test_lora_parsing.py`**: Main test suite
+- **`tests/fixtures/`**: Sample metadata files for testing
+- **`conftest.py`**: Test configuration and ComfyUI mocking
+
+Tests cover:
+- LoRA tag parsing (standard and WanLoRA formats)
+- Metadata extraction and processing
+- Civitai URL generation
+- Edge cases and error handling
+
+### Available PDM Scripts
+
+| Command | Description |
+|---------|-------------|
+| `pdm run format` | Format code with Black |
+| `pdm run lint` | Lint code with Pylint |
+| `pdm run check` | Run format + lint (tests via ./run_tests.sh) |
+
+Note: For tests, use `./run_tests.sh` due to import complexities with ComfyUI's module structure.
+
+### Adding New Tests
+
+1. Add test methods to `TestLoRAVisualizerNode` class
+2. Use fixture files in `tests/fixtures/` for realistic data
+3. Mock ComfyUI dependencies (already set up in `conftest.py`)
+4. Run tests to ensure everything passes
+
+Example test:
+```python
+def test_new_feature(self):
+    """Test description."""
+    # Setup
+    test_data = {...}
+    
+    # Execute
+    result = self.node.some_method(test_data)
+    
+    # Assert
+    self.assertEqual(result, expected_value)
+```
+
 ## License
 
 [Add your license here]
