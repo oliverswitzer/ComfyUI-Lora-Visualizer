@@ -1,0 +1,241 @@
+# ComfyUI Custom Node Development Guidelines
+
+## 🏗️ Architecture Patterns
+
+### Custom Node Structure
+- **Python Backend (`nodes/*.py`)**: Handle all business logic, parsing, and data processing
+- **JavaScript Frontend (`js/*.js`)**: Handle UI rendering, user interactions, and visual presentation
+- **`__init__.py`**: Register nodes with `NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`, and `WEB_DIRECTORY`
+- **Clear separation**: Backend sends structured data via WebSocket, frontend receives and renders
+
+### ComfyUI Node Class Pattern
+```python
+class CustomNode:
+    CATEGORY = "category_name"
+    DESCRIPTION = """Multi-line description with features"""
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"input": ("STRING", {"tooltip": "..."})}}
+    
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("output_name",)
+    OUTPUT_TOOLTIPS = ("Description of output",)
+    FUNCTION = "main_function"
+    OUTPUT_NODE = True  # If node displays results
+```
+
+## 🔄 Data Flow Architecture
+
+### Backend → Frontend Communication
+- Use `PromptServer.instance.send_sync(event_name, data)` for real-time updates
+- Send structured data with `node_id` for targeting specific node instances
+- Handle errors gracefully with try-catch and fallback behavior
+
+### WebSocket Message Pattern
+```javascript
+// Backend
+PromptServer.instance.send_sync("custom_event", {
+    "node_id": str(id(self)),
+    "data": structured_data
+})
+
+// Frontend
+api.addEventListener("custom_event", (event) => {
+    const { node_id, data } = event.detail;
+    // Update specific node or all nodes of type
+});
+```
+
+## 🎨 JavaScript Extension Architecture
+
+### Function Hoisting for Organization
+- Use function hoisting to organize code in logical sections
+- Group functions by purpose: utilities, data processing, drawing, event handling
+- Keep main registration at bottom for clarity
+
+### Section Organization Pattern
+```javascript
+// ============================================================================
+// UTILITY FUNCTIONS (hoisted)
+// ============================================================================
+function utilityFunction() { }
+
+// ============================================================================
+// DATA PROCESSING
+// ============================================================================
+function processData() { }
+
+// ============================================================================
+// DRAWING FUNCTIONS  
+// ============================================================================
+function drawElements() { }
+
+// ============================================================================
+// EVENT HANDLING
+// ============================================================================
+function handleEvents() { }
+
+// ============================================================================
+// MAIN EXTENSION REGISTRATION
+// ============================================================================
+app.registerExtension({ ... });
+```
+
+### Canvas Drawing Best Practices
+- Calculate dimensions responsively based on node size
+- Use percentage-based sizing for scalability
+- Implement boundary checking to prevent overflow
+- Cache expensive operations (image loading, metadata processing)
+
+### Coordinate System Handling
+```javascript
+function transformCanvasCoordinates(e, node) {
+    const rect = app.canvas.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const canvasX = x / app.canvas.ds.scale - app.canvas.ds.offset[0];
+    const canvasY = y / app.canvas.ds.scale - app.canvas.ds.offset[1];
+    
+    return {
+        x: canvasX - node.pos[0],
+        y: canvasY - node.pos[1]
+    };
+}
+```
+
+## 🧪 Testing Strategy
+
+### Python Unit Testing
+- Mock ComfyUI dependencies (`folder_paths`, `server`, `aiohttp`) 
+- Test business logic in isolation from ComfyUI environment
+- Use `pytest.ini` and `conftest.py` for test configuration
+- Focus on edge cases and complex parsing logic
+
+### Test Structure Pattern
+```python
+# conftest.py - Mock dependencies
+sys.modules['folder_paths'] = Mock()
+sys.modules['server'] = Mock()
+
+# Test complex scenarios
+def test_complex_parsing(self):
+    result = self.node.parse_complex_input("edge case")
+    self.assertEqual(expected, result)
+```
+
+## 🔧 Parsing & Validation
+
+### Regex Pattern Consistency
+- Use identical parsing logic for similar tag types
+- Handle complex names with spaces, colons, special characters
+- Use `rfind(':')` for robust strength extraction
+
+### Robust Parsing Pattern
+```python
+def parse_tags(self, text: str) -> List[Dict]:
+    pattern = r'<tag_type:(.+?)>'
+    results = []
+    for match in re.finditer(pattern, text):
+        content = match.group(1).strip()
+        last_colon_index = content.rfind(':')
+        if last_colon_index > 0:
+            name = content[:last_colon_index].strip()
+            strength = content[last_colon_index + 1:].strip()
+            results.append({
+                'name': name, 
+                'strength': strength,
+                'type': 'tag_type',
+                'tag': match.group(0)
+            })
+    return results
+```
+
+## 🎯 User Experience Patterns
+
+### Responsive UI Elements
+- Thumbnail size should scale with node size (percentage-based)
+- Implement hover states with proper enter/leave handling
+- Use timeouts and state flags to prevent UI flickering
+- Provide visual feedback for all interactive elements
+
+### Error Handling & Graceful Degradation
+- Display meaningful error states when metadata is missing
+- Provide fallback content when external resources fail
+- Log errors appropriately (use `console.debug` for verbose logging)
+- Never crash the UI due to missing data
+
+### Accessibility & Usability
+- Add tooltips and descriptions for all inputs/outputs
+- Use consistent color coding and visual hierarchy
+- Implement copy-to-clipboard functionality for user convenience
+- Support manual node resizing with auto-size fallback
+
+## 📁 File Organization
+
+### Directory Structure
+```
+custom_nodes/your-node/
+├── __init__.py              # Node registration
+├── nodes/                   # Python business logic
+│   ├── __init__.py
+│   └── your_node.py
+├── js/                      # JavaScript UI extensions  
+│   └── your_extension.js
+├── tests/                   # Unit tests
+│   └── test_your_node.py
+├── conftest.py             # Test configuration
+├── pytest.ini             # Test settings
+├── requirements.txt        # Dependencies
+├── run_tests.sh           # Test runner
+└── README.md              # Documentation
+```
+
+## 🚀 Performance Optimization
+
+### Caching Strategy
+- Cache metadata lookups and image loading
+- Implement smart cache invalidation
+- Use async operations for I/O bound tasks
+- Throttle expensive operations (mouse events, redraws)
+
+### Memory Management
+- Clean up event listeners and timeouts
+- Remove DOM elements when not needed
+- Use efficient data structures for large datasets
+- Profile memory usage in development
+
+## 📝 Code Quality Standards
+
+### Naming Conventions
+- Use descriptive function and variable names
+- Follow Python PEP 8 and JavaScript standard conventions
+- Use consistent naming across backend/frontend boundaries
+- Document complex algorithms with inline comments
+
+### Documentation Requirements
+- Comprehensive docstrings for all Python classes/functions
+- Inline comments for complex JavaScript functions  
+- README with installation, usage, and examples
+- Code comments explaining non-obvious logic
+
+### Error Prevention
+- Type hints in Python where applicable
+- Input validation at API boundaries
+- Defensive programming for external data
+- Comprehensive test coverage for edge cases
+
+## 🔐 Security Considerations
+
+### Input Sanitization
+- Validate all user inputs before processing
+- Sanitize data before rendering in UI
+- Avoid eval() or similar dynamic code execution
+- Use parameterized queries for any database operations
+
+### File System Safety
+- Validate file paths and extensions
+- Use ComfyUI's folder_paths for safe directory access
+- Never expose internal file system structure
+- Implement proper access controls for sensitive operations
