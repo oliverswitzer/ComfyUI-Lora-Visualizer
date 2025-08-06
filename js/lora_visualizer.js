@@ -165,43 +165,28 @@ app.registerExtension({
       nodeType.prototype.handleCanvasClick = function (e) {
         if (!this.buttonAreas || this.buttonAreas.length === 0) return;
 
-        const rect = e.target.getBoundingClientRect();
+        // Get mouse position relative to canvas
+        const rect = app.canvas.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // Convert screen coordinates to local canvas coordinates
-        const scale = app.canvas.ds.scale;
-        const offsetX = app.canvas.ds.offset[0];
-        const offsetY = app.canvas.ds.offset[1];
-        const nodeRect = this.getBounding();
+        // Convert to canvas coordinates (accounting for zoom/pan)
+        const canvasX = x / app.canvas.ds.scale - app.canvas.ds.offset[0];
+        const canvasY = y / app.canvas.ds.scale - app.canvas.ds.offset[1];
 
-        // Transform coordinates relative to the widget area
-        const localX = x / scale - offsetX - nodeRect[0];
-        const localY = y / scale - offsetY - nodeRect[1];
-
-        // Account for widget area offset (widgets start below node title)
-        const widgetStartY = 50; // Approximate offset where widget content starts
-        const widgetLocalX = localX;
-        const widgetLocalY = localY - widgetStartY;
-
-        console.debug(
-          `Click at local coords: ${localX}, ${localY}, widget coords: ${widgetLocalX}, ${widgetLocalY}`
-        );
+        // Get node position
+        const nodePos = this.pos;
+        const relativeX = canvasX - nodePos[0];
+        const relativeY = canvasY - nodePos[1];
 
         // Check if click is within any button area
         for (const buttonArea of this.buttonAreas) {
-          console.debug(
-            `Checking button area: x=${buttonArea.x}, y=${buttonArea.y}, w=${buttonArea.width}, h=${buttonArea.height}`
-          );
-
           if (
-            widgetLocalX >= buttonArea.x &&
-            widgetLocalX <= buttonArea.x + buttonArea.width &&
-            widgetLocalY >= buttonArea.y &&
-            widgetLocalY <= buttonArea.y + buttonArea.height
+            relativeX >= buttonArea.x &&
+            relativeX <= buttonArea.x + buttonArea.width &&
+            relativeY >= buttonArea.y &&
+            relativeY <= buttonArea.y + buttonArea.height
           ) {
-            console.debug(`Button clicked: ${buttonArea.type}`);
-
             if (buttonArea.type === "copy") {
               this.copyTriggerWords(buttonArea.triggerWords);
             } else if (buttonArea.type === "link") {
@@ -210,8 +195,6 @@ app.registerExtension({
             return;
           }
         }
-
-        console.debug("No button area matched click");
       };
 
       // Add method to show copy feedback
