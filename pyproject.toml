@@ -9,6 +9,6 @@ dependencies = []
 Repository = "https://github.com/oliverswitzer/ComfyUI-Lora-Visualizer"
 
 [tool.comfy]
-PublisherId = "@switzerswish"
+PublisherId = "switzerswish"
 DisplayName = "LoRA Visualizer"
 Icon = "" 
