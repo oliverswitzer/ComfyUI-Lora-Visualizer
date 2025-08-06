@@ -152,18 +152,48 @@ This node can be published to the [ComfyUI Registry](https://registry.comfy.org)
 4. **Create API Key**: Generate an API key for your publisher in the registry
 5. **Set GitHub Secret**: Add your API key as `REGISTRY_ACCESS_TOKEN` in your GitHub repository secrets (Settings → Secrets and Variables → Actions → New Repository Secret)
 
-### Automatic Publishing
+### Automated Release Workflow
 
-The GitHub Action in `.github/workflows/publish_action.yml` will automatically publish your node when you:
-- Push changes to the `pyproject.toml` file on the main branch
-- Manually trigger the workflow via GitHub Actions
+The project uses **conventional commits** for automatic semantic versioning. The **"Release and Publish"** GitHub Action automatically determines the next version based on your commit messages:
+
+#### Commit Message Format:
+- `fix: description` → **patch** version bump (1.0.0 → 1.0.1)
+- `feat: description` → **minor** version bump (1.0.0 → 1.1.0)
+- `BREAKING CHANGE:` in commit body → **major** version bump (1.0.0 → 2.0.0)
+
+#### Release Process:
+1. **Make commits** using conventional format
+2. **Go to Actions** → "Release and Publish to ComfyUI Registry"
+3. **Click "Run workflow"**
+4. **Add changelog** (optional)
+5. **Choose dry run** to preview without releasing
+
+This workflow automatically:
+- ✅ Analyzes commit messages since last release
+- ✅ Calculates appropriate version bump
+- ✅ Updates version in `pyproject.toml`
+- ✅ Creates git tag (e.g., `v1.1.0`)
+- ✅ Creates GitHub release with changelog
+- ✅ Publishes to ComfyUI Registry
+
+#### Example Commit Messages:
+```bash
+git commit -m "fix: resolve parsing issue with special characters"
+git commit -m "feat: add support for custom LoRA tags"
+git commit -m "feat: new visualization mode
+
+BREAKING CHANGE: removes old API methods"
+```
 
 ### Manual Publishing
 
-You can also publish manually using the ComfyUI CLI:
-```bash
-comfy node publish
-```
+For quick republishing without version changes:
+1. **Go to Actions** → "Release and Publish to ComfyUI Registry"
+2. **Click "Run workflow"**
+3. **Select "publish_only"** from the action type dropdown
+4. **Click "Run workflow"**
+
+Alternatively, use the ComfyUI CLI: `comfy node publish`
 
 For more details, see the [ComfyUI Registry Publishing Guide](https://docs.comfy.org/registry/publishing).
 

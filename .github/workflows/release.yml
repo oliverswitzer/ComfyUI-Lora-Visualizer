@@ -1,0 +1,181 @@
+name: Release and Publish to ComfyUI Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      action_type:
+        description: "Action to perform"
+        required: true
+        default: "release"
+        type: choice
+        options:
+          - release
+          - publish_only
+      changelog:
+        description: "Additional changelog entry (optional)"
+        required: false
+        type: string
+      dry_run:
+        description: "Dry run - calculate version but don't create release (release mode only)"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    name: Release and Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        if: ${{ github.event.inputs.action_type == 'release' }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        if: ${{ github.event.inputs.action_type == 'release' }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install toml
+
+      - name: Get Next Version
+        if: ${{ github.event.inputs.action_type == 'release' }}
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+          noVersionBumpBehavior: patch
+
+      - name: Show Version Info (Release Mode)
+        if: ${{ github.event.inputs.action_type == 'release' }}
+        run: |
+          echo "## 📋 Version Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Current Version**: ${{ steps.semver.outputs.current }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Next Version**: ${{ steps.semver.outputs.next }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bump Type**: ${{ steps.semver.outputs.bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Show Publish Info (Publish Only Mode)
+        if: ${{ github.event.inputs.action_type == 'publish_only' }}
+        run: |
+          echo "## 📦 Publish Only Mode" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Publishing current version to ComfyUI Registry without creating a new release." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Update pyproject.toml version
+        if: ${{ github.event.inputs.action_type == 'release' && github.event.inputs.dry_run != 'true' }}
+        run: |
+          python -c "
+          import toml
+
+          # Read current pyproject.toml
+          with open('pyproject.toml', 'r') as f:
+              data = toml.load(f)
+
+          # Update version (remove 'v' prefix from semver output)
+          new_version = '${{ steps.semver.outputs.nextStrict }}'
+          data['project']['version'] = new_version
+
+          # Write back to file
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(data, f)
+
+          print(f'Updated version to {new_version}')
+          "
+
+      - name: Generate changelog entry
+        if: ${{ github.event.inputs.action_type == 'release' }}
+        id: changelog
+        run: |
+          ADDITIONAL="${{ github.event.inputs.changelog }}"
+          if [ -n "$ADDITIONAL" ]; then
+            echo "changelog_text=$ADDITIONAL" >> $GITHUB_OUTPUT
+          else
+            echo "changelog_text=Release ${{ steps.semver.outputs.next }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit version bump
+        if: ${{ github.event.inputs.action_type == 'release' && github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add pyproject.toml
+          git commit -m "bump version to ${{ steps.semver.outputs.next }}"
+
+      - name: Create Git tag
+        if: ${{ github.event.inputs.action_type == 'release' && github.event.inputs.dry_run != 'true' }}
+        run: |
+          git tag -a "${{ steps.semver.outputs.next }}" -m "Release ${{ steps.semver.outputs.next }}"
+
+      - name: Push changes and tags
+        if: ${{ github.event.inputs.action_type == 'release' && github.event.inputs.dry_run != 'true' }}
+        run: |
+          git push origin main
+          git push origin "${{ steps.semver.outputs.next }}"
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.action_type == 'release' && github.event.inputs.dry_run != 'true' }}
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          allowUpdates: true
+          draft: false
+          makeLatest: true
+          tag: ${{ steps.semver.outputs.next }}
+          name: LoRA Visualizer ${{ steps.semver.outputs.next }}
+          body: |
+            ## Changes in ${{ steps.semver.outputs.next }}
+
+            ${{ steps.changelog.outputs.changelog_text }}
+
+            ## Installation
+
+            ```bash
+            comfy node install comfyui-lora-visualizer
+            ```
+
+            ## Full Changelog
+
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.semver.outputs.current }}...${{ steps.semver.outputs.next }}
+          token: ${{ github.token }}
+
+      - name: Publish to ComfyUI Registry
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: Comfy-Org/publish-node-action@main
+        with:
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+
+      - name: Summary
+        run: |
+          if [ "${{ github.event.inputs.action_type }}" = "publish_only" ]; then
+            echo "## 📦 Publish Complete!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The current version has been published to the ComfyUI Registry." >> $GITHUB_STEP_SUMMARY
+            echo "- **Registry**: [comfyui-lora-visualizer](https://registry.comfy.org/publishers/switzerswish/nodes/comfyui-lora-visualizer)" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "## 🔍 Dry Run Complete!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This was a dry run - no changes were made." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: ${{ steps.semver.outputs.current }} → ${{ steps.semver.outputs.next }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Bump Type**: ${{ steps.semver.outputs.bump }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## 🎉 Release Complete!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: ${{ steps.semver.outputs.current }} → ${{ steps.semver.outputs.next }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Bump Type**: ${{ steps.semver.outputs.bump }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Tag**: [${{ steps.semver.outputs.next }}](https://github.com/${{ github.repository }}/releases/tag/${{ steps.semver.outputs.next }})" >> $GITHUB_STEP_SUMMARY
+            echo "- **Registry**: [comfyui-lora-visualizer](https://registry.comfy.org/publishers/switzerswish/nodes/comfyui-lora-visualizer)" >> $GITHUB_STEP_SUMMARY
+          fi
