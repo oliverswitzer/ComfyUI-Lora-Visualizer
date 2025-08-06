@@ -203,7 +203,6 @@ custom_nodes/your-node/
 ## 📝 Code Quality Standards
 
 ## Write tests
-
 * Use ./run_tests.sh to run tests
 * Write tests, and keep your test setup DRY.
 * Right now there are no frontend tests, but there are backend tests for in tests/
@@ -225,6 +224,13 @@ custom_nodes/your-node/
 - Input validation at API boundaries
 - Defensive programming for external data
 - Comprehensive test coverage for edge cases
+
+### Code Reuse & Duplication Prevention
+- **ALWAYS search existing codebase** before implementing new functionality
+- **Reuse existing working patterns** especially for common operations (clipboard, WebSocket handling, UI components)
+- **Grep for similar functionality** using keywords like "clipboard", "copy", "navigator.clipboard" before creating new implementations
+- **Avoid reimplementing proven code** - if there's already working clipboard/fetch/validation logic, extend or reuse it
+- **When adding new features**, check if similar UI patterns already exist (buttons, modals, feedback systems)
 
 ## 🔐 Security Considerations
 

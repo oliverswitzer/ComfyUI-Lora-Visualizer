@@ -538,8 +538,8 @@ function createGalleryElement(lora, x, y) {
         border: 2px solid ${lora.type === "wanlora" ? "#ff9a4a" : "#4a9eff"};
         border-radius: 8px;
         padding: 15px;
-        max-width: 400px;
-        max-height: 300px;
+        max-width: 500px;
+        max-height: 600px;
         overflow-y: auto;
         z-index: 10000;
         color: white;
@@ -570,7 +570,7 @@ function addGalleryImages(gallery, lora, thumbnailSize) {
   imagesDiv.style.cssText = `
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(${thumbnailSize}px, 1fr));
-        gap: 8px;
+        gap: 12px;
         margin-top: 10px;
     `;
 
@@ -593,12 +593,19 @@ function createGalleryImageElement(imageData, thumbnailSize) {
 }
 
 function createGalleryVideoElement(imageData, thumbnailSize) {
+  const container = document.createElement("div");
+  container.style.cssText = `
+        width: ${thumbnailSize}px;
+        background: rgba(40, 40, 40, 0.9);
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+
   const videoContainer = document.createElement("div");
   videoContainer.style.cssText = `
-        width: ${thumbnailSize}px;
+        width: 100%;
         height: ${thumbnailSize}px;
-        border-radius: 4px;
-        overflow: hidden;
         position: relative;
         cursor: pointer;
     `;
@@ -608,7 +615,7 @@ function createGalleryVideoElement(imageData, thumbnailSize) {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        border-radius: 4px;
+        display: block;
     `;
   video.src = imageData.url;
   video.autoplay = true;
@@ -632,23 +639,121 @@ function createGalleryVideoElement(imageData, thumbnailSize) {
   videoContainer.onclick = () => window.open(imageData.url, "_blank");
   videoContainer.appendChild(video);
   videoContainer.appendChild(label);
+  
+  container.appendChild(videoContainer);
 
-  return videoContainer;
+  // Add prompt section if available
+  if (imageData.meta?.prompt) {
+    const promptSection = createPromptSection(imageData.meta.prompt);
+    container.appendChild(promptSection);
+  }
+
+  return container;
 }
 
 function createGalleryImageDiv(imageData, thumbnailSize) {
+  const container = document.createElement("div");
+  container.style.cssText = `
+        width: ${thumbnailSize}px;
+        background: rgba(40, 40, 40, 0.9);
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+
   const img = document.createElement("img");
   img.style.cssText = `
-        width: ${thumbnailSize}px;
+        width: 100%;
         height: ${thumbnailSize}px;
         object-fit: cover;
-        border-radius: 4px;
         cursor: pointer;
+        display: block;
     `;
   img.src = imageData.url;
   img.onclick = () => window.open(imageData.url, "_blank");
-  return img;
+
+  container.appendChild(img);
+
+  // Add prompt section if available
+  if (imageData.meta?.prompt) {
+    const promptSection = createPromptSection(imageData.meta.prompt);
+    container.appendChild(promptSection);
+  }
+
+  return container;
 }
+
+function createPromptSection(prompt) {
+  const promptSection = document.createElement("div");
+  promptSection.style.cssText = `
+        padding: 8px;
+        background: rgba(20, 20, 20, 0.95);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+
+  // Truncate prompt for display
+  const maxLength = 80;
+  const displayPrompt = prompt.length > maxLength ? 
+    prompt.substring(0, maxLength) + "..." : prompt;
+
+  const promptText = document.createElement("div");
+  promptText.style.cssText = `
+        font-size: 10px;
+        color: #ccc;
+        margin-bottom: 6px;
+        line-height: 1.3;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    `;
+  promptText.textContent = displayPrompt;
+
+  const copyButton = document.createElement("button");
+  copyButton.style.cssText = `
+        background: rgba(74, 158, 255, 0.8);
+        border: none;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 9px;
+        cursor: pointer;
+        transition: background 0.2s;
+        width: 100%;
+    `;
+  copyButton.textContent = "Copy Prompt";
+  
+  copyButton.onmouseover = () => {
+    copyButton.style.background = "rgba(74, 158, 255, 1)";
+  };
+  
+  copyButton.onmouseout = () => {
+    copyButton.style.background = "rgba(74, 158, 255, 0.8)";
+  };
+
+  copyButton.onclick = (e) => {
+    e.stopPropagation(); // Prevent triggering image click
+    
+    // Use the existing clipboard functionality
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(prompt)
+        .then(() => {
+          showCopyFeedback("Copied to clipboard!", false);
+        })
+        .catch(() => {
+          fallbackCopyToClipboard(prompt);
+        });
+    } else {
+      fallbackCopyToClipboard(prompt);
+    }
+  };
+
+  promptSection.appendChild(promptText);
+  promptSection.appendChild(copyButton);
+
+  return promptSection;
+}
+
+
 
 function addGalleryCivitaiLink(gallery, lora) {
   if (!lora.civitai_url) return;

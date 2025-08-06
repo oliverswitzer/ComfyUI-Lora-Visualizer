@@ -412,6 +412,66 @@ class TestVisualizeLoras(unittest.TestCase):
             # Check that model ID exists in the metadata
             self.assertEqual(metadata['civitai']['modelId'], test_case['expected_model_id'])
 
+    def test_example_images_contain_prompts(self):
+        """Test that example images contain prompt metadata for copy functionality"""
+        # Get the test directory path
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        test_cases = [
+            {
+                'fixture': 'fixtures/illustriousXLv01_stabilizer_v1.198.metadata.json',
+                'expected_images_with_prompts': True
+            },
+            {
+                'fixture': 'fixtures/Woman877.v2.metadata.json', 
+                'expected_images_with_prompts': True
+            }
+        ]
+        
+        for test_case in test_cases:
+            with self.subTest(file=test_case['fixture']):
+                # Load the metadata file
+                metadata_path = os.path.join(test_dir, test_case['fixture'])
+                
+                # Skip if fixture file doesn't exist
+                if not os.path.exists(metadata_path):
+                    self.skipTest(f"Fixture file not found: {metadata_path}")
+                
+                with open(metadata_path, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                
+                # Create test LoRA data from the fixture filename
+                filename = os.path.basename(test_case['fixture'])
+                lora_name = filename.replace('.metadata.json', '')
+                lora_data = {
+                    'name': lora_name,
+                    'strength': '1.0',
+                    'type': 'lora',
+                    'tag': f'<lora:{lora_name}:1.0>'
+                }
+                
+                # Extract info using our method
+                info = self.node.extract_lora_info(lora_data, metadata)
+                
+                # Verify example images exist
+                self.assertIn('example_images', info)
+                self.assertIsInstance(info['example_images'], list)
+                
+                if test_case['expected_images_with_prompts']:
+                    # Check that at least some images have prompts in their metadata
+                    images_with_prompts = [
+                        img for img in info['example_images'] 
+                        if img.get('meta') and img['meta'].get('prompt')
+                    ]
+                    self.assertGreater(len(images_with_prompts), 0, 
+                                     f"No example images found with prompts in {test_case['fixture']}")
+                    
+                    # Verify prompt format
+                    for img in images_with_prompts[:3]:  # Check first 3 images
+                        prompt = img['meta']['prompt']
+                        self.assertIsInstance(prompt, str)
+                        self.assertGreater(len(prompt.strip()), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
