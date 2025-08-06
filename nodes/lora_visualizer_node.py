@@ -182,7 +182,9 @@ class LoRAVisualizerNode:
                         'url': img['url'],
                         'width': img.get('width', 0),
                         'height': img.get('height', 0),
-                        'nsfw_level': img.get('nsfwLevel', 1)
+                        'nsfw_level': img.get('nsfwLevel', 1),
+                        'type': img.get('type', 'image'),
+                        'meta': img.get('meta', {})  # Include full metadata for prompts
                     }
                     for img in metadata['civitai']['images']
                 ]
