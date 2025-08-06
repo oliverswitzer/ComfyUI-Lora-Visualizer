@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-lora-visualizer"
 description = "A ComfyUI custom node that parses prompt text for LoRA tags and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images."
-version = "1.1.2"
+version = "1.2.0"
 dependencies = []
 
 [project.license]
