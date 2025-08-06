@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       action_type:
-        description: "Action to perform"
+        description: 'Action to perform'
         required: true
-        default: "release"
+        default: 'release'
         type: choice
         options:
           - release
           - publish_only
       changelog:
-        description: "Additional changelog entry (optional)"
+        description: 'Additional changelog entry (optional)'
         required: false
         type: string
       dry_run:
@@ -40,7 +40,7 @@ jobs:
         if: ${{ github.event.inputs.action_type == 'release' }}
         uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: '3.x'
 
       - name: Install dependencies
         if: ${{ github.event.inputs.action_type == 'release' }}
@@ -150,6 +150,30 @@ jobs:
 
             **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.semver.outputs.current }}...${{ steps.semver.outputs.next }}
           token: ${{ github.token }}
+
+      - name: Wait for changes to propagate
+        if: ${{ github.event.inputs.action_type == 'release' && github.event.inputs.dry_run != 'true' }}
+        run: sleep 5
+
+      - name: Re-checkout after version bump
+        if: ${{ github.event.inputs.action_type == 'release' && github.event.inputs.dry_run != 'true' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.semver.outputs.next }}
+          fetch-depth: 1
+
+      - name: Verify updated version
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          echo "## 🔍 Version Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "pyproject.toml" ]; then
+            CURRENT_VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])" 2>/dev/null || echo "Unable to read version")
+            echo "- **pyproject.toml version**: $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Error**: pyproject.toml not found" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
 
       - name: Publish to ComfyUI Registry
         if: ${{ github.event.inputs.dry_run != 'true' }}
