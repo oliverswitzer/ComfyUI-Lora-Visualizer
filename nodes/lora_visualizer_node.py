@@ -9,7 +9,6 @@ import re
 import folder_paths
 from typing import Dict, List, Tuple, Optional, Any
 from server import PromptServer
-from aiohttp import web
 
 
 class LoRAVisualizerNode:
@@ -337,34 +336,3 @@ class LoRAVisualizerNode:
         return (raw_info_output, prompt_text)
 
 
-# Add API endpoint for frontend to fetch LoRA metadata
-@PromptServer.instance.routes.get("/lora_metadata/{lora_name}")
-async def get_lora_metadata(request):
-    """API endpoint to get LoRA metadata for a specific LoRA"""
-    lora_name = request.match_info.get('lora_name')
-    
-    if not lora_name:
-        return web.json_response({"error": "No LoRA name provided"}, status=400)
-    
-    # Get loras folder path
-    loras_folder = folder_paths.get_folder_paths("loras")[0] if folder_paths.get_folder_paths("loras") else None
-    
-    if not loras_folder:
-        return web.json_response({"error": "LoRAs folder not found"}, status=404)
-    
-    # Try to find metadata file
-    metadata_path = os.path.join(loras_folder, f"{lora_name}.metadata.json")
-    
-    if not os.path.exists(metadata_path):
-        # Try with .safetensors extension in name
-        metadata_path = os.path.join(loras_folder, f"{lora_name}.safetensors.metadata.json")
-    
-    if not os.path.exists(metadata_path):
-        return web.json_response({"error": "Metadata not found"}, status=404)
-    
-    try:
-        with open(metadata_path, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
-        return web.json_response(metadata)
-    except (json.JSONDecodeError, IOError) as e:
-        return web.json_response({"error": f"Failed to load metadata: {str(e)}"}, status=500)

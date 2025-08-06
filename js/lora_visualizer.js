@@ -56,18 +56,42 @@ function drawButton(
 // METADATA PROCESSING
 // ============================================================================
 
-function processLoRAMetadata(metadata) {
-  return {
-    triggerWords: metadata.civitai?.trainedWords || [],
-    previewUrl: metadata.preview_url,
-    exampleImages: metadata.civitai?.images || [],
-    baseModel: metadata.base_model,
-    civitaiUrl: metadata.civitai_url || null, // Use civitai_url from backend
-    thumbnailImage: null,
-  };
+function loadThumbnailImage(lora, node) {
+  // Skip if already loaded or loading
+  if (lora.thumbnailImage || lora.thumbnailLoading) {
+    return;
+  }
+
+  // Load thumbnail from the first available example image
+  if (!lora.example_images || lora.example_images.length === 0) {
+    return;
+  }
+
+  let thumbnailEntry = lora.example_images.find(
+    (img) => !img.url.endsWith(".mp4")
+  );
+
+  if (!thumbnailEntry && lora.type === "wanlora") {
+    thumbnailEntry = lora.example_images.find(
+      (img) => img.url.endsWith(".mp4")
+    );
+  }
+
+  if (!thumbnailEntry) return;
+
+  // Mark as loading to prevent duplicate requests
+  lora.thumbnailLoading = true;
+
+  const isVideo = thumbnailEntry.url.endsWith(".mp4");
+
+  if (isVideo) {
+    loadVideoThumbnail(lora, thumbnailEntry, node);
+  } else {
+    loadImageThumbnail(lora, thumbnailEntry, node);
+  }
 }
 
-function loadVideoThumbnail(lora, thumbnailEntry, processedMetadata, node) {
+function loadVideoThumbnail(lora, thumbnailEntry, node) {
   const video = document.createElement("video");
   video.crossOrigin = "anonymous";
   video.muted = true;
@@ -89,9 +113,9 @@ function loadVideoThumbnail(lora, thumbnailEntry, processedMetadata, node) {
 
     const img = new Image();
     img.onload = () => {
-      processedMetadata.thumbnailImage = img;
-      processedMetadata.isVideoThumbnail = true;
-      cacheMetadata(lora, processedMetadata, node);
+      lora.thumbnailImage = img;
+      lora.isVideoThumbnail = true;
+      lora.thumbnailLoading = false;
       node.setDirtyCanvas(true, true);
     };
     img.src = canvas.toDataURL();
@@ -99,83 +123,30 @@ function loadVideoThumbnail(lora, thumbnailEntry, processedMetadata, node) {
 
   video.addEventListener("error", () => {
     console.warn(`Failed to load video thumbnail for ${lora.name}`);
-    cacheMetadata(lora, processedMetadata, node);
+    lora.thumbnailLoading = false;
     node.setDirtyCanvas(true, true);
   });
 
   video.src = thumbnailEntry.url;
 }
 
-function loadImageThumbnail(lora, thumbnailEntry, processedMetadata, node) {
+function loadImageThumbnail(lora, thumbnailEntry, node) {
   const img = new Image();
   img.crossOrigin = "anonymous";
 
   img.onload = () => {
-    processedMetadata.thumbnailImage = img;
-    cacheMetadata(lora, processedMetadata, node);
+    lora.thumbnailImage = img;
+    lora.thumbnailLoading = false;
     node.setDirtyCanvas(true, true);
   };
 
   img.onerror = () => {
     console.warn(`Failed to load image thumbnail for ${lora.name}`);
-    cacheMetadata(lora, processedMetadata, node);
+    lora.thumbnailLoading = false;
     node.setDirtyCanvas(true, true);
   };
 
   img.src = thumbnailEntry.url;
-}
-
-function cacheMetadata(lora, processedMetadata, node) {
-  const loraKey = `${lora.name}_${lora.type}`;
-  node.loraMetadataCache[loraKey] = processedMetadata;
-  lora.triggerWords = processedMetadata.triggerWords;
-}
-
-function loadLoRAMetadata(lora, node) {
-  const loraKey = `${lora.name}_${lora.type}`;
-
-  if (node.loraMetadataCache && node.loraMetadataCache[loraKey]) {
-    return;
-  }
-
-  fetch(`/lora_metadata/${encodeURIComponent(lora.name)}`)
-    .then((response) => response.json())
-    .then((metadata) => {
-      const processedMetadata = processLoRAMetadata(metadata);
-
-      if (metadata.civitai?.images && metadata.civitai.images.length > 0) {
-        let thumbnailEntry = metadata.civitai.images.find(
-          (img) => img.type !== "video" && !img.url.endsWith(".mp4")
-        );
-
-        if (!thumbnailEntry && lora.type === "wanlora") {
-          thumbnailEntry = metadata.civitai.images.find(
-            (img) => img.type === "video" || img.url.endsWith(".mp4")
-          );
-        }
-
-        if (thumbnailEntry) {
-          const isVideo =
-            thumbnailEntry.type === "video" ||
-            thumbnailEntry.url.endsWith(".mp4");
-
-          if (isVideo) {
-            loadVideoThumbnail(lora, thumbnailEntry, processedMetadata, node);
-          } else {
-            loadImageThumbnail(lora, thumbnailEntry, processedMetadata, node);
-          }
-        } else {
-          cacheMetadata(lora, processedMetadata, node);
-          node.setDirtyCanvas(true, true);
-        }
-      } else {
-        cacheMetadata(lora, processedMetadata, node);
-        node.setDirtyCanvas(true, true);
-      }
-    })
-    .catch((error) => {
-      console.warn(`Failed to load metadata for ${lora.name}:`, error);
-    });
 }
 
 // ============================================================================
@@ -233,13 +204,10 @@ function drawLoRAItem(ctx, lora, x, y, width, accentColor, node) {
 }
 
 function drawThumbnail(ctx, lora, x, y, size, node) {
-  const loraKey = `${lora.name}_${lora.type}`;
-  const metadata = node.loraMetadataCache?.[loraKey];
+  if (lora.thumbnailImage) {
+    ctx.drawImage(lora.thumbnailImage, x, y, size, size);
 
-  if (metadata?.thumbnailImage) {
-    ctx.drawImage(metadata.thumbnailImage, x, y, size, size);
-
-    if (metadata.isVideoThumbnail) {
+    if (lora.isVideoThumbnail) {
       ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fillRect(x + size - 45, y + size - 20, 40, 15);
       ctx.fillStyle = "#fff";
@@ -301,10 +269,10 @@ function drawLoRAText(ctx, lora, x, startY, maxWidth = null) {
 
   // Trigger words
   const triggerY = lora.base_model ? startY + 74 : startY + 56;
-  if (lora.triggerWords?.length > 0) {
+  if (lora.trigger_words?.length > 0) {
     ctx.fillStyle = "#aaa";
     ctx.font = "12px Arial";
-    let triggerText = `Triggers: ${lora.triggerWords.join(", ")}`;
+    let triggerText = `Triggers: ${lora.trigger_words.join(", ")}`;
     if (maxWidth) {
       while (ctx.measureText(triggerText).width > maxWidth && triggerText.length > 12) {
         // Keep at least "Triggers: ..."
@@ -330,18 +298,13 @@ function drawLoRAButtons(ctx, lora, textX, triggerY, node, maxWidth = null) {
   // Calculate available width for buttons
   const availableButtonWidth = maxWidth || 300; // Fallback to reasonable default
   
-  // Get Civitai URL first to determine button layout
-  const loraKey = `${lora.name}_${lora.type}`;
-  const metadata = node.loraMetadataCache?.[loraKey];
-  const civitaiUrl = lora.civitai_url || metadata?.civitaiUrl;
-  
   // If no trigger words and no civitai URL, don't show any buttons
-  if (!lora.triggerWords?.length && !civitaiUrl) return;
+  if (!lora.trigger_words?.length && !lora.civitai_url) return;
   
   let currentX = textX;
   
   // Copy button (only if there are trigger words)
-  if (lora.triggerWords?.length) {
+  if (lora.trigger_words?.length) {
     const copyButtonWidth = Math.min(120, availableButtonWidth - 10);
     
     drawButton(
@@ -355,7 +318,7 @@ function drawLoRAButtons(ctx, lora, textX, triggerY, node, maxWidth = null) {
       "#777"
     );
     storeButtonArea(node, "copy", currentX, copyButtonY - 10, copyButtonWidth, 16, {
-      triggerWords: lora.triggerWords,
+      triggerWords: lora.trigger_words,
       lora: lora,
     });
     
@@ -363,7 +326,7 @@ function drawLoRAButtons(ctx, lora, textX, triggerY, node, maxWidth = null) {
   }
 
   // Civitai button (if available)
-  if (civitaiUrl) {
+  if (lora.civitai_url) {
     const remainingWidth = availableButtonWidth - (currentX - textX);
     const linkButtonWidth = Math.min(80, remainingWidth);
     
@@ -380,7 +343,7 @@ function drawLoRAButtons(ctx, lora, textX, triggerY, node, maxWidth = null) {
         "#1976D2"
       );
       storeButtonArea(node, "link", currentX, copyButtonY - 10, linkButtonWidth, 16, {
-        civitaiUrl: civitaiUrl,
+        civitaiUrl: lora.civitai_url,
         lora: lora,
       });
     }
@@ -550,23 +513,13 @@ function showCopyFeedback(message, isError) {
 function showHoverGallery(lora, x, y, thumbnailSize, node) {
   hideHoverGallery(node);
 
-  const loraKey = `${lora.name}_${lora.type}`;
-  const metadata = node.loraMetadataCache?.[loraKey];
-
-  if (!metadata) return;
+  if (!lora.example_images || lora.example_images.length === 0) return;
 
   const gallery = createGalleryElement(lora, x, y);
 
   addGalleryTitle(gallery, lora.name);
-  addGalleryImages(gallery, metadata, thumbnailSize);
-  
-  // Create combined metadata object with fallback to lora data
-  const combinedMetadata = {
-    ...metadata,
-    civitaiUrl: lora.civitai_url || metadata.civitaiUrl
-  };
-  
-  addGalleryCivitaiLink(gallery, combinedMetadata);
+  addGalleryImages(gallery, lora, thumbnailSize);
+  addGalleryCivitaiLink(gallery, lora);
   setupGalleryEventHandlers(gallery, node);
 
   document.body.appendChild(gallery);
@@ -603,8 +556,8 @@ function addGalleryTitle(gallery, loraName) {
   gallery.appendChild(title);
 }
 
-function addGalleryImages(gallery, metadata, thumbnailSize) {
-  if (!metadata.exampleImages?.length) {
+function addGalleryImages(gallery, lora, thumbnailSize) {
+  if (!lora.example_images?.length) {
     const noImagesDiv = document.createElement("div");
     noImagesDiv.style.cssText =
       "margin-top: 10px; font-size: 12px; color: #999;";
@@ -621,7 +574,7 @@ function addGalleryImages(gallery, metadata, thumbnailSize) {
         margin-top: 10px;
     `;
 
-  metadata.exampleImages.slice(0, 6).forEach((imageData) => {
+  lora.example_images.slice(0, 6).forEach((imageData) => {
     const element = createGalleryImageElement(imageData, thumbnailSize);
     imagesDiv.appendChild(element);
   });
@@ -697,8 +650,8 @@ function createGalleryImageDiv(imageData, thumbnailSize) {
   return img;
 }
 
-function addGalleryCivitaiLink(gallery, metadata) {
-  if (!metadata.civitaiUrl) return;
+function addGalleryCivitaiLink(gallery, lora) {
+  if (!lora.civitai_url) return;
 
   const link = document.createElement("a");
   link.style.cssText = `
@@ -711,7 +664,7 @@ function addGalleryCivitaiLink(gallery, metadata) {
         border-radius: 4px;
         font-size: 12px;
     `;
-  link.href = metadata.civitaiUrl;
+  link.href = lora.civitai_url;
   link.target = "_blank";
   link.textContent = "View on Civitai";
   gallery.appendChild(link);
@@ -802,7 +755,7 @@ function drawLoRASection(ctx, title, loras, startY, width, accentColor, node) {
 
   // Draw each LoRA
   loras.forEach((lora) => {
-    loadLoRAMetadata(lora, node);
+    loadThumbnailImage(lora, node);
     currentY = drawLoRAItem(
       ctx,
       lora,
@@ -866,7 +819,6 @@ function setupNodeEventHandlers(node) {
 
 function setupNodeState(node) {
   node.loraData = { standard_loras: [], wanloras: [] };
-  node.loraMetadataCache = {};
   node.thumbnailAreas = [];
   node.buttonAreas = [];
   node.currentlyHovered = null;
