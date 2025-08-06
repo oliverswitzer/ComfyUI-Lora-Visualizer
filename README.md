@@ -1,10 +1,12 @@
 # LoRA Visualizer - ComfyUI Custom Node
 
-A ComfyUI custom node that parses prompt text for LoRA tags (wan and image gen) and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images.
+A ComfyUI custom node that parses prompt text for LoRA tags (wan and image gen, using `<lora:yourtag:1.0>` syntax and `<wanlora:yourtag:1.0>` syntax respectively) and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images.
 
-![Just the node](docs/images/node-in-workflow.png)
-![Just the node](docs/images/node-hover.png)
-![Just the node](docs/images/just-node.png)
+![LoRA Visualizer node in workflow](docs/images/node-in-workflow.png)
+
+![LoRA Visualizer node interface](docs/images/just-node.png)
+
+![LoRA Visualizer hover interaction](docs/images/node-hover.png)
 
 
 ## Features
@@ -137,6 +139,33 @@ lora-visualizer/
 3. Add tests for new functionality
 4. Ensure all tests pass
 5. Submit a pull request
+
+## Publishing to ComfyUI Registry
+
+This node can be published to the [ComfyUI Registry](https://registry.comfy.org) for easy installation by users.
+
+### Setup for Publishing
+
+1. **Create a Publisher Account**: Go to [Comfy Registry](https://registry.comfy.org) and create a publisher account
+2. **Get Your Publisher ID**: Find your publisher ID (after the `@` symbol) on your profile page
+3. **Update pyproject.toml**: Add your Publisher ID to the `PublisherId` field in `pyproject.toml`
+4. **Create API Key**: Generate an API key for your publisher in the registry
+5. **Set GitHub Secret**: Add your API key as `REGISTRY_ACCESS_TOKEN` in your GitHub repository secrets (Settings → Secrets and Variables → Actions → New Repository Secret)
+
+### Automatic Publishing
+
+The GitHub Action in `.github/workflows/publish_action.yml` will automatically publish your node when you:
+- Push changes to the `pyproject.toml` file on the main branch
+- Manually trigger the workflow via GitHub Actions
+
+### Manual Publishing
+
+You can also publish manually using the ComfyUI CLI:
+```bash
+comfy node publish
+```
+
+For more details, see the [ComfyUI Registry Publishing Guide](https://docs.comfy.org/registry/publishing).
 
 ## License
 
