@@ -1,0 +1,637 @@
+{
+  "file_name": "illustriousXLv01_stabilizer_v1.198",
+  "model_name": "Stabilizer IL/NAI",
+  "file_path": "/Users/oliverswitzer/workspace/LLM-video-stuff/ComfyUI/models/loras/illustriousXLv01_stabilizer_v1.198.safetensors",
+  "size": 45448508,
+  "modified": 1754485259.8386297,
+  "sha256": "c502b406ef9bf74c924637d50d606a13d9bfe2362c00e8b4ba00440ef64acf22",
+  "base_model": "Illustrious",
+  "preview_url": "/Users/oliverswitzer/workspace/LLM-video-stuff/ComfyUI/models/loras/illustriousXLv01_stabilizer_v1.198.webp",
+  "preview_nsfw_level": 1,
+  "notes": "",
+  "from_civitai": true,
+  "civitai": {
+    "id": 2055853,
+    "modelId": 971952,
+    "name": "illus01 v1.198",
+    "createdAt": "2025-07-28T06:22:51.918Z",
+    "updatedAt": "2025-07-28T06:56:17.986Z",
+    "status": "Published",
+    "publishedAt": "2025-07-28T06:56:17.950Z",
+    "trainedWords": [],
+    "trainingStatus": null,
+    "trainingDetails": null,
+    "baseModel": "Illustrious",
+    "baseModelType": "Standard",
+    "earlyAccessEndsAt": null,
+    "earlyAccessConfig": null,
+    "description": null,
+    "uploadType": "Created",
+    "usageControl": "Download",
+    "air": "urn:air:sdxl:lora:civitai:971952@2055853",
+    "stats": {
+      "downloadCount": 3249,
+      "ratingCount": 0,
+      "rating": 0,
+      "thumbsUpCount": 434
+    },
+    "model": {
+      "name": "Stabilizer IL/NAI",
+      "type": "LORA",
+      "nsfw": false,
+      "poi": false,
+      "description": "<p><strong>Note:</strong> Cover images are <strong>directly</strong> from the vanilla (the original) base model in good old a1111, at default 1MP resolution. No upscale, no plugins, no inpainting fixes.</p><p>This LoRA prefers vanilla base model for best natural details. You don't need black magics (merges of merges of merges...) and they usually are not recommended, because you can't adjust the strength of those merged styles.</p><hr /><p><strong>(7/28/2025) illus01 v1.198</strong></p><p>Mainly comparing to v1.185c:</p><ul><li><p>End of \"c\" version. Although \"visually striking\" is good but it has compatibility issues. E.g. when your base model has similar enhancement for contrast already. Stacking two same enhancements is really bad. So, no more crazy post-effects (high contrast and saturation, etc.).</p></li><li><p>Instead, more textures and details. Cinematic level of lighting.</p></li><li><p>Better compatibility. Even it was trained on illus01, now you should be able to use it with strength 1 in NoobAI without noticeable stability issues.</p></li><li><p>This version changed lots of things, including dataset overhaul, so the effect will be quite different than previous versions.</p></li></ul><p>For those who want v1.185c crazy effects back. You can find pure and dedicated art styles in this <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1777579?modelVersionId=2060407\">page</a>. If dataset is big enough for a LoRA, I may train one.</p><p><s>This probably the last version for illustrious. 1), I don't know what to improve. 2), I was playing with Chroma (a FLUX.1-schnell based finetune) recently, seems very promising. After all SDXL is a little bit old</s>. (8/5) Noop, training flux is pain in the a**.</p><p>A new, <s>and probably the last,</s> NoobAI version should come out in few days. With latest dataset and will be based on NoobAI eps v1.0.</p><p></p><p><strong>(7/24/2025) New Stabilizer for </strong><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/950531?modelVersionId=1882934\"><strong>RouWei</strong></a><strong> released at this </strong><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1805882?modelVersionId=1926285\"><strong>page</strong></a><strong>.</strong></p><p></p><hr /><h1 id=\"stabilizer\">Stabilizer</h1><p>All-in-one no-default-style finetuned <s>base model</s> LoRA.</p><p><strong>The problem</strong>: Anime models trained on anime dataset. The problem is, anime images only contain high level \"concepts\", often very abstract. There is no details and textures. Therefore the model will forget to generate details, and try to generate abstract concepts that it does not understand, leading to deformed images. This is called \"overfitted\".</p><p><strong>The solution (from this LoRA)</strong>: Train the model with anime <strong>AND</strong> real world images. So it can learn anime style while still keep natural details and textures in mind, aka. less overfitted.</p><p>If you apply it onto the vanilla base model:</p><ul><li><p>There is no overfitted default style in this LoRA. The dataset is very diverse. So the base model will still remains its maximum creativity. You will <strong>not</strong> get same things (faces, backgrounds, etc.). (Comparing to merged base models which merged tons of overfitted style LoRAs.)</p></li><li><p>Most built-in styles (Danbooru tags) in original base models are <strong>no longer overfitted</strong>. Now you can use thousands of built-in style tags, as well as general styles that original SDXL understands, and get a clean and detailed image <strong>as it should be</strong>. No overfitting effects. No deformed images. No style pollution from merged models. No matter if it's 2D or 3D, abstract or realistic. See comparisons: <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/images/84256995\">1 (artist styles)</a>, <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/images/84145167\">2 (general styles)</a></p></li><li><p>The training dataset only contains high resolution images (avg pixels &gt; 3MP, ~1800x1800). <span style=\"color:rgb(250, 82, 82)\"><strong>Zero AI image</strong></span><strong>.</strong> So you can get real natural texture and details beyond pixel level, instead of shiny smooth plastic surfaces with no texture.</p></li></ul><p></p><p><strong>Why not finetune the full base model?</strong> I not a gigachad and I don't have millions of training images, so finetuning the entire base model is not necessary.</p><p><strong>Why is this LoRA so small?</strong> This is a new arch called DoRA, which is more efficient than traditional LoRA.</p><p><strong>Is this a so-called \"detailer\"?</strong> I would say \"no\". This LoRA adds details that are naturally should be here but the model forgot to add. It does not add extra details, like more objects and decorations.</p><p><strong>Why you recommend NoobAI but dropped NoobAI version of this LoRA?</strong> 1). As dataset getting bigger and bigger, it gets more expansive and time consuming to train. 2). I didn't notice downgrade for using illus version on NoobAI.</p><p><strong>Share merges using this LoRA is prohibited</strong>. FYI, there are hidden trigger words to print invisible watermark. It works well even if the merge strength is 0.05. I coded the watermark and detector myself. I don't want to use it, but I can. This model only published on Civitiai and TensorArt. If you see \"me\" and this sentence in other platforms, all those are fake and the platform you are using is a pirate platform.</p><p>Remember to leave feedback in <strong>comment section</strong>. So everyone can see it. Don't write feedback in Civitai review system, it was so poorly designed, literally nobody can find and see the review.</p><p>Have fun.</p><hr /><h2 id=\"how-to-use\">How to use</h2><h3 id=\"version-prefix:\"><strong>Version prefix:</strong></h3><ul><li><p><strong>illus01 </strong>= Trained on Illustrious v0.1. (<strong>Recommended</strong>)</p><ul><li><p>Support all models based on illustrious v0.1, including new illustrious models (v1, v2 etc.), NoobAI (e-pred and v-pred).</p></li></ul></li><li><p><strong>nbep11</strong> = Trained on NoobAI e-pred v1.1. (Discontinued)</p><ul><li><p>Support NoobAI e-pred v1.1 <strong>ONLY</strong>.</p></li><li><p>Note: NoobAI v-pred is based on e-pred v1.0, not v1.1. Many \"NoobAI\" models are also based on v1.0.</p></li></ul></li></ul><p></p><h3 id=\"base-model:\">Base model:</h3><p>Recommended: vanilla (the original) base models</p><ul><li><p>You have full control of style combination.</p></li><li><p>I personally would recommend NoobAI ep v0.5 and v1.1.</p></li></ul><p>If you use \"merged\" base model, <strong>avoid using base model with AI style</strong>. Many users complained about the compatibility issues with AI styles. So I wrote a detailed explanation about AI styles and what is the issue here:</p><ul><li><p>AI styles are styles that trained on AI images. They are super overfitted because model can instantly learned all things from AI images. (You can easily learn and imitate what you just did because you know how to do it already).</p></li><li><p>Pros: Al styles are super stable and clean. So, <strong>90%</strong> popular base models have AI styles.<strong> </strong>Mainly because they are stable and easy to use no matter what you prompted.</p></li><li><p>Cons: AI styles feel clean/smooth, weird shiny reflections everywhere, everything feels like plastic and lack of natural texture. Because AI images are very clean and have way less details compare to real world images. By training on AI images, you will lose more details. AI styles can also suppress almost all effects from other LoRAs (because super overfitted), causing style shifting. See <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/images/83852014\">comparison</a>. Top is vanilla NoobAI. Bottom is WAI, which has strong AI style.</p></li><li><p>This LoRA can't (or can, but not as you expected) add details to AI styles, because those \"clean and smooth\" feelings are part of the styles the model learned, because they were part of the features of AI images. When you have both strong AI style and this LoRA. 1) The effect from this LoRA may be overlapped, so there is no effect. 2) Weird/undefined effects.</p></li><li><p>If you want add more LoRAs on a base model with AI style, you may need to reduce the AI style if it is too strong. However, you can't easily change style weight if it was merged into the base model, so base models with Al style are not LoRA friendly. Not because of Al style itself, but because of the way it was used.</p></li></ul><p></p><h3 id=\"old-versions:\">Old versions:</h3><p>New version == new stuffs and new attempt. One big advantage of LoRA is that you can always mix different versions in a second.</p><p>You can find more info in \"Update log\". Beware that old versions may have very different effects.</p><ul><li><p><strong>Now ~</strong>: Natural details and textures, <span style=\"color:rgb(193, 194, 197)\">stable prompt understanding and more creativity. Not limited to pure 2D anime style anymore.</span></p><ul><li><p><strong>\"c\" version</strong> (illus01 v1.152~1.185c): \"c\" stands for \"colorful\", \"creative\", sometimes \"chaotic\". This version contains training images that are very <strong>visually striking</strong>, e.g.: High contrast. Strong post-effect. Complex lighting condition. Objects, complex pattens everywhere. You will get \"visually striking\", but less \"natural\" images. It may affect styles that have soft colors.</p></li></ul></li></ul><ul><li><p><strong>Illus01 v1.23 / nbep11 0.138 ~</strong>: Better anime style with vivid colors.</p></li><li><p><strong>Illus01 v1.3 / nbep11 0.58 ~</strong>: Better anime style.</p><p></p></li></ul><hr /><h2 id=\"dataset\">Dataset</h2><p><em>latest version or recent versions</em></p><p>~7k images total. Not that big (comparing to gigachads who love to finetune models with millions of images), but not small. And every image is hand-picked by me.</p><ul><li><p>Only normal good looking things. No crazy art style that cannot be described. No AI images, no watermarks, etc.</p></li><li><p>Only high resolution images. The whole dataset avg pixels is 3.37 MP, ~1800x1800.</p></li><li><p>All images have natural captions from Google latest LLM.</p></li><li><p>All anime characters are tagged by wd tagger v3 first and then Google LLM.</p></li><li><p>Contains nature, outdoors, indoors, animals, daily objects, many things, <strong>except real human</strong>.</p></li><li><p>Contains all kinds of brightness conditions. Very dark, very bright, very dark and very bright.</p></li></ul><p></p><hr /><h2 id=\"other-tools\">Other tools</h2><p>Some ideas that was going to, or used to, be part of the Stabilizer. Now they are separated LoRAs. For better flexibility. Collection link: <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/collections/8274233\">https://civitai.com/collections/8274233</a>.</p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1429923\">Touching Grass</a>: A LoRA trained on and only on the real world dataset (no anime dataset). Has stronger effect. Better background and lighting. Useful for gigachad users who like pure concepts and like to balance weights themselves.</p><p></p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1541866\">Dark</a>: A LoRA that can fix the high brightness bias in some base models. Trained on low brightness images in the Touching Grass dataset. Also, no human in dataset. So does not affect style.</p><p></p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1523055/contrast-controller-sdxl\">Contrast Controller</a>: A handcrafted LoRA. (No joke, it was not from training). The smallest 300KB LoRA you have ever seen. Control the contrast like using a slider in your monitor. Unlike other trained \"contrast enhancer\", the effect of this LoRA is stable, mathematical linear, and has zero side effect on style.</p><p>Useful when you base model has oversaturation issue, or you want something really colorful.</p><p>Example:</p><p><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/0ab16cc5-ad90-483f-a5a9-66c5fad03523/width=525/0ab16cc5-ad90-483f-a5a9-66c5fad03523.jpeg\" /></p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1519509/style-strength-controller-il\">Style Strength Controller</a>: Or overfitting effect reducer. Also a handcrafted LoRA, not from training, so zero side effect on style and mathematically linear effects. Can reduce <strong>all</strong> kinds of overfitting effects (bias on objects, brightness, etc.).</p><p>Effect test on Hassaku XL: The base model has many biases, e.g high brightness, smooth and shiny surface, printings on wall... The prompt has keyword \"dark\", but the model almost ignored it. Notice that: at strength 0.25, less bias of high brightness, less weird smooth feeling on every surfaces, the image feels more natural.</p><p><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/4c774cb4-40f1-401f-a5b3-db82318ebc42/width=525/4c774cb4-40f1-401f-a5b3-db82318ebc42.jpeg\" />Differences between Stabilizer:</p><ul><li><p>Stabilizer was trained on real world data. It can only \"reduce\" overfitting effects about texture, details and backgrounds, by adding them back.</p></li><li><p>Style Controller was not from training. It is more like \"undo\" the training for base model, so it will less-overfitted. Can mathematically reduce all overfitting effects, like bias on brightness, objects.</p></li></ul><p></p><hr /><h2 id=\"update-log\">Update log</h2><p></p><p><strong>(6/21/2025) illus01 v1.185c</strong>:</p><p>Comparing to v1.165c.</p><ul><li><p>+100% clearness and sharpness. You can get lines at one pixel width. You can even get the texture of a white paper. (No joke, realistic paper is not pure white, it has noise). An 1MP image now feels like 2K.</p></li><li><p>-30% images that are too chaotic (cannot be descripted properly). So you may find that this version can't give you a crazy high contrast level anymore, but should be more stable in normal use cases.</p></li></ul><p></p><p><strong>(6/10/2025): illus01 v1.165c</strong></p><p><strong>This is a special version.</strong> This is not an improvement of v1.164. \"c\" stands for \"colorful\", \"creative\", sometimes \"chaotic\".</p><p>The dataset contains images that are very <strong>visually striking</strong>, but sometimes <strong>hard to describe</strong> e.g.: Very colorful. High contrast. Complex lighting condition. Objects, complex pattens everywhere.</p><p>So you will get \"visually striking\", but at cost of \"natural\". May affect styles that have soft colors, etc. E.g. This version cannot generate \"pencil art\" texture perfectly like v1.164.</p><p></p><p><strong>(6/4/2025): illus01 v1.164</strong></p><ul><li><p>Better prompt understanding. Now each image has 3 natural captions, from different perspective. Danbooru tags are checked by LLM, only important tags are picked out and fused into the natural caption.</p></li><li><p>Anti-overexpose. Added a bias to prevent model output reaching #ffffff pure white level. Most of the time #ffffff == overexposed, which lost many details.</p></li><li><p>Changed some training settings. Make it more compatible with NoobAI, both e-pred and v-pred.</p></li></ul><p></p><p><strong>(5/19/2025): illus01 v1.152</strong></p><ul><li><p>Continual to improve lighting and textures and details.</p></li><li><p>5K more images, more training steps, as a result, stronger effect.</p></li></ul><p></p><p><strong>(5/9/2025): nbep11 v0.205:</strong></p><ul><li><p>A quick fix of brightness and color issues in v0.198. Now it should not change brightness and colors so dramatically like a real photograph. v0.198 isn't bad, just creative, but too creative.</p></li></ul><p></p><p><strong>(5/7/2025): nbep11 v0.198:</strong></p><ul><li><p>Added more dark images. Less deformed body, background in dark environment.</p></li><li><p>Removed color and contrast enhancement. Because it's not needed anymore. Use <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1523055/contrast-controller-sdxl\">Contrast Controller</a> instead.</p></li></ul><p></p><p><strong>(4/25/2025): nbep11 v0.172</strong>.</p><ul><li><p>Same new things in illus01 v1.93 ~ v1.121. Summary: New photographs dataset \"<a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1429923/natural-details-enhancer-touching-grass\">Touching Grass</a>\". Better natural texture, background, lighting. Weaker character effects for better compatibility.</p></li><li><p>Better color accuracy and stability. (Comparing to nbep11 v0.160)</p></li></ul><p></p><p><strong>(4/17/2025): illus01 v1.121</strong>.</p><ul><li><p>Rolled back to illustrious v0.1. illustrious v1.0 and newer versions were trained with AI images deliberately (maybe 30% of its dataset). Which is not ideal for LoRA training. I didn't notice until I read its paper.</p></li><li><p>Lower character style effect. Back to v1.23 level. Characters will have less details from this LoRA, but should have better compatibility. This is a trade-off.</p></li><li><p>Other things just same as below (v1.113).</p></li></ul><p></p><p><strong>(4/10/2025): illus11 v1.113 ❌</strong>.</p><ul><li><p><strong>Update:</strong> use this version only if you know your base model is based on Illustrious<strong> </strong>v1.1. Otherwise, use illus01 v1.121.</p></li></ul><ul><li><p>Trained on Illustrious v1.1.</p></li><li><p>New dataset \"<a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1429923/natural-details-enhancer-touching-grass\">Touching Grass</a>\" added. Better natural texture, lighting and depth of field effect. Better background structural stability. Less deformed background, like deformed rooms, buildings.</p></li><li><p>Full natural language captions from LLM.</p></li></ul><p></p><p><strong>(3/30/2025):</strong> <strong>illus01 v1.93.</strong></p><ul><li><p>v1.72 was trained too hard. So I reduced it overall strength. Should have better compatibility.</p></li></ul><p><strong>(3/22/2025):</strong> <strong>nbep11 v0.160.</strong></p><ul><li><p>Same stuffs in illus v1.72.</p></li></ul><p><strong>(3/15/2025): illus01 v1.72</strong></p><ul><li><p>Same new texture and lighting dataset as mentioned in ani40z v0.4 below. More natural lighting and natural textures.</p></li><li><p>Added a small ~100 images dataset for hand enhancement, focusing on hand(s) with different tasks, like holding a glass or cup or something.</p></li><li><p>Removed all \"simple background\" images from dataset. -200 images.</p></li><li><p>Switched training tool from kohya to onetrainer. Changed LoRA architecture to DoRA.</p></li></ul><p></p><p><strong>(3/4/2025) ani40z v0.4</strong></p><ul><li><p>Trained on Animagine XL 4.0 ani40zero.</p></li><li><p>Added ~1k dataset focusing on natural dynamic lighting and real world texture.</p></li><li><p>More natural lighting and natural textures.</p></li></ul><p></p><p><strong>ani04 v0.1</strong></p><ul><li><p>Init version for Animagine XL 4.0. Mainly to fix Animagine 4.0 brightness issues. Better and higher contrast.</p></li></ul><p></p><p><strong>illus01 v1.23</strong></p><p><strong>nbep11 v0.138</strong></p><ul><li><p>Added some furry/non-human/other images to balance the dataset.</p></li></ul><p></p><p><strong><s>nbep11 v0.129</s></strong></p><ul><li><p>bad version, effect is too weak, just ignore it</p></li></ul><p></p><p><strong>nbep11 v0.114</strong></p><ul><li><p>Implemented \"Full range colors\". It will automatically balance the things towards \"normal and good looking\". Think of this as the \"one-click photo auto enhance\" button in most of photo editing tools. One downside of this optimization: It prevents high bias. For example, you want 95% of the image to be black, and 5% bright, instead of 50/50%</p></li><li><p>Added a little bit realistic data. More vivid details, lighting, less flat colors.</p></li></ul><p></p><p><strong>illus01 v1.7</strong></p><p><strong>nbep11 v0.96</strong></p><ul><li><p>More training images.</p></li><li><p>Then finetuned again on a small \"wallpaper\" dataset (Real game wallpapers, the highest quality I could find. ~100 images). More improvements in details (noticeable in skin, hair) and contrast.</p></li></ul><p></p><p><strong>nbep11 v0.58</strong></p><ul><li><p>More images. Change the training parameters as close as to NoobAI base model.</p></li></ul><p></p><p><strong>illus01 v1.3</strong></p><p><strong>nbep11 v0.30</strong></p><ul><li><p>More images.</p></li></ul><p></p><p><strong>nbep11 v0.11</strong>: Trained on NoobAI epsilon pred v1.1.</p><ul><li><p>Improved dataset tags. Improved LoRA structure and weight distribution. Should be more stable and have less impact on image composition.</p></li></ul><p></p><p><strong>illus01 v1.1</strong></p><ul><li><p>Trained on illustriousXL v0.1.</p></li></ul><p></p><p><strong>nbep10 v0.10</strong></p><ul><li><p>Trained on NoobAI epsilon pred v1.0.</p></li></ul><p></p>",
+      "tags": [
+        "style"
+      ]
+    },
+    "files": [
+      {
+        "id": 1952701,
+        "sizeKB": 44383.30859375,
+        "name": "illustriousXLv01_stabilizer_v1.198.safetensors",
+        "type": "Model",
+        "pickleScanResult": "Success",
+        "pickleScanMessage": "No Pickle imports",
+        "virusScanResult": "Success",
+        "virusScanMessage": null,
+        "scannedAt": "2025-07-28T06:45:33.003Z",
+        "metadata": {
+          "format": "SafeTensor",
+          "size": null,
+          "fp": null
+        },
+        "hashes": {
+          "AutoV1": "F4737DC6",
+          "AutoV2": "C502B406EF",
+          "SHA256": "C502B406EF9BF74C924637D50D606A13D9BFE2362C00E8B4BA00440EF64ACF22",
+          "CRC32": "C1185374",
+          "BLAKE3": "03122754037B4253BEF83F7D1EA94AE05C685AFC98770F7CC412CF57907210F1",
+          "AutoV3": "CCCE66044B45"
+        },
+        "primary": true,
+        "downloadUrl": "https://civitai.com/api/download/models/2055853"
+      }
+    ],
+    "images": [
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/c898c155-50a3-49a9-ab0c-048e1e09c380/width=896/90933843.jpeg",
+        "nsfwLevel": 1,
+        "width": 896,
+        "height": 1152,
+        "hash": "UA9~c^Eg0#-AAJsmt2ofozR+EgxG}BS2Nwa}",
+        "type": "image",
+        "metadata": {
+          "hash": "UA9~c^Eg0#-AAJsmt2ofozR+EgxG}BS2Nwa}",
+          "size": 76348,
+          "width": 896,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 2,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.9>1girl,solo,tamamo \\(fate\\),long hair,boots,hands in pockets,white coat,knee boots,pantyhose,standing,from behind,from below,fox tail,wind,big red moon,galaxy,stars,black sky,cosmic,space,city,skyscraper,smoke,ruins,burning building,fire sparkle,depth of field,masterpiece,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "Emphasis": "No norm",
+          "cfgScale": 5,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.9
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Align Your Steps"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/ffd330ba-750f-4c5f-8817-5b96365a57f3/width=1800/90933860.jpeg",
+        "nsfwLevel": 1,
+        "width": 3360,
+        "height": 2491,
+        "hash": "UqIqy6_N_4?b-;WBWBf5%MWBWAWB%MWVWBay",
+        "type": "image",
+        "metadata": {
+          "hash": "UqIqy6_N_4?b-;WBWBf5%MWBWAWB%MWVWBay",
+          "size": 491332,
+          "width": 3360,
+          "height": 2491
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 1,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "Script": "X/Y/Z plot",
+          "X Type": "Prompt S/R",
+          "Y Type": "Seed",
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.9>1girl,solo,tamamo \\(fate\\),long hair,boots,hands in pockets,white coat,knee boots,pantyhose,standing,from behind,from below,fox tail,wind,big red moon,galaxy,stars,black sky,cosmic,space,city,skyscraper,smoke,ruins,burning building,fire sparkle,depth of field,masterpiece,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "Emphasis": "No norm",
+          "X Values": {
+            "illustriousXLv01_stabilizer_v1.198_1": "0.4>"
+          },
+          "Y Values": {},
+          "cfgScale": 5,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.9
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Align Your Steps",
+          "Fixed Y Values": {}
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/2b7ea780-5a9f-4941-a8b9-6a6601ea1c27/width=896/90933895.jpeg",
+        "nsfwLevel": 1,
+        "width": 896,
+        "height": 1152,
+        "hash": "UNIgvAXL9F-V_NMxE1-;0LD*xs-pD*I;xWem",
+        "type": "image",
+        "metadata": {
+          "hash": "UNIgvAXL9F-V_NMxE1-;0LD*xs-pD*I;xWem",
+          "size": 155114,
+          "width": 896,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 2,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.95>2girls,suzuran \\(arknights\\),fox ears,smile,shinano \\(azur lane\\),white hair,anger vein,upper body,open mouth,santa hat,christmas sweater,cheek pull,night,indoors,height difference,masterpiece,kitsune,snowing,window,bedroom,cityscape,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "Emphasis": "No norm",
+          "cfgScale": 4.5,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.95
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Uniform"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/e8673c37-a638-4e86-89cf-607bcf98b1ef/width=1800/90933904.jpeg",
+        "nsfwLevel": 1,
+        "width": 3360,
+        "height": 2491,
+        "hash": "UiMZ?$~q?v.8-;aeRjWBbFWWoKof-;WBWBWB",
+        "type": "image",
+        "metadata": {
+          "hash": "UiMZ?$~q?v.8-;aeRjWBbFWWoKof-;WBWBWB",
+          "size": 863732,
+          "width": 3360,
+          "height": 2491
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 1,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "Script": "X/Y/Z plot",
+          "X Type": "Prompt S/R",
+          "Y Type": "Seed",
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.95>2girls,suzuran \\(arknights\\),fox ears,smile,shinano \\(azur lane\\),white hair,anger vein,upper body,open mouth,santa hat,christmas sweater,cheek pull,night,indoors,height difference,masterpiece,kitsune,snowing,window,bedroom,cityscape,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "Emphasis": "No norm",
+          "X Values": {
+            "illustriousXLv01_stabilizer_v1.198_1": "0.4>"
+          },
+          "Y Values": {},
+          "cfgScale": 4.5,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.95
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Uniform",
+          "Fixed Y Values": {}
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/552ed5fe-c5af-487b-9828-e2e223ec8c11/width=896/90933906.jpeg",
+        "nsfwLevel": 1,
+        "width": 896,
+        "height": 1152,
+        "hash": "U96RcfxcjB%1?doeM_xvs~RiD*kFxmRjM}oc",
+        "type": "image",
+        "metadata": {
+          "hash": "U96RcfxcjB%1?doeM_xvs~RiD*kFxmRjM}oc",
+          "size": 49366,
+          "width": 896,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 2,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.9>a blue rose,close-up,light particles,leaf,dark background,depth of field,bokeh,cinematic lighting,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "cfgScale": 5.5,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.9
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Uniform"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/0dc8d83c-9161-4379-8261-66f69663cbd1/width=1800/90933908.jpeg",
+        "nsfwLevel": 1,
+        "width": 3360,
+        "height": 2491,
+        "hash": "UwGlVK~q_3?b%NWBaeWC%MWBWBWC%MWBWBWB",
+        "type": "image",
+        "metadata": {
+          "hash": "UwGlVK~q_3?b%NWBaeWC%MWBWBWC%MWBWBWB",
+          "size": 340170,
+          "width": 3360,
+          "height": 2491
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 1,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "Script": "X/Y/Z plot",
+          "X Type": "Prompt S/R",
+          "Y Type": "Seed",
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.9>a blue rose,close-up,light particles,leaf,dark background,depth of field,bokeh,cinematic lighting,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "X Values": {
+            "illustriousXLv01_stabilizer_v1.198_1": "0.4>"
+          },
+          "Y Values": {},
+          "cfgScale": 5.5,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.9
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Uniform",
+          "Fixed Y Values": {}
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/0909fdbf-c7f9-4421-8ded-454a8bf877d3/width=896/90975140.jpeg",
+        "nsfwLevel": 1,
+        "width": 896,
+        "height": 1152,
+        "hash": "UD9*14?wIoIV?wx]IoD%%hjXI9IU%2t6RjWY",
+        "type": "image",
+        "metadata": {
+          "hash": "UD9*14?wIoIV?wx]IoD%%hjXI9IU%2t6RjWY",
+          "size": 123348,
+          "width": 896,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 2513546290,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.9>western dragon head,western dragon head,close-up,green scales,portrait,from side,sharp teeth,sunglasses,raining,wind,cloud,lightning,smile,[:deal with it \\(meme\\):0.2],golden chain,cigar,thumbs up,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "Emphasis": "No norm",
+          "cfgScale": 4.5,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.9
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Align Your Steps"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/80d13088-d173-498a-8553-27a0bd795224/width=1800/90933871.jpeg",
+        "nsfwLevel": 1,
+        "width": 3360,
+        "height": 2491,
+        "hash": "UqHx{M~q_3?b-;WBWBae%LWVWBWB%MayWBay",
+        "type": "image",
+        "metadata": {
+          "hash": "UqHx{M~q_3?b-;WBWBae%LWVWBWB%MayWBay",
+          "size": 586584,
+          "width": 3360,
+          "height": 2491
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 1,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "Script": "X/Y/Z plot",
+          "X Type": "Prompt S/R",
+          "Y Type": "Seed",
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.8>western dragon head,close-up,green scales,portrait,looking at viewer,sharp teeth,smirk,from side,tongue,city,raining,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "X Values": {
+            "illustriousXLv01_stabilizer_v1.198_1": "0.4>"
+          },
+          "Y Values": {},
+          "cfgScale": 4,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.8
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Align Your Steps",
+          "Fixed Y Values": {}
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/d49bfa1a-8a1c-4d33-807c-36974a1b0eb2/width=896/91490798.jpeg",
+        "nsfwLevel": 1,
+        "width": 896,
+        "height": 1152,
+        "hash": "U77UYd_Nrqs.McVs%#tRX7M{MdMxjYn$xDxZ",
+        "type": "image",
+        "metadata": {
+          "hash": "U77UYd_Nrqs.McVs%#tRX7M{MdMxjYn$xDxZ",
+          "size": 171088,
+          "width": 896,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 2291870973,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 30,
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illus01_style_collection_elpe_v0.22": "7a21c1c0c77c",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illus01_style_collection_elpe_v0.22:0.6><lora:illustriousXLv01_stabilizer_v1.198_1:0.2>Albert Wesker,portrait,vibrant,neon,light particles,cinematic lighting,bokeh,rain,water drop,sunglasses,adjusting glasses,red eyes, glowing eyes,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "cfgScale": 4.5,
+          "resources": [
+            {
+              "hash": "7a21c1c0c77c",
+              "name": "illus01_style_collection_elpe_v0.22",
+              "type": "lora",
+              "weight": 0.6
+            },
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.2
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Align Your Steps"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/4909cc19-efff-4b90-a460-710d9fcd1a77/width=896/91008096.jpeg",
+        "nsfwLevel": 1,
+        "width": 896,
+        "height": 1152,
+        "hash": "U5I}*EMx00~q00Rjae%M00Rj4oM_D%M{%Max",
+        "type": "image",
+        "metadata": {
+          "hash": "U5I}*EMx00~q00Rjae%M00Rj4oM_D%M{%Max",
+          "size": 277846,
+          "width": 896,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "896x1152",
+          "seed": 3525520871,
+          "Model": "noobaiXLNAIXL_epsilonPred11Version",
+          "steps": 20,
+          "hashes": {
+            "model": "6681e8e4b1",
+            "lora:illustriousXLv01_stabilizer_v1.198_1": "28e331428bc0"
+          },
+          "prompt": "<lora:illustriousXLv01_stabilizer_v1.198_1:0.8>1boy,saitama \\(one-punch man\\),determined,pencil drawing,black and write,monochrome,araki hirohiko \\(style\\),shadow,portrait,upper body,shirt,cloak,flying rock debris,broken moon,debris,sky,",
+          "Version": "f2.0.1v1.10.1-previous-665-gae278f79",
+          "sampler": "Euler a",
+          "Emphasis": "No norm",
+          "cfgScale": 4.1,
+          "resources": [
+            {
+              "hash": "28e331428bc0",
+              "name": "illustriousXLv01_stabilizer_v1.198_1",
+              "type": "lora",
+              "weight": 0.8
+            },
+            {
+              "hash": "6681e8e4b1",
+              "name": "noobaiXLNAIXL_epsilonPred11Version",
+              "type": "model"
+            }
+          ],
+          "Model hash": "6681e8e4b1",
+          "Schedule type": "Automatic"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      }
+    ],
+    "downloadUrl": "https://civitai.com/api/download/models/2055853",
+    "creator": {
+      "username": "reakaakasky",
+      "image": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/eae7b7ac-4eb1-4cc7-a9dd-988389dc2bd9/width=96/reakaakasky.jpeg"
+    }
+  },
+  "tags": [
+    "style"
+  ],
+  "modelDescription": "<p><strong>Note:</strong> Cover images are <strong>directly</strong> from the vanilla (the original) base model in good old a1111, at default 1MP resolution. No upscale, no plugins, no inpainting fixes.</p><p>This LoRA prefers vanilla base model for best natural details. You don't need black magics (merges of merges of merges...) and they usually are not recommended, because you can't adjust the strength of those merged styles.</p><hr /><p><strong>(7/28/2025) illus01 v1.198</strong></p><p>Mainly comparing to v1.185c:</p><ul><li><p>End of \"c\" version. Although \"visually striking\" is good but it has compatibility issues. E.g. when your base model has similar enhancement for contrast already. Stacking two same enhancements is really bad. So, no more crazy post-effects (high contrast and saturation, etc.).</p></li><li><p>Instead, more textures and details. Cinematic level of lighting.</p></li><li><p>Better compatibility. Even it was trained on illus01, now you should be able to use it with strength 1 in NoobAI without noticeable stability issues.</p></li><li><p>This version changed lots of things, including dataset overhaul, so the effect will be quite different than previous versions.</p></li></ul><p>For those who want v1.185c crazy effects back. You can find pure and dedicated art styles in this <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1777579?modelVersionId=2060407\">page</a>. If dataset is big enough for a LoRA, I may train one.</p><p><s>This probably the last version for illustrious. 1), I don't know what to improve. 2), I was playing with Chroma (a FLUX.1-schnell based finetune) recently, seems very promising. After all SDXL is a little bit old</s>. (8/5) Noop, training flux is pain in the a**.</p><p>A new, <s>and probably the last,</s> NoobAI version should come out in few days. With latest dataset and will be based on NoobAI eps v1.0.</p><p></p><p><strong>(7/24/2025) New Stabilizer for </strong><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/950531?modelVersionId=1882934\"><strong>RouWei</strong></a><strong> released at this </strong><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1805882?modelVersionId=1926285\"><strong>page</strong></a><strong>.</strong></p><p></p><hr /><h1 id=\"stabilizer\">Stabilizer</h1><p>All-in-one no-default-style finetuned <s>base model</s> LoRA.</p><p><strong>The problem</strong>: Anime models trained on anime dataset. The problem is, anime images only contain high level \"concepts\", often very abstract. There is no details and textures. Therefore the model will forget to generate details, and try to generate abstract concepts that it does not understand, leading to deformed images. This is called \"overfitted\".</p><p><strong>The solution (from this LoRA)</strong>: Train the model with anime <strong>AND</strong> real world images. So it can learn anime style while still keep natural details and textures in mind, aka. less overfitted.</p><p>If you apply it onto the vanilla base model:</p><ul><li><p>There is no overfitted default style in this LoRA. The dataset is very diverse. So the base model will still remains its maximum creativity. You will <strong>not</strong> get same things (faces, backgrounds, etc.). (Comparing to merged base models which merged tons of overfitted style LoRAs.)</p></li><li><p>Most built-in styles (Danbooru tags) in original base models are <strong>no longer overfitted</strong>. Now you can use thousands of built-in style tags, as well as general styles that original SDXL understands, and get a clean and detailed image <strong>as it should be</strong>. No overfitting effects. No deformed images. No style pollution from merged models. No matter if it's 2D or 3D, abstract or realistic. See comparisons: <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/images/84256995\">1 (artist styles)</a>, <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/images/84145167\">2 (general styles)</a></p></li><li><p>The training dataset only contains high resolution images (avg pixels &gt; 3MP, ~1800x1800). <span style=\"color:rgb(250, 82, 82)\"><strong>Zero AI image</strong></span><strong>.</strong> So you can get real natural texture and details beyond pixel level, instead of shiny smooth plastic surfaces with no texture.</p></li></ul><p></p><p><strong>Why not finetune the full base model?</strong> I not a gigachad and I don't have millions of training images, so finetuning the entire base model is not necessary.</p><p><strong>Why is this LoRA so small?</strong> This is a new arch called DoRA, which is more efficient than traditional LoRA.</p><p><strong>Is this a so-called \"detailer\"?</strong> I would say \"no\". This LoRA adds details that are naturally should be here but the model forgot to add. It does not add extra details, like more objects and decorations.</p><p><strong>Why you recommend NoobAI but dropped NoobAI version of this LoRA?</strong> 1). As dataset getting bigger and bigger, it gets more expansive and time consuming to train. 2). I didn't notice downgrade for using illus version on NoobAI.</p><p><strong>Share merges using this LoRA is prohibited</strong>. FYI, there are hidden trigger words to print invisible watermark. It works well even if the merge strength is 0.05. I coded the watermark and detector myself. I don't want to use it, but I can. This model only published on Civitiai and TensorArt. If you see \"me\" and this sentence in other platforms, all those are fake and the platform you are using is a pirate platform.</p><p>Remember to leave feedback in <strong>comment section</strong>. So everyone can see it. Don't write feedback in Civitai review system, it was so poorly designed, literally nobody can find and see the review.</p><p>Have fun.</p><hr /><h2 id=\"how-to-use\">How to use</h2><h3 id=\"version-prefix:\"><strong>Version prefix:</strong></h3><ul><li><p><strong>illus01 </strong>= Trained on Illustrious v0.1. (<strong>Recommended</strong>)</p><ul><li><p>Support all models based on illustrious v0.1, including new illustrious models (v1, v2 etc.), NoobAI (e-pred and v-pred).</p></li></ul></li><li><p><strong>nbep11</strong> = Trained on NoobAI e-pred v1.1. (Discontinued)</p><ul><li><p>Support NoobAI e-pred v1.1 <strong>ONLY</strong>.</p></li><li><p>Note: NoobAI v-pred is based on e-pred v1.0, not v1.1. Many \"NoobAI\" models are also based on v1.0.</p></li></ul></li></ul><p></p><h3 id=\"base-model:\">Base model:</h3><p>Recommended: vanilla (the original) base models</p><ul><li><p>You have full control of style combination.</p></li><li><p>I personally would recommend NoobAI ep v0.5 and v1.1.</p></li></ul><p>If you use \"merged\" base model, <strong>avoid using base model with AI style</strong>. Many users complained about the compatibility issues with AI styles. So I wrote a detailed explanation about AI styles and what is the issue here:</p><ul><li><p>AI styles are styles that trained on AI images. They are super overfitted because model can instantly learned all things from AI images. (You can easily learn and imitate what you just did because you know how to do it already).</p></li><li><p>Pros: Al styles are super stable and clean. So, <strong>90%</strong> popular base models have AI styles.<strong> </strong>Mainly because they are stable and easy to use no matter what you prompted.</p></li><li><p>Cons: AI styles feel clean/smooth, weird shiny reflections everywhere, everything feels like plastic and lack of natural texture. Because AI images are very clean and have way less details compare to real world images. By training on AI images, you will lose more details. AI styles can also suppress almost all effects from other LoRAs (because super overfitted), causing style shifting. See <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/images/83852014\">comparison</a>. Top is vanilla NoobAI. Bottom is WAI, which has strong AI style.</p></li><li><p>This LoRA can't (or can, but not as you expected) add details to AI styles, because those \"clean and smooth\" feelings are part of the styles the model learned, because they were part of the features of AI images. When you have both strong AI style and this LoRA. 1) The effect from this LoRA may be overlapped, so there is no effect. 2) Weird/undefined effects.</p></li><li><p>If you want add more LoRAs on a base model with AI style, you may need to reduce the AI style if it is too strong. However, you can't easily change style weight if it was merged into the base model, so base models with Al style are not LoRA friendly. Not because of Al style itself, but because of the way it was used.</p></li></ul><p></p><h3 id=\"old-versions:\">Old versions:</h3><p>New version == new stuffs and new attempt. One big advantage of LoRA is that you can always mix different versions in a second.</p><p>You can find more info in \"Update log\". Beware that old versions may have very different effects.</p><ul><li><p><strong>Now ~</strong>: Natural details and textures, <span style=\"color:rgb(193, 194, 197)\">stable prompt understanding and more creativity. Not limited to pure 2D anime style anymore.</span></p><ul><li><p><strong>\"c\" version</strong> (illus01 v1.152~1.185c): \"c\" stands for \"colorful\", \"creative\", sometimes \"chaotic\". This version contains training images that are very <strong>visually striking</strong>, e.g.: High contrast. Strong post-effect. Complex lighting condition. Objects, complex pattens everywhere. You will get \"visually striking\", but less \"natural\" images. It may affect styles that have soft colors.</p></li></ul></li></ul><ul><li><p><strong>Illus01 v1.23 / nbep11 0.138 ~</strong>: Better anime style with vivid colors.</p></li><li><p><strong>Illus01 v1.3 / nbep11 0.58 ~</strong>: Better anime style.</p><p></p></li></ul><hr /><h2 id=\"dataset\">Dataset</h2><p><em>latest version or recent versions</em></p><p>~7k images total. Not that big (comparing to gigachads who love to finetune models with millions of images), but not small. And every image is hand-picked by me.</p><ul><li><p>Only normal good looking things. No crazy art style that cannot be described. No AI images, no watermarks, etc.</p></li><li><p>Only high resolution images. The whole dataset avg pixels is 3.37 MP, ~1800x1800.</p></li><li><p>All images have natural captions from Google latest LLM.</p></li><li><p>All anime characters are tagged by wd tagger v3 first and then Google LLM.</p></li><li><p>Contains nature, outdoors, indoors, animals, daily objects, many things, <strong>except real human</strong>.</p></li><li><p>Contains all kinds of brightness conditions. Very dark, very bright, very dark and very bright.</p></li></ul><p></p><hr /><h2 id=\"other-tools\">Other tools</h2><p>Some ideas that was going to, or used to, be part of the Stabilizer. Now they are separated LoRAs. For better flexibility. Collection link: <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/collections/8274233\">https://civitai.com/collections/8274233</a>.</p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1429923\">Touching Grass</a>: A LoRA trained on and only on the real world dataset (no anime dataset). Has stronger effect. Better background and lighting. Useful for gigachad users who like pure concepts and like to balance weights themselves.</p><p></p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1541866\">Dark</a>: A LoRA that can fix the high brightness bias in some base models. Trained on low brightness images in the Touching Grass dataset. Also, no human in dataset. So does not affect style.</p><p></p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1523055/contrast-controller-sdxl\">Contrast Controller</a>: A handcrafted LoRA. (No joke, it was not from training). The smallest 300KB LoRA you have ever seen. Control the contrast like using a slider in your monitor. Unlike other trained \"contrast enhancer\", the effect of this LoRA is stable, mathematical linear, and has zero side effect on style.</p><p>Useful when you base model has oversaturation issue, or you want something really colorful.</p><p>Example:</p><p><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/0ab16cc5-ad90-483f-a5a9-66c5fad03523/width=525/0ab16cc5-ad90-483f-a5a9-66c5fad03523.jpeg\" /></p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1519509/style-strength-controller-il\">Style Strength Controller</a>: Or overfitting effect reducer. Also a handcrafted LoRA, not from training, so zero side effect on style and mathematically linear effects. Can reduce <strong>all</strong> kinds of overfitting effects (bias on objects, brightness, etc.).</p><p>Effect test on Hassaku XL: The base model has many biases, e.g high brightness, smooth and shiny surface, printings on wall... The prompt has keyword \"dark\", but the model almost ignored it. Notice that: at strength 0.25, less bias of high brightness, less weird smooth feeling on every surfaces, the image feels more natural.</p><p><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/4c774cb4-40f1-401f-a5b3-db82318ebc42/width=525/4c774cb4-40f1-401f-a5b3-db82318ebc42.jpeg\" />Differences between Stabilizer:</p><ul><li><p>Stabilizer was trained on real world data. It can only \"reduce\" overfitting effects about texture, details and backgrounds, by adding them back.</p></li><li><p>Style Controller was not from training. It is more like \"undo\" the training for base model, so it will less-overfitted. Can mathematically reduce all overfitting effects, like bias on brightness, objects.</p></li></ul><p></p><hr /><h2 id=\"update-log\">Update log</h2><p></p><p><strong>(6/21/2025) illus01 v1.185c</strong>:</p><p>Comparing to v1.165c.</p><ul><li><p>+100% clearness and sharpness. You can get lines at one pixel width. You can even get the texture of a white paper. (No joke, realistic paper is not pure white, it has noise). An 1MP image now feels like 2K.</p></li><li><p>-30% images that are too chaotic (cannot be descripted properly). So you may find that this version can't give you a crazy high contrast level anymore, but should be more stable in normal use cases.</p></li></ul><p></p><p><strong>(6/10/2025): illus01 v1.165c</strong></p><p><strong>This is a special version.</strong> This is not an improvement of v1.164. \"c\" stands for \"colorful\", \"creative\", sometimes \"chaotic\".</p><p>The dataset contains images that are very <strong>visually striking</strong>, but sometimes <strong>hard to describe</strong> e.g.: Very colorful. High contrast. Complex lighting condition. Objects, complex pattens everywhere.</p><p>So you will get \"visually striking\", but at cost of \"natural\". May affect styles that have soft colors, etc. E.g. This version cannot generate \"pencil art\" texture perfectly like v1.164.</p><p></p><p><strong>(6/4/2025): illus01 v1.164</strong></p><ul><li><p>Better prompt understanding. Now each image has 3 natural captions, from different perspective. Danbooru tags are checked by LLM, only important tags are picked out and fused into the natural caption.</p></li><li><p>Anti-overexpose. Added a bias to prevent model output reaching #ffffff pure white level. Most of the time #ffffff == overexposed, which lost many details.</p></li><li><p>Changed some training settings. Make it more compatible with NoobAI, both e-pred and v-pred.</p></li></ul><p></p><p><strong>(5/19/2025): illus01 v1.152</strong></p><ul><li><p>Continual to improve lighting and textures and details.</p></li><li><p>5K more images, more training steps, as a result, stronger effect.</p></li></ul><p></p><p><strong>(5/9/2025): nbep11 v0.205:</strong></p><ul><li><p>A quick fix of brightness and color issues in v0.198. Now it should not change brightness and colors so dramatically like a real photograph. v0.198 isn't bad, just creative, but too creative.</p></li></ul><p></p><p><strong>(5/7/2025): nbep11 v0.198:</strong></p><ul><li><p>Added more dark images. Less deformed body, background in dark environment.</p></li><li><p>Removed color and contrast enhancement. Because it's not needed anymore. Use <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1523055/contrast-controller-sdxl\">Contrast Controller</a> instead.</p></li></ul><p></p><p><strong>(4/25/2025): nbep11 v0.172</strong>.</p><ul><li><p>Same new things in illus01 v1.93 ~ v1.121. Summary: New photographs dataset \"<a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1429923/natural-details-enhancer-touching-grass\">Touching Grass</a>\". Better natural texture, background, lighting. Weaker character effects for better compatibility.</p></li><li><p>Better color accuracy and stability. (Comparing to nbep11 v0.160)</p></li></ul><p></p><p><strong>(4/17/2025): illus01 v1.121</strong>.</p><ul><li><p>Rolled back to illustrious v0.1. illustrious v1.0 and newer versions were trained with AI images deliberately (maybe 30% of its dataset). Which is not ideal for LoRA training. I didn't notice until I read its paper.</p></li><li><p>Lower character style effect. Back to v1.23 level. Characters will have less details from this LoRA, but should have better compatibility. This is a trade-off.</p></li><li><p>Other things just same as below (v1.113).</p></li></ul><p></p><p><strong>(4/10/2025): illus11 v1.113 ❌</strong>.</p><ul><li><p><strong>Update:</strong> use this version only if you know your base model is based on Illustrious<strong> </strong>v1.1. Otherwise, use illus01 v1.121.</p></li></ul><ul><li><p>Trained on Illustrious v1.1.</p></li><li><p>New dataset \"<a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/1429923/natural-details-enhancer-touching-grass\">Touching Grass</a>\" added. Better natural texture, lighting and depth of field effect. Better background structural stability. Less deformed background, like deformed rooms, buildings.</p></li><li><p>Full natural language captions from LLM.</p></li></ul><p></p><p><strong>(3/30/2025):</strong> <strong>illus01 v1.93.</strong></p><ul><li><p>v1.72 was trained too hard. So I reduced it overall strength. Should have better compatibility.</p></li></ul><p><strong>(3/22/2025):</strong> <strong>nbep11 v0.160.</strong></p><ul><li><p>Same stuffs in illus v1.72.</p></li></ul><p><strong>(3/15/2025): illus01 v1.72</strong></p><ul><li><p>Same new texture and lighting dataset as mentioned in ani40z v0.4 below. More natural lighting and natural textures.</p></li><li><p>Added a small ~100 images dataset for hand enhancement, focusing on hand(s) with different tasks, like holding a glass or cup or something.</p></li><li><p>Removed all \"simple background\" images from dataset. -200 images.</p></li><li><p>Switched training tool from kohya to onetrainer. Changed LoRA architecture to DoRA.</p></li></ul><p></p><p><strong>(3/4/2025) ani40z v0.4</strong></p><ul><li><p>Trained on Animagine XL 4.0 ani40zero.</p></li><li><p>Added ~1k dataset focusing on natural dynamic lighting and real world texture.</p></li><li><p>More natural lighting and natural textures.</p></li></ul><p></p><p><strong>ani04 v0.1</strong></p><ul><li><p>Init version for Animagine XL 4.0. Mainly to fix Animagine 4.0 brightness issues. Better and higher contrast.</p></li></ul><p></p><p><strong>illus01 v1.23</strong></p><p><strong>nbep11 v0.138</strong></p><ul><li><p>Added some furry/non-human/other images to balance the dataset.</p></li></ul><p></p><p><strong><s>nbep11 v0.129</s></strong></p><ul><li><p>bad version, effect is too weak, just ignore it</p></li></ul><p></p><p><strong>nbep11 v0.114</strong></p><ul><li><p>Implemented \"Full range colors\". It will automatically balance the things towards \"normal and good looking\". Think of this as the \"one-click photo auto enhance\" button in most of photo editing tools. One downside of this optimization: It prevents high bias. For example, you want 95% of the image to be black, and 5% bright, instead of 50/50%</p></li><li><p>Added a little bit realistic data. More vivid details, lighting, less flat colors.</p></li></ul><p></p><p><strong>illus01 v1.7</strong></p><p><strong>nbep11 v0.96</strong></p><ul><li><p>More training images.</p></li><li><p>Then finetuned again on a small \"wallpaper\" dataset (Real game wallpapers, the highest quality I could find. ~100 images). More improvements in details (noticeable in skin, hair) and contrast.</p></li></ul><p></p><p><strong>nbep11 v0.58</strong></p><ul><li><p>More images. Change the training parameters as close as to NoobAI base model.</p></li></ul><p></p><p><strong>illus01 v1.3</strong></p><p><strong>nbep11 v0.30</strong></p><ul><li><p>More images.</p></li></ul><p></p><p><strong>nbep11 v0.11</strong>: Trained on NoobAI epsilon pred v1.1.</p><ul><li><p>Improved dataset tags. Improved LoRA structure and weight distribution. Should be more stable and have less impact on image composition.</p></li></ul><p></p><p><strong>illus01 v1.1</strong></p><ul><li><p>Trained on illustriousXL v0.1.</p></li></ul><p></p><p><strong>nbep10 v0.10</strong></p><ul><li><p>Trained on NoobAI epsilon pred v1.0.</p></li></ul><p></p>",
+  "civitai_deleted": false,
+  "favorite": false,
+  "exclude": false,
+  "usage_tips": "{}"
+}

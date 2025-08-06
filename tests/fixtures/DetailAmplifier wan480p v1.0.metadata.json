@@ -1,0 +1,160 @@
+{
+  "file_name": "DetailAmplifier wan480p v1.0",
+  "model_name": "DetailAmplifier",
+  "file_path": "/Users/oliverswitzer/workspace/LLM-video-stuff/ComfyUI/models/loras/DetailAmplifier wan480p v1.0.safetensors",
+  "size": 306847386,
+  "modified": 1754487691.0692098,
+  "sha256": "c259922f318606eb6bfc3d5a2d9fc38b3e44441e3c538c7386cc0f2a23ef667e",
+  "base_model": "Wan Video 14B i2v 480p",
+  "preview_url": "/Users/oliverswitzer/workspace/LLM-video-stuff/ComfyUI/models/loras/DetailAmplifier wan480p v1.0.mp4",
+  "preview_nsfw_level": 2,
+  "notes": "",
+  "from_civitai": true,
+  "civitai": {
+    "id": 2033731,
+    "modelId": 1716960,
+    "name": "Wan 480p v1.0",
+    "createdAt": "2025-07-21T15:39:13.913Z",
+    "updatedAt": "2025-08-05T19:40:37.761Z",
+    "status": "Published",
+    "publishedAt": "2025-08-05T15:42:15.278Z",
+    "trainedWords": [],
+    "trainingStatus": null,
+    "trainingDetails": null,
+    "baseModel": "Wan Video 14B i2v 480p",
+    "baseModelType": "Standard",
+    "earlyAccessEndsAt": null,
+    "earlyAccessConfig": {
+      "timeframe": 0,
+      "donationGoal": 100000,
+      "downloadPrice": 1000,
+      "donationGoalId": 12447,
+      "generationPrice": 1000,
+      "chargeForDownload": true,
+      "originalTimeframe": "15",
+      "chargeForGeneration": true,
+      "donationGoalEnabled": true,
+      "originalPublishedAt": "2025-07-21T15:41:31.316",
+      "generationTrialLimit": 10
+    },
+    "description": null,
+    "uploadType": "Created",
+    "usageControl": "Download",
+    "air": "urn:air:wanvideo14b_i2v_480p:lora:civitai:1716960@2033731",
+    "stats": {
+      "downloadCount": 142,
+      "ratingCount": 0,
+      "rating": 0,
+      "thumbsUpCount": 43
+    },
+    "model": {
+      "name": "DetailAmplifier",
+      "type": "LORA",
+      "nsfw": false,
+      "poi": false,
+      "description": "<p><span style=\"color:rgb(193, 194, 197)\">Best result with weight between : 0.3-0.7 and the CFG between 6-8</span><br /><span style=\"color:rgb(193, 194, 197)\">Reviews are really appreciated, I love to see the community use my work.</span><br /><span style=\"color:rgb(193, 194, 197)\">If you like my work, please tip me</span></p>",
+      "tags": [
+        "detailed",
+        "detail",
+        "tool"
+      ]
+    },
+    "files": [
+      {
+        "id": 1930637,
+        "sizeKB": 299655.650390625,
+        "name": "DetailAmplifier wan480p v1.0.safetensors",
+        "type": "Model",
+        "pickleScanResult": "Success",
+        "pickleScanMessage": "No Pickle imports",
+        "virusScanResult": "Success",
+        "virusScanMessage": null,
+        "scannedAt": "2025-07-21T15:45:59.870Z",
+        "metadata": {
+          "format": "SafeTensor",
+          "size": null,
+          "fp": null
+        },
+        "hashes": {
+          "AutoV1": "B511219E",
+          "AutoV2": "C259922F31",
+          "SHA256": "C259922F318606EB6BFC3D5A2D9FC38B3E44441E3C538C7386CC0F2A23EF667E",
+          "CRC32": "DCD96F25",
+          "BLAKE3": "820D80E9CA2388693F6C433437EA84BDB33DFF7F3317D2FD0568066CAC9961AE",
+          "AutoV3": "202BCA343C86"
+        },
+        "primary": true,
+        "downloadUrl": "https://civitai.com/api/download/models/2033731"
+      }
+    ],
+    "images": [
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/0c7b45fd-e083-448f-9c09-aaa94d955732/width=480/89619727.mp4",
+        "nsfwLevel": 2,
+        "width": 480,
+        "height": 688,
+        "hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+        "type": "video",
+        "metadata": {
+          "hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+          "size": 1509890,
+          "audio": false,
+          "width": 480,
+          "height": 688,
+          "duration": 5.063
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "prompt": "This video shows: A woman dancing in her place. She is performing a soft, rhythmic Douyin-style dance. (hip sways, arm movements, head tilts, hand gestures near face and chest). Perfect motion"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/4822f39a-c635-4bfa-9336-b5c2153877ba/width=480/89619862.mp4",
+        "nsfwLevel": 1,
+        "width": 480,
+        "height": 688,
+        "hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+        "type": "video",
+        "metadata": {
+          "hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+          "size": 734165,
+          "audio": false,
+          "width": 480,
+          "height": 688,
+          "duration": 5.063
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "prompt": "A cinematic scene at night on a wet street, featuring a vintage pink and black car parked under neon lights. A classy, elegant woman in a flowing trench coat and heels approaches the car confidently. Her movements are fluid and graceful. She reaches for the door handle, opens the door smoothly, and gets inside the car. As she sits down, the headlights flash on and the engine starts, illuminating the street with a soft glow. The reflections on the wet pavement shimmer with warm neon tones. The atmosphere is nostalgic, stylish, and film noir-inspired. Smooth motion, natural lighting transitions, with a moody, high-end cinematic tone"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      }
+    ],
+    "downloadUrl": "https://civitai.com/api/download/models/2033731",
+    "creator": {
+      "username": "unfazedanomaly964",
+      "image": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/31991621-1b2b-463c-b553-a77bc243baf5/width=96/unfazedanomaly964.jpeg"
+    }
+  },
+  "tags": [
+    "detailed",
+    "detail",
+    "tool"
+  ],
+  "modelDescription": "<p><span style=\"color:rgb(193, 194, 197)\">Best result with weight between : 0.3-0.7 and the CFG between 6-8</span><br /><span style=\"color:rgb(193, 194, 197)\">Reviews are really appreciated, I love to see the community use my work.</span><br /><span style=\"color:rgb(193, 194, 197)\">If you like my work, please tip me</span></p>",
+  "civitai_deleted": false,
+  "favorite": false,
+  "exclude": false,
+  "usage_tips": "{}"
+}

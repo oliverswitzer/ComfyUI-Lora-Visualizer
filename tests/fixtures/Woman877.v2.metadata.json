@@ -1,0 +1,566 @@
+{
+  "file_name": "Woman877.v2",
+  "model_name": "Photorealistic AI Influencer – Woman877 – Character LoRA [SD1.5 | SDXL | Flux]",
+  "file_path": "/Users/oliverswitzer/workspace/LLM-video-stuff/ComfyUI/models/loras/Woman877.v2.safetensors",
+  "size": 228459620,
+  "modified": 1754485753.6998649,
+  "sha256": "1aabb5604a5135dbe4e4dff93edf944043833ee431352e25373eaf12e4b00d38",
+  "base_model": "SDXL 1.0",
+  "preview_url": "/Users/oliverswitzer/workspace/LLM-video-stuff/ComfyUI/models/loras/Woman877.v2.webp",
+  "preview_nsfw_level": 1,
+  "notes": "",
+  "from_civitai": true,
+  "civitai": {
+    "id": 2043110,
+    "modelId": 1750662,
+    "name": "V2 (SFW) - SDXL",
+    "createdAt": "2025-07-24T11:32:04.151Z",
+    "updatedAt": "2025-08-04T06:37:56.096Z",
+    "status": "Published",
+    "publishedAt": "2025-07-24T11:43:44.545Z",
+    "trainedWords": [
+      "woman877"
+    ],
+    "trainingStatus": null,
+    "trainingDetails": null,
+    "baseModel": "SDXL 1.0",
+    "baseModelType": "Standard",
+    "earlyAccessEndsAt": null,
+    "earlyAccessConfig": null,
+    "description": "<p><strong>If you like this LoRA, leave a thumbs up on this page. It really helps a lot!</strong></p><p><br />Got a lot of feedback that V1 leaned too much into NSFW and was hard to prompt for clothing. V2 improves on that a lot. It's trained on my new dataset (shared in my private Discord, link in bio). You might notice some differences in output, but V2 is much stronger with clothing prompts while still being capable of NSFW. V1 is still perfect if you're going for NSFW, since it has more training on the nude body.<br /><br /><strong>Have fun!</strong></p>",
+    "uploadType": "Created",
+    "usageControl": "Download",
+    "air": "urn:air:sdxl:lora:civitai:1750662@2043110",
+    "stats": {
+      "downloadCount": 861,
+      "ratingCount": 0,
+      "rating": 0,
+      "thumbsUpCount": 101
+    },
+    "model": {
+      "name": "Photorealistic AI Influencer – Woman877 – Character LoRA [SD1.5 | SDXL | Flux]",
+      "type": "LORA",
+      "nsfw": false,
+      "poi": false,
+      "description": "<h3 id=\"want-to-create-your-own-learn-my-full-method-for-building-character-loras-https:www.fanvue.comhuslyo123fv-3\"><span style=\"font-family:&quot;Segoe UI Emoji&quot;, sans-serif\"><strong>✨</strong></span><strong> Want to create your own? Learn my full method for building character LoRAs → </strong><a target=\"_blank\" rel=\"ugc\" href=\"https://www.fanvue.com/huslyo123/fv-3\"><strong>https://www.fanvue.com/huslyo123/fv-3</strong></a></h3><p><em>See everything that’s included: </em><a target=\"_blank\" rel=\"ugc\" href=\"https://huslyo123.carrd.co/\"><strong><em>https://huslyo123.carrd.co/</em></strong></a></p><hr /><h1 id=\"meet-woman877-(read-text)\"><strong>Meet Woman877 (read text)</strong></h1><p><strong>A fully AI-generated, photorealistic influencer-style character LoRA, trained with precision to showcase what's possible using my own LoRA creation method.</strong></p><p><br />This model represents:<br /><strong>A 25-year-old French woman, light beige skin with natural freckles, thick jet blonde layered hair with soft waves framing her oval face, brown eyes, graceful posture, and a petite frame.</strong><br /><br />She often appears in natural light, wearing soft fabrics like knitted sweaters, surrounded by warm indoor tones. The gallery images were prompted accordingly.</p><hr /><h2 id=\"what-makes-woman877-unique\">🎯 What makes Woman877 unique?</h2><ul><li><p><strong>Fully AI-generated from scratch</strong>, based on a single consistent face identity</p></li><li><p>Trained on <strong>130+ dataset images</strong> using my proven <strong>7-step Character LoRA Workflow</strong></p></li><li><p><strong>No cherry-picking, no Photoshop,</strong> just raw model output, straight from the LoRA. I’ve included the full prompt and settings with every image.</p></li><li><p>Designed for <strong>photorealism with personality</strong>, freckles, expression, posture and all</p></li><li><p>Ideal for creators who want a <strong>reliable, reusable character</strong> for influencer-style portraits, storytelling or testing realism in SDXL workflows</p></li><li><p>Dataset fully created with <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/408483/analog-madness-sdxl-realistic-model?modelVersionId=1970318\">AnalogMadness XL3</a> by <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/user/CornmeisterNL\">CornmeisterNL </a><br /><strong>(XL3 is available for 2k Buzz. Probably the best Buzz I’ve spent.)</strong></p></li></ul><hr /><h2 id=\"behind-the-build\">🔧 Behind the Build</h2><p>Her face was initially generated with the following base prompt:<img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/7dd874bd-9e60-4472-a3d1-e1d530cc3e71/width=525/7dd874bd-9e60-4472-a3d1-e1d530cc3e71.jpeg\" /></p><pre><code>Face photo of a 25-year-old French woman, light beige skin with natural freckles, neutral backdrop. </code></pre><p>From this, I created a complete dataset with consistent lighting, poses, outfits, and compositions using my refined prompt structure. This resulted in a powerful and <strong>highly reusable character LoRA</strong>, perfect for test renders, creative shoots, and photorealistic AI portraits.</p><hr /><h1 id=\"dataset\">Dataset</h1><p>Part of the dataset she was created on</p><p><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/d0a228e9-4308-451d-90f2-b48fc7ca5bad/width=525/d0a228e9-4308-451d-90f2-b48fc7ca5bad.jpeg\" /></p><hr /><h2 id=\"no-cherry-picking-no-photoshop-raw-output-only\">🔍 No cherry-picking, no Photoshop – raw output only</h2><p>Every image in the gallery below was generated using this exact LoRA, with <strong>no retouching</strong>, <strong>no post-processing</strong>, and <strong>no cherry-picking of lucky shots</strong>. What you see is exactly what the LoRA delivers.</p><p>That means you’ll also see <strong>what a character LoRA can’t do</strong> – and that’s intentional.</p><p>For example:</p><ul><li><p><strong>Freckles and moles</strong> won’t always appear in the exact same spot</p></li><li><p><strong>Skin texture and tiny details</strong> may vary across generations</p></li><li><p>The freckles in this model are <strong>irregular</strong>, but that’s realistic – freckles naturally come and go.<br />Exposure to UV light (especially in spring and summer) increases melanin production, making freckles darker or more visible 😉</p></li></ul><p>If you're looking for <strong>perfect facial symmetry</strong> or <strong>identical skin details</strong> across all renders, you’ve got two options:</p><ol><li><p><strong>Do manual post-processing</strong> (e.g. with Photoshop or ADetailer)</p></li><li><p><strong>Choose a smoother-skinned base model</strong> without unique features like freckles or moles</p></li></ol><p>This LoRA wasn’t trained to be plastic-perfect, it was trained to be <strong>photorealistic, reusable, and creatively flexible</strong>.</p><hr /><h2 id=\"want-to-create-your-own-character-lora\">✨ Want to create your own character LoRA?</h2><p>If you want to create your own <strong>consistent character LoRA </strong>— and you have (or can get) access to Automatic1111 — join my <strong>Creator Access</strong> on <strong>Fanvue</strong>.</p><p>You’ll get:</p><p>• My full photorealistic workflow<br />• The 7-step method for building consistent and reusable character LoRAs (NSFW)<br />• The 8-step method for building a consistent character Instagram model LoRA (SFW)<br />• Prompts, settings, sample images and ongoing support for my workflows</p><p>→ <a target=\"_blank\" rel=\"ugc\" href=\"https://www.fanvue.com/huslyo123/fv-3\"><strong>https://www.fanvue.com/huslyo123/fv-3</strong></a><br />See everything that’s included: <a target=\"_blank\" rel=\"ugc\" href=\"https://huslyo123.carrd.co/\"><strong>https://huslyo123.carrd.co/</strong></a></p><p><strong><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/924831cf-d5f9-438b-af7e-a8e3e7745417/width=525/924831cf-d5f9-438b-af7e-a8e3e7745417.jpeg\" /></strong></p><hr /><h2 id=\"now-it's-your-turn\">🚀 Now it’s your turn</h2><p>Now you can start creating with this LoRA yourself. Use her, remix her, make something beautiful.<br /><br /><strong>You have my full permission to use Woman877 for anything you like – commercial, non-commercial, private use, whatever suits your project.</strong></p><p>Turn her into an Instagram star, an AI girlfriend, a story character, a moodboard muse – you decide.<br /><br /><strong>That’s the fun of it.</strong><br /></p><p><strong>Can’t wait to see what you create with Woman877.</strong> Tag me if you want to share the results!</p><hr /><h2 id=\"best-practices-for-his-lora\">🔥 <strong>Best practices for his LoRA</strong></h2><p><br />Always start with the following base prompt for the most consistent results:</p><p><strong>\"A 25-year-old French woman, light beige skin with natural freckles, thick jet blonde layered hair with soft waves framing her oval face, brown eyes, graceful posture, and a petite frame.\"</strong></p><p>To maintain facial consistency, always include a facial reference (see the image under the heading <em>Behind the Build</em>). Use ControlNet or a similar tool to lock in facial features.</p><p>To avoid <strong>overly revealing </strong>or unintended results, set LoRA strenght to 0.6 and be as specific as possible when describing clothing. For example:</p><p><strong>\"wearing a long-sleeve high-collar floral print dress that falls mid-calf, cinched with a narrow leather belt, black tights and loafers\"</strong></p><p>You can also guide the output by using a strong negative prompt. Add to the negative prompt: <strong>naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic</strong> to steer clear of NSFW content.</p><p>This section will be updated regularly as I refine the workflow. Thanks for your feedback and happy prompting!</p><p>Always use trigger word <strong>woman877 </strong>&lt;lora:woman877:0.8&gt;</p><p><strong>LoRA name:</strong><span style=\"color:rgb(193, 194, 197)\"> </span><code>&lt;lorawoman877&gt;</code><br /><strong>Trigger word:</strong><span style=\"color:rgb(193, 194, 197)\"> </span><code>woman877</code></p><hr /><h2><strong><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/d0e6d579-b8bb-4cf2-9750-2eb3faeab9fd/width=525/d0e6d579-b8bb-4cf2-9750-2eb3faeab9fd.jpeg\" /></strong></h2><h2 id=\"learn-my-full-method-for-building-character-loras-https:www.fanvue.comhuslyo123fv-3\">✨ Learn my full method for building character LoRAs →<a target=\"_blank\" rel=\"ugc\" href=\"https://www.fanvue.com/huslyo123/fv-3\"><span style=\"color:rgb(34, 139, 230)\">https://www.fanvue.com/huslyo123/fv-3</span></a></h2><hr /><h2 id=\"disclaimer\">⚠️ Disclaimer</h2><p>This model was <strong>not</strong> trained on any real person and is <strong>not</strong> based on any existing individual.<br />All dataset images were fully AI-generated for the sole purpose of creating a consistent fictional character.<br /><strong>Any resemblance to real persons, living or dead, is purely coincidental.</strong></p>",
+      "tags": [
+        "character",
+        "consistent character",
+        "influencer",
+        "character lora",
+        "constant character showcase",
+        "character consistent"
+      ]
+    },
+    "files": [
+      {
+        "id": 1939972,
+        "sizeKB": 223105.09765625,
+        "name": "Woman877.v2.safetensors",
+        "type": "Model",
+        "pickleScanResult": "Success",
+        "pickleScanMessage": "No Pickle imports",
+        "virusScanResult": "Success",
+        "virusScanMessage": null,
+        "scannedAt": "2025-07-24T11:35:45.539Z",
+        "metadata": {
+          "format": "SafeTensor",
+          "size": null,
+          "fp": null
+        },
+        "hashes": {
+          "AutoV1": "0AFA8592",
+          "AutoV2": "1AABB5604A",
+          "SHA256": "1AABB5604A5135DBE4E4DFF93EDF944043833EE431352E25373EAF12E4B00D38",
+          "CRC32": "93979572",
+          "BLAKE3": "B67FC76490FA5A4EA0D8BA60598A14E12F4FF049B22C0382EFBF9790BA3B6151",
+          "AutoV3": "8F8EC46EEF74"
+        },
+        "primary": true,
+        "downloadUrl": "https://civitai.com/api/download/models/2043110"
+      }
+    ],
+    "images": [
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/7f95b5a7-9de5-4823-b601-16a14a620649/width=768/90185501.jpeg",
+        "nsfwLevel": 1,
+        "width": 768,
+        "height": 1152,
+        "hash": "UaK1%eRPx^_NofoL%Ma{V=?bNGM{xuj]RjWB",
+        "type": "image",
+        "metadata": {
+          "hash": "UaK1%eRPx^_NofoL%Ma{V=?bNGM{xuj]RjWB",
+          "size": 1246432,
+          "width": 768,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "768x1152",
+          "seed": 3980671724,
+          "Model": "AnalogMadness_XL3",
+          "steps": 32,
+          "hashes": {
+            "model": "60efa73305",
+            "lora:Woman877.v2": "8f8ec46eef74"
+          },
+          "prompt": "relaxed lean against a white brick wall, head turned left, subtle smirk, wearing a fitted black square-neck long-sleeve top and stone-colored slim-fit chinos, midday outdoor light  <lora:Woman877.v2:0.7> woman877, 25-year-old French woman, light beige skin with natural freckles, thick jet blonde hair in a layered cut with soft waves, brown eyes, oval face, petite frame with a delicate waist",
+          "Version": "v1.10.1",
+          "sampler": "DPM++ 2M SDE",
+          "cfgScale": 4,
+          "clipSkip": 2,
+          "resources": [
+            {
+              "hash": "8f8ec46eef74",
+              "name": "Woman877.v2",
+              "type": "lora",
+              "weight": 0.7
+            },
+            {
+              "hash": "60efa73305",
+              "name": "AnalogMadness_XL3",
+              "type": "model"
+            }
+          ],
+          "Model hash": "60efa73305",
+          "Schedule type": "Karras",
+          "negativePrompt": "cartoon, illustration, anime, painting, CGI, 3D render, low quality, watermark, logo, label, deformed eyes, deformed iris, naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic",
+          "ADetailer model": "face_yolov8n.pt",
+          "ADetailer version": "25.3.0",
+          "ADetailer CFG scale": "1.0",
+          "ADetailer CLIP skip": "1",
+          "ADetailer mask blur": "4",
+          "ADetailer confidence": "0.3",
+          "ADetailer dilate erode": "4",
+          "ADetailer inpaint padding": "32",
+          "ADetailer mask only top k": "2",
+          "ADetailer denoising strength": "0.4",
+          "ADetailer inpaint only masked": "True",
+          "ADetailer use separate CFG scale": "True",
+          "ADetailer use separate CLIP skip": "True",
+          "ADetailer method to decide top k masks": "Area"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/1ff29a36-451a-4f92-ad4d-99280f4c934d/width=768/90185499.jpeg",
+        "nsfwLevel": 1,
+        "width": 768,
+        "height": 1152,
+        "hash": "USHn{POFE2?HD%M{t7i^T0%Mxtof~qxZaeS4",
+        "type": "image",
+        "metadata": {
+          "hash": "USHn{POFE2?HD%M{t7i^T0%Mxtof~qxZaeS4",
+          "size": 1538148,
+          "width": 768,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "768x1152",
+          "seed": 1572718644,
+          "Model": "AnalogMadness_XL3",
+          "steps": 32,
+          "hashes": {
+            "model": "60efa73305",
+            "lora:Woman877.v2": "8f8ec46eef74"
+          },
+          "prompt": "lying sideways on couch, head resting on hand, soft smile with gentle eye contact to the right, wearing a soft blush knitted lounge set with a loose crewneck sweater and matching shorts  <lora:Woman877.v2:0.7> woman877, 25-year-old French woman, light beige skin with natural freckles, thick jet blonde hair in a layered cut with soft waves, brown eyes, oval face, petite frame with a delicate waist",
+          "Version": "v1.10.1",
+          "sampler": "DPM++ 2M SDE",
+          "cfgScale": 4,
+          "clipSkip": 2,
+          "resources": [
+            {
+              "hash": "8f8ec46eef74",
+              "name": "Woman877.v2",
+              "type": "lora",
+              "weight": 0.7
+            },
+            {
+              "hash": "60efa73305",
+              "name": "AnalogMadness_XL3",
+              "type": "model"
+            }
+          ],
+          "Model hash": "60efa73305",
+          "Schedule type": "Karras",
+          "negativePrompt": "cartoon, illustration, anime, painting, CGI, 3D render, low quality, watermark, logo, label, deformed eyes, deformed iris, naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic",
+          "ADetailer model": "face_yolov8n.pt",
+          "ADetailer version": "25.3.0",
+          "ADetailer CFG scale": "1.0",
+          "ADetailer CLIP skip": "1",
+          "ADetailer mask blur": "4",
+          "ADetailer confidence": "0.3",
+          "ADetailer dilate erode": "4",
+          "ADetailer inpaint padding": "32",
+          "ADetailer mask only top k": "2",
+          "ADetailer denoising strength": "0.4",
+          "ADetailer inpaint only masked": "True",
+          "ADetailer use separate CFG scale": "True",
+          "ADetailer use separate CLIP skip": "True",
+          "ADetailer method to decide top k masks": "Area"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/128c0010-d335-4b36-bf87-7d94ae8fc3af/width=768/90185507.jpeg",
+        "nsfwLevel": 1,
+        "width": 768,
+        "height": 1152,
+        "hash": "UPHxc*.8?^N_?as.NaxaEMIURORj-:xusDkD",
+        "type": "image",
+        "metadata": {
+          "hash": "UPHxc*.8?^N_?as.NaxaEMIURORj-:xusDkD",
+          "size": 1005263,
+          "width": 768,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "768x1152",
+          "seed": 3863025091,
+          "Model": "AnalogMadness_XL3",
+          "steps": 32,
+          "hashes": {
+            "model": "60efa73305",
+            "lora:Woman877.v2": "8f8ec46eef74"
+          },
+          "prompt": "a standing woman in a satin olive-green blouse with short sleeves and black tapered pants, hands loosely in pockets, minimal indoor setting  <lora:Woman877.v2:0.7> woman877, 25-year-old French woman, light beige skin with natural freckles, thick jet blonde hair in a layered cut with soft waves, brown eyes, oval face, petite frame with a delicate waist",
+          "Version": "v1.10.1",
+          "sampler": "DPM++ 2M SDE",
+          "cfgScale": 4,
+          "clipSkip": 2,
+          "resources": [
+            {
+              "hash": "8f8ec46eef74",
+              "name": "Woman877.v2",
+              "type": "lora",
+              "weight": 0.7
+            },
+            {
+              "hash": "60efa73305",
+              "name": "AnalogMadness_XL3",
+              "type": "model"
+            }
+          ],
+          "Model hash": "60efa73305",
+          "Schedule type": "Karras",
+          "negativePrompt": "cartoon, illustration, anime, painting, CGI, 3D render, low quality, watermark, logo, label, deformed eyes, deformed iris, naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic",
+          "ADetailer model": "face_yolov8n.pt",
+          "ADetailer version": "25.3.0",
+          "ADetailer CFG scale": "1.0",
+          "ADetailer CLIP skip": "1",
+          "ADetailer mask blur": "4",
+          "ADetailer confidence": "0.3",
+          "ADetailer dilate erode": "4",
+          "ADetailer inpaint padding": "32",
+          "ADetailer mask only top k": "2",
+          "ADetailer denoising strength": "0.4",
+          "ADetailer inpaint only masked": "True",
+          "ADetailer use separate CFG scale": "True",
+          "ADetailer use separate CLIP skip": "True",
+          "ADetailer method to decide top k masks": "Area"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/b2df2ad2-d4e4-4569-a887-6604660242a5/width=768/90185504.jpeg",
+        "nsfwLevel": 1,
+        "width": 768,
+        "height": 1152,
+        "hash": "UGF}WgNHC*Me@@D%K%IBuhV@=eIo2?VZ}FJQ",
+        "type": "image",
+        "metadata": {
+          "hash": "UGF}WgNHC*Me@@D%K%IBuhV@=eIo2?VZ}FJQ",
+          "size": 1352508,
+          "width": 768,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "768x1152",
+          "seed": 2202334513,
+          "Model": "AnalogMadness_XL3",
+          "steps": 32,
+          "hashes": {
+            "model": "60efa73305",
+            "lora:Woman877.v2": "8f8ec46eef74"
+          },
+          "prompt": "sitting on steps, head turned to the right, cheerful big smile, wearing a cropped bright red hoodie with visible pocket seams and charcoal joggers, sporty white trainers, natural side light  <lora:Woman877.v2:0.7> woman877, 25-year-old French woman, light beige skin with natural freckles, thick jet blonde hair in a layered cut with soft waves, brown eyes, oval face, petite frame with a delicate waist",
+          "Version": "v1.10.1",
+          "sampler": "DPM++ 2M SDE",
+          "cfgScale": 4,
+          "clipSkip": 2,
+          "resources": [
+            {
+              "hash": "8f8ec46eef74",
+              "name": "Woman877.v2",
+              "type": "lora",
+              "weight": 0.7
+            },
+            {
+              "hash": "60efa73305",
+              "name": "AnalogMadness_XL3",
+              "type": "model"
+            }
+          ],
+          "Model hash": "60efa73305",
+          "Schedule type": "Karras",
+          "negativePrompt": "cartoon, illustration, anime, painting, CGI, 3D render, low quality, watermark, logo, label, deformed eyes, deformed iris, naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic",
+          "ADetailer model": "face_yolov8n.pt",
+          "ADetailer version": "25.3.0",
+          "ADetailer CFG scale": "1.0",
+          "ADetailer CLIP skip": "1",
+          "ADetailer mask blur": "4",
+          "ADetailer confidence": "0.3",
+          "ADetailer dilate erode": "4",
+          "ADetailer inpaint padding": "32",
+          "ADetailer mask only top k": "2",
+          "ADetailer denoising strength": "0.4",
+          "ADetailer inpaint only masked": "True",
+          "ADetailer use separate CFG scale": "True",
+          "ADetailer use separate CLIP skip": "True",
+          "ADetailer method to decide top k masks": "Area"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/fda5dcbc-6cd9-4812-b9ea-0ee09b55371c/width=768/90185498.jpeg",
+        "nsfwLevel": 1,
+        "width": 768,
+        "height": 1152,
+        "hash": "UFJRN,D$.m~p?Z-:E2t600WA^*D%_3WEDO%N",
+        "type": "image",
+        "metadata": {
+          "hash": "UFJRN,D$.m~p?Z-:E2t600WA^*D%_3WEDO%N",
+          "size": 934225,
+          "width": 768,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "768x1152",
+          "seed": 13113744,
+          "Model": "AnalogMadness_XL3",
+          "steps": 32,
+          "hashes": {
+            "model": "60efa73305",
+            "lora:Woman877.v2": "8f8ec46eef74"
+          },
+          "prompt": "a standing woman in a light brown silk blouse with rolled-up sleeves and high-rise tailored navy trousers, hands loosely in pockets, minimal indoor setting  <lora:Woman877.v2:0.7> woman877, 25-year-old French woman, light beige skin with natural freckles, thick jet blonde hair in a layered cut with soft waves, brown eyes, oval face, petite frame with a delicate waist",
+          "Version": "v1.10.1",
+          "sampler": "DPM++ 2M SDE",
+          "cfgScale": 4,
+          "clipSkip": 2,
+          "resources": [
+            {
+              "hash": "8f8ec46eef74",
+              "name": "Woman877.v2",
+              "type": "lora",
+              "weight": 0.7
+            },
+            {
+              "hash": "60efa73305",
+              "name": "AnalogMadness_XL3",
+              "type": "model"
+            }
+          ],
+          "Model hash": "60efa73305",
+          "Schedule type": "Karras",
+          "negativePrompt": "cartoon, illustration, anime, painting, CGI, 3D render, low quality, watermark, logo, label, deformed eyes, deformed iris, naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic",
+          "ADetailer model": "face_yolov8n.pt",
+          "ADetailer version": "25.3.0",
+          "ADetailer CFG scale": "1.0",
+          "ADetailer CLIP skip": "1",
+          "ADetailer mask blur": "4",
+          "ADetailer confidence": "0.3",
+          "ADetailer dilate erode": "4",
+          "ADetailer inpaint padding": "32",
+          "ADetailer mask only top k": "2",
+          "ADetailer denoising strength": "0.4",
+          "ADetailer inpaint only masked": "True",
+          "ADetailer use separate CFG scale": "True",
+          "ADetailer use separate CLIP skip": "True",
+          "ADetailer method to decide top k masks": "Area"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/2a2b28a4-cd2c-4b80-b9e3-5f927448d2c4/width=768/90185506.jpeg",
+        "nsfwLevel": 1,
+        "width": 768,
+        "height": 1152,
+        "hash": "UEG+H,?v0KS$MHRP%gX8~UtRM}t6.9M|rqjE",
+        "type": "image",
+        "metadata": {
+          "hash": "UEG+H,?v0KS$MHRP%gX8~UtRM}t6.9M|rqjE",
+          "size": 1400629,
+          "width": 768,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "768x1152",
+          "seed": 3802248753,
+          "Model": "AnalogMadness_XL3",
+          "steps": 32,
+          "hashes": {
+            "model": "60efa73305",
+            "lora:Woman877.v2": "8f8ec46eef74"
+          },
+          "prompt": "over-the-shoulder glance, standing under a cafe terrace awning, playful smile, wearing a tucked-in black-and-white striped long-sleeve shirt and relaxed beige chino pants, holding sunglasses in hand  <lora:Woman877.v2:0.7> woman877, 25-year-old French woman, light beige skin with natural freckles, thick jet blonde hair in a layered cut with soft waves, brown eyes, oval face, petite frame with a delicate waist",
+          "Version": "v1.10.1",
+          "sampler": "DPM++ 2M SDE",
+          "cfgScale": 4,
+          "clipSkip": 2,
+          "resources": [
+            {
+              "hash": "8f8ec46eef74",
+              "name": "Woman877.v2",
+              "type": "lora",
+              "weight": 0.7
+            },
+            {
+              "hash": "60efa73305",
+              "name": "AnalogMadness_XL3",
+              "type": "model"
+            }
+          ],
+          "Model hash": "60efa73305",
+          "Schedule type": "Karras",
+          "negativePrompt": "cartoon, illustration, anime, painting, CGI, 3D render, low quality, watermark, logo, label, deformed eyes, deformed iris, naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic",
+          "ADetailer model": "face_yolov8n.pt",
+          "ADetailer version": "25.3.0",
+          "ADetailer CFG scale": "1.0",
+          "ADetailer CLIP skip": "1",
+          "ADetailer mask blur": "4",
+          "ADetailer confidence": "0.3",
+          "ADetailer dilate erode": "4",
+          "ADetailer inpaint padding": "32",
+          "ADetailer mask only top k": "2",
+          "ADetailer denoising strength": "0.4",
+          "ADetailer inpaint only masked": "True",
+          "ADetailer use separate CFG scale": "True",
+          "ADetailer use separate CLIP skip": "True",
+          "ADetailer method to decide top k masks": "Area"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      },
+      {
+        "url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/a2258f7c-916a-497d-8950-a5463a0431a1/width=768/90185505.jpeg",
+        "nsfwLevel": 1,
+        "width": 768,
+        "height": 1152,
+        "hash": "UIIhjRt9E0.8~3D$X4-;.7%h?wskxYxuM_WC",
+        "type": "image",
+        "metadata": {
+          "hash": "UIIhjRt9E0.8~3D$X4-;.7%h?wskxYxuM_WC",
+          "size": 1155102,
+          "width": 768,
+          "height": 1152
+        },
+        "minor": false,
+        "poi": false,
+        "meta": {
+          "Size": "768x1152",
+          "seed": 1849861483,
+          "Model": "AnalogMadness_XL3",
+          "steps": 32,
+          "hashes": {
+            "model": "60efa73305",
+            "lora:Woman877.v2": "8f8ec46eef74"
+          },
+          "prompt": "casual seated pose, looking upwards to right, daydreaming expression, wearing a light gray cropped long-sleeve lounge top and matching high-waisted sweatpants, soft indoor shadows  <lora:Woman877.v2:0.7> woman877, 25-year-old French woman, light beige skin with natural freckles, thick jet blonde hair in a layered cut with soft waves, brown eyes, oval face, petite frame with a delicate waist",
+          "Version": "v1.10.1",
+          "sampler": "DPM++ 2M SDE",
+          "cfgScale": 4,
+          "clipSkip": 2,
+          "resources": [
+            {
+              "hash": "8f8ec46eef74",
+              "name": "Woman877.v2",
+              "type": "lora",
+              "weight": 0.7
+            },
+            {
+              "hash": "60efa73305",
+              "name": "AnalogMadness_XL3",
+              "type": "model"
+            }
+          ],
+          "Model hash": "60efa73305",
+          "Schedule type": "Karras",
+          "negativePrompt": "cartoon, illustration, anime, painting, CGI, 3D render, low quality, watermark, logo, label, deformed eyes, deformed iris, naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic",
+          "ADetailer model": "face_yolov8n.pt",
+          "ADetailer version": "25.3.0",
+          "ADetailer CFG scale": "1.0",
+          "ADetailer CLIP skip": "1",
+          "ADetailer mask blur": "4",
+          "ADetailer confidence": "0.3",
+          "ADetailer dilate erode": "4",
+          "ADetailer inpaint padding": "32",
+          "ADetailer mask only top k": "2",
+          "ADetailer denoising strength": "0.4",
+          "ADetailer inpaint only masked": "True",
+          "ADetailer use separate CFG scale": "True",
+          "ADetailer use separate CLIP skip": "True",
+          "ADetailer method to decide top k masks": "Area"
+        },
+        "availability": "Public",
+        "hasMeta": true,
+        "hasPositivePrompt": true,
+        "onSite": false,
+        "remixOfId": null
+      }
+    ],
+    "downloadUrl": "https://civitai.com/api/download/models/2043110",
+    "creator": {
+      "username": "Huslyo123",
+      "image": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/39e49d4a-7e54-434d-8e68-3491f66e1ec8/width=96/Huslyo123.jpeg"
+    }
+  },
+  "tags": [
+    "character",
+    "consistent character",
+    "influencer",
+    "character lora",
+    "constant character showcase",
+    "character consistent"
+  ],
+  "modelDescription": "<h3 id=\"want-to-create-your-own-learn-my-full-method-for-building-character-loras-https:www.fanvue.comhuslyo123fv-3\"><span style=\"font-family:&quot;Segoe UI Emoji&quot;, sans-serif\"><strong>✨</strong></span><strong> Want to create your own? Learn my full method for building character LoRAs → </strong><a target=\"_blank\" rel=\"ugc\" href=\"https://www.fanvue.com/huslyo123/fv-3\"><strong>https://www.fanvue.com/huslyo123/fv-3</strong></a></h3><p><em>See everything that’s included: </em><a target=\"_blank\" rel=\"ugc\" href=\"https://huslyo123.carrd.co/\"><strong><em>https://huslyo123.carrd.co/</em></strong></a></p><hr /><h1 id=\"meet-woman877-(read-text)\"><strong>Meet Woman877 (read text)</strong></h1><p><strong>A fully AI-generated, photorealistic influencer-style character LoRA, trained with precision to showcase what's possible using my own LoRA creation method.</strong></p><p><br />This model represents:<br /><strong>A 25-year-old French woman, light beige skin with natural freckles, thick jet blonde layered hair with soft waves framing her oval face, brown eyes, graceful posture, and a petite frame.</strong><br /><br />She often appears in natural light, wearing soft fabrics like knitted sweaters, surrounded by warm indoor tones. The gallery images were prompted accordingly.</p><hr /><h2 id=\"what-makes-woman877-unique\">🎯 What makes Woman877 unique?</h2><ul><li><p><strong>Fully AI-generated from scratch</strong>, based on a single consistent face identity</p></li><li><p>Trained on <strong>130+ dataset images</strong> using my proven <strong>7-step Character LoRA Workflow</strong></p></li><li><p><strong>No cherry-picking, no Photoshop,</strong> just raw model output, straight from the LoRA. I’ve included the full prompt and settings with every image.</p></li><li><p>Designed for <strong>photorealism with personality</strong>, freckles, expression, posture and all</p></li><li><p>Ideal for creators who want a <strong>reliable, reusable character</strong> for influencer-style portraits, storytelling or testing realism in SDXL workflows</p></li><li><p>Dataset fully created with <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/models/408483/analog-madness-sdxl-realistic-model?modelVersionId=1970318\">AnalogMadness XL3</a> by <a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/user/CornmeisterNL\">CornmeisterNL </a><br /><strong>(XL3 is available for 2k Buzz. Probably the best Buzz I’ve spent.)</strong></p></li></ul><hr /><h2 id=\"behind-the-build\">🔧 Behind the Build</h2><p>Her face was initially generated with the following base prompt:<img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/7dd874bd-9e60-4472-a3d1-e1d530cc3e71/width=525/7dd874bd-9e60-4472-a3d1-e1d530cc3e71.jpeg\" /></p><pre><code>Face photo of a 25-year-old French woman, light beige skin with natural freckles, neutral backdrop. </code></pre><p>From this, I created a complete dataset with consistent lighting, poses, outfits, and compositions using my refined prompt structure. This resulted in a powerful and <strong>highly reusable character LoRA</strong>, perfect for test renders, creative shoots, and photorealistic AI portraits.</p><hr /><h1 id=\"dataset\">Dataset</h1><p>Part of the dataset she was created on</p><p><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/d0a228e9-4308-451d-90f2-b48fc7ca5bad/width=525/d0a228e9-4308-451d-90f2-b48fc7ca5bad.jpeg\" /></p><hr /><h2 id=\"no-cherry-picking-no-photoshop-raw-output-only\">🔍 No cherry-picking, no Photoshop – raw output only</h2><p>Every image in the gallery below was generated using this exact LoRA, with <strong>no retouching</strong>, <strong>no post-processing</strong>, and <strong>no cherry-picking of lucky shots</strong>. What you see is exactly what the LoRA delivers.</p><p>That means you’ll also see <strong>what a character LoRA can’t do</strong> – and that’s intentional.</p><p>For example:</p><ul><li><p><strong>Freckles and moles</strong> won’t always appear in the exact same spot</p></li><li><p><strong>Skin texture and tiny details</strong> may vary across generations</p></li><li><p>The freckles in this model are <strong>irregular</strong>, but that’s realistic – freckles naturally come and go.<br />Exposure to UV light (especially in spring and summer) increases melanin production, making freckles darker or more visible 😉</p></li></ul><p>If you're looking for <strong>perfect facial symmetry</strong> or <strong>identical skin details</strong> across all renders, you’ve got two options:</p><ol><li><p><strong>Do manual post-processing</strong> (e.g. with Photoshop or ADetailer)</p></li><li><p><strong>Choose a smoother-skinned base model</strong> without unique features like freckles or moles</p></li></ol><p>This LoRA wasn’t trained to be plastic-perfect, it was trained to be <strong>photorealistic, reusable, and creatively flexible</strong>.</p><hr /><h2 id=\"want-to-create-your-own-character-lora\">✨ Want to create your own character LoRA?</h2><p>If you want to create your own <strong>consistent character LoRA </strong>— and you have (or can get) access to Automatic1111 — join my <strong>Creator Access</strong> on <strong>Fanvue</strong>.</p><p>You’ll get:</p><p>• My full photorealistic workflow<br />• The 7-step method for building consistent and reusable character LoRAs (NSFW)<br />• The 8-step method for building a consistent character Instagram model LoRA (SFW)<br />• Prompts, settings, sample images and ongoing support for my workflows</p><p>→ <a target=\"_blank\" rel=\"ugc\" href=\"https://www.fanvue.com/huslyo123/fv-3\"><strong>https://www.fanvue.com/huslyo123/fv-3</strong></a><br />See everything that’s included: <a target=\"_blank\" rel=\"ugc\" href=\"https://huslyo123.carrd.co/\"><strong>https://huslyo123.carrd.co/</strong></a></p><p><strong><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/924831cf-d5f9-438b-af7e-a8e3e7745417/width=525/924831cf-d5f9-438b-af7e-a8e3e7745417.jpeg\" /></strong></p><hr /><h2 id=\"now-it's-your-turn\">🚀 Now it’s your turn</h2><p>Now you can start creating with this LoRA yourself. Use her, remix her, make something beautiful.<br /><br /><strong>You have my full permission to use Woman877 for anything you like – commercial, non-commercial, private use, whatever suits your project.</strong></p><p>Turn her into an Instagram star, an AI girlfriend, a story character, a moodboard muse – you decide.<br /><br /><strong>That’s the fun of it.</strong><br /></p><p><strong>Can’t wait to see what you create with Woman877.</strong> Tag me if you want to share the results!</p><hr /><h2 id=\"best-practices-for-his-lora\">🔥 <strong>Best practices for his LoRA</strong></h2><p><br />Always start with the following base prompt for the most consistent results:</p><p><strong>\"A 25-year-old French woman, light beige skin with natural freckles, thick jet blonde layered hair with soft waves framing her oval face, brown eyes, graceful posture, and a petite frame.\"</strong></p><p>To maintain facial consistency, always include a facial reference (see the image under the heading <em>Behind the Build</em>). Use ControlNet or a similar tool to lock in facial features.</p><p>To avoid <strong>overly revealing </strong>or unintended results, set LoRA strenght to 0.6 and be as specific as possible when describing clothing. For example:</p><p><strong>\"wearing a long-sleeve high-collar floral print dress that falls mid-calf, cinched with a narrow leather belt, black tights and loafers\"</strong></p><p>You can also guide the output by using a strong negative prompt. Add to the negative prompt: <strong>naked, nude, cleavage, underboob, sideboob, sheer, see-through, lingerie, exposed breasts, nsfw, nipples, areola, erotic</strong> to steer clear of NSFW content.</p><p>This section will be updated regularly as I refine the workflow. Thanks for your feedback and happy prompting!</p><p>Always use trigger word <strong>woman877 </strong>&lt;lora:woman877:0.8&gt;</p><p><strong>LoRA name:</strong><span style=\"color:rgb(193, 194, 197)\"> </span><code>&lt;lorawoman877&gt;</code><br /><strong>Trigger word:</strong><span style=\"color:rgb(193, 194, 197)\"> </span><code>woman877</code></p><hr /><h2><strong><img src=\"https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/d0e6d579-b8bb-4cf2-9750-2eb3faeab9fd/width=525/d0e6d579-b8bb-4cf2-9750-2eb3faeab9fd.jpeg\" /></strong></h2><h2 id=\"learn-my-full-method-for-building-character-loras-https:www.fanvue.comhuslyo123fv-3\">✨ Learn my full method for building character LoRAs →<a target=\"_blank\" rel=\"ugc\" href=\"https://www.fanvue.com/huslyo123/fv-3\"><span style=\"color:rgb(34, 139, 230)\">https://www.fanvue.com/huslyo123/fv-3</span></a></h2><hr /><h2 id=\"disclaimer\">⚠️ Disclaimer</h2><p>This model was <strong>not</strong> trained on any real person and is <strong>not</strong> based on any existing individual.<br />All dataset images were fully AI-generated for the sole purpose of creating a consistent fictional character.<br /><strong>Any resemblance to real persons, living or dead, is purely coincidental.</strong></p>",
+  "civitai_deleted": false,
+  "favorite": false,
+  "exclude": false,
+  "usage_tips": "{}"
+}
