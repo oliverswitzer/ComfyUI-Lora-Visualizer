@@ -194,12 +194,6 @@ custom_nodes/your-node/
 
 ## 🚀 Performance Optimization
 
-### Caching Strategy
-- Cache metadata lookups and image loading
-- Implement smart cache invalidation
-- Use async operations for I/O bound tasks
-- Throttle expensive operations (mouse events, redraws)
-
 ### Memory Management
 - Clean up event listeners and timeouts
 - Remove DOM elements when not needed
@@ -207,6 +201,12 @@ custom_nodes/your-node/
 - Profile memory usage in development
 
 ## 📝 Code Quality Standards
+
+## Write tests
+
+* Use ./run_tests.sh to run tests
+* Write tests, and keep your test setup DRY.
+* Right now there are no frontend tests, but there are backend tests for in tests/
 
 ### Naming Conventions
 - Use descriptive function and variable names
