@@ -1,6 +1,9 @@
-# Requirements for LoRA Visualizer Custom Node
-# This node depends on ComfyUI's built-in modules and doesn't require additional packages
-# However, if using PDM for development, these would be useful:
+# Requirements for LoRA Visualizer and Prompt Splitter Custom Nodes
+# The LoRA visualizer depends only on ComfyUI built‑ins, but the prompt
+# splitter requires the `requests` library to contact your local Ollama
+# server.  Install these packages into the same environment as ComfyUI.
+
+requests>=2.28.0
 
 # Development dependencies (optional)
 pytest>=7.0.0
