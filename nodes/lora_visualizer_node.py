@@ -10,6 +10,16 @@ import folder_paths
 from typing import Dict, List, Tuple, Optional, Any
 from server import PromptServer
 
+# Import shared LoRA utilities.  These functions centralize common
+# operations such as parsing tags and loading metadata so that all
+# nodes use consistent logic.
+from .lora_utils import (
+    get_loras_folder,
+    parse_lora_tags as _shared_parse_lora_tags,
+    load_lora_metadata as _shared_load_lora_metadata,
+    extract_lora_info as _shared_extract_lora_info,
+)
+
 
 class LoRAVisualizerNode:
     """
@@ -55,151 +65,41 @@ class LoRAVisualizerNode:
     OUTPUT_NODE = True
     
     def __init__(self):
-        self.loras_folder = folder_paths.get_folder_paths("loras")[0] if folder_paths.get_folder_paths("loras") else None
+        # Determine the loras folder using the shared helper.  This
+        # ensures consistency with other nodes and encapsulates error
+        # handling for folder_paths.
+        self.loras_folder = get_loras_folder()
         
     def parse_lora_tags(self, prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
-        """
-        Parse LoRA tags from prompt text.
-        
+        """Delegate tag parsing to the shared utility.
+
+        Args:
+            prompt_text: Input prompt text containing LoRA tags.
+
         Returns:
-            Tuple of (standard_loras, wanloras) where each is a list of dicts
-            containing name, strength, and type information.
+            Tuple (standard_loras, wanloras) as produced by
+            ``lora_utils.parse_lora_tags``.
         """
-        standard_loras = []
-        wanloras = []
-        
-        # Pattern for both LoRA types: capture everything inside the tags
-        # Both handle names with spaces and special characters the same way
-        lora_pattern = r'<lora:(.+?)>'
-        wanlora_pattern = r'<wanlora:(.+?)>'
-        
-        # Find standard LoRA tags
-        for match in re.finditer(lora_pattern, prompt_text):
-            content = match.group(1).strip()
-            # Split by last colon to separate name from strength
-            last_colon_index = content.rfind(':')
-            if last_colon_index > 0:
-                name = content[:last_colon_index].strip()
-                strength = content[last_colon_index + 1:].strip()
-                
-                standard_loras.append({
-                    'name': name,
-                    'strength': strength,
-                    'type': 'lora',
-                    'tag': match.group(0)
-                })
-        
-        # Find wanlora tags (same logic as standard LoRAs)
-        for match in re.finditer(wanlora_pattern, prompt_text):
-            content = match.group(1).strip()
-            # Split by last colon to separate name from strength
-            last_colon_index = content.rfind(':')
-            if last_colon_index > 0:
-                name = content[:last_colon_index].strip()
-                strength = content[last_colon_index + 1:].strip()
-                
-                wanloras.append({
-                    'name': name,
-                    'strength': strength,
-                    'type': 'wanlora',
-                    'tag': match.group(0)
-                })
-            
-        return standard_loras, wanloras
+        return _shared_parse_lora_tags(prompt_text)
     
     def load_metadata(self, lora_name: str) -> Optional[Dict]:
-        """
-        Load metadata for a LoRA from its .metadata.json file.
-        
+        """Load metadata from disk using the shared helper.
+
         Args:
             lora_name: Name of the LoRA (without extension)
-            
+
         Returns:
-            Dict containing metadata or None if not found
+            Parsed metadata dictionary or ``None`` if unavailable.
         """
-        if not self.loras_folder:
-            return None
-            
-        metadata_path = os.path.join(self.loras_folder, f"{lora_name}.metadata.json")
-        
-        if not os.path.exists(metadata_path):
-            # Try with .safetensors extension in name
-            metadata_path = os.path.join(self.loras_folder, f"{lora_name}.safetensors.metadata.json")
-        
-        if not os.path.exists(metadata_path):
-            return None
-            
-        try:
-            with open(metadata_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Error loading metadata for {lora_name}: {e}")
-            return None
+        return _shared_load_lora_metadata(self.loras_folder, lora_name)
     
     def extract_lora_info(self, lora_data: Dict, metadata: Optional[Dict]) -> Dict:
+        """Delegate LoRA info extraction to the shared helper.
+
+        Combines the parsed LoRA tag data with metadata fields for
+        display.  See ``lora_utils.extract_lora_info`` for details.
         """
-        Extract relevant information from LoRA data and metadata.
-        
-        Args:
-            lora_data: Parsed LoRA information (name, strength, type)
-            metadata: Loaded metadata dict or None
-            
-        Returns:
-            Dict with extracted information for display
-        """
-        info = {
-            'name': lora_data['name'],
-            'strength': lora_data['strength'],
-            'type': lora_data['type'],
-            'tag': lora_data['tag'],
-            'trigger_words': [],
-            'preview_url': None,
-            'example_images': [],
-            'model_description': None,
-            'base_model': None,
-            'nsfw_level': 0,
-            'civitai_url': None,
-        }
-        
-        if metadata:
-            # Extract trigger words
-            if 'civitai' in metadata and 'trainedWords' in metadata['civitai']:
-                info['trigger_words'] = metadata['civitai']['trainedWords']
-            
-            # Extract Civitai URL
-            if 'civitai' in metadata and 'modelId' in metadata['civitai']:
-                model_id = metadata['civitai']['modelId']
-                info['civitai_url'] = f"https://civitai.com/models/{model_id}"
-            
-            # Extract preview image
-            if 'preview_url' in metadata:
-                info['preview_url'] = metadata['preview_url']
-            
-            # Extract example images
-            if 'civitai' in metadata and 'images' in metadata['civitai']:
-                info['example_images'] = [
-                    {
-                        'url': img['url'],
-                        'width': img.get('width', 0),
-                        'height': img.get('height', 0),
-                        'nsfw_level': img.get('nsfwLevel', 1),
-                        'type': img.get('type', 'image'),
-                        'meta': img.get('meta', {})  # Include full metadata for prompts
-                    }
-                    for img in metadata['civitai']['images']
-                ]
-            
-            # Extract model info
-            if 'model_name' in metadata:
-                info['model_name'] = metadata['model_name']
-            if 'modelDescription' in metadata:
-                info['model_description'] = metadata['modelDescription']
-            if 'base_model' in metadata:
-                info['base_model'] = metadata['base_model']
-            if 'preview_nsfw_level' in metadata:
-                info['nsfw_level'] = metadata['preview_nsfw_level']
-                
-        return info
+        return _shared_extract_lora_info(lora_data, metadata)
     
     def format_lora_info(self, loras_info: List[Dict], title: str) -> str:
         """
