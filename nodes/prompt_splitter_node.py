@@ -33,7 +33,9 @@ from typing import Tuple
 # Import shared utilities for interacting with Ollama.  These helpers
 # centralize model download and chat requests to avoid duplicating
 # network logic across nodes.
-from .ollama_utils import ensure_model_available as _shared_ensure_model_available  # noqa: E402
+from .ollama_utils import (
+    ensure_model_available as _shared_ensure_model_available,
+)  # noqa: E402
 from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
 
 try:
@@ -85,7 +87,7 @@ class PromptSplitterNode:
         "You are a creative prompt engineer for generative media systems.\n\n"
         "You are given a single prompt describing a scene. Your job is to break this scene into two parts:\n\n"
         "1. A Stable Diffusion XL (SDXL) image prompt: This should describe a single, detailed still moment.\n"
-        "Avoid motion terms like \"walking,\" \"moving,\" \"talking,\" \"flies,\" etc.\n"
+        'Avoid motion terms like "walking," "moving," "talking," "flies," etc.\n'
         "Preserve any LoRA tags (<lora:name:strength>) and WanLoRA tags (<wanlora:name:strength>) exactly as given.\n"
         "Keep style details like composition, lighting, and subject appearance.\n\n"
         "2. A WAN video prompt: This should describe the full short sequence of motion that logically starts from the still image.\n"
@@ -97,9 +99,9 @@ class PromptSplitterNode:
         "- Maintain all special tags (<lora:...> and <wanlora:...>) exactly as given.\n"
         "- Output in JSON with keys 'sdxl_prompt' and 'wan_prompt'.\n\n"
         "Example:\n\n"
-        "Input Prompt: \"A teenage boy in a leather jacket <lora:badboy:1.2> stands in an alley, about to start a fight. <wanlora:fightscene:0.8>\"\n\n"
-        "{\n  \"sdxl_prompt\": \"A teenage boy in a leather jacket <lora:badboy:1.2>, standing in a dark alley, intense expression, cinematic shadows\",\n"
-        "  \"wan_prompt\": \"The boy cracks his knuckles and steps forward aggressively, squaring up for a fight. <wanlora:fightscene:0.8>\"\n}\n"
+        'Input Prompt: "A teenage boy in a leather jacket <lora:badboy:1.2> stands in an alley, about to start a fight. <wanlora:fightscene:0.8>"\n\n'
+        '{\n  "sdxl_prompt": "A teenage boy in a leather jacket <lora:badboy:1.2>, standing in a dark alley, intense expression, cinematic shadows",\n'
+        '  "wan_prompt": "The boy cracks his knuckles and steps forward aggressively, squaring up for a fight. <wanlora:fightscene:0.8>"\n}\n'
     )
 
     @classmethod
@@ -107,31 +109,43 @@ class PromptSplitterNode:
         """Define required and optional inputs for this node."""
         return {
             "required": {
-                "prompt_text": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "placeholder": "Enter the full prompt describing your scene, including any LoRA tags...",
-                    "tooltip": (
-                        "Combined prompt to be split into image and video prompts.\n"
-                        "Include <lora:...> or <wanlora:...> tags if needed; they will be preserved."
-                    ),
-                }),
+                "prompt_text": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "placeholder": "Enter the full prompt describing your scene, including any LoRA tags...",
+                        "tooltip": (
+                            "Combined prompt to be split into image and video prompts.\n"
+                            "Include <lora:...> or <wanlora:...> tags if needed; they will be preserved."
+                        ),
+                    },
+                ),
             },
             "optional": {
-                "model_name": ("STRING", {
-                    "default": cls._DEFAULT_MODEL_NAME,
-                    "tooltip": "Name of the Ollama model to use (e.g. 'nous-hermes2', 'mythomax-mistral').",
-                }),
-                "api_url": ("STRING", {
-                    "default": cls._DEFAULT_API_URL,
-                    "tooltip": "URL of the Ollama chat API endpoint.",
-                }),
-                "system_prompt": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "placeholder": "Custom system prompt (leave blank to use default).",
-                    "tooltip": "Override the default instructions sent to the Ollama model.",
-                }),
+                "model_name": (
+                    "STRING",
+                    {
+                        "default": cls._DEFAULT_MODEL_NAME,
+                        "tooltip": "Name of the Ollama model to use (e.g. 'nous-hermes2', 'mythomax-mistral').",
+                    },
+                ),
+                "api_url": (
+                    "STRING",
+                    {
+                        "default": cls._DEFAULT_API_URL,
+                        "tooltip": "URL of the Ollama chat API endpoint.",
+                    },
+                ),
+                "system_prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "placeholder": "Custom system prompt (leave blank to use default).",
+                        "tooltip": "Override the default instructions sent to the Ollama model.",
+                    },
+                ),
             },
         }
 
@@ -155,7 +169,9 @@ class PromptSplitterNode:
             status_channel="prompt_splitter_status",
         )
 
-    def _call_ollama(self, prompt: str, model_name: str, api_url: str, system_prompt: str) -> Tuple[str, str]:
+    def _call_ollama(
+        self, prompt: str, model_name: str, api_url: str, system_prompt: str
+    ) -> Tuple[str, str]:
         """Call the Ollama chat API via shared helper and parse the response.
 
         Uses the shared ``send_chat`` helper to obtain the assistant's
@@ -173,7 +189,9 @@ class PromptSplitterNode:
         # Pass the imported ``requests`` module to ``send_chat`` so that
         # unit tests patching ``nodes.prompt_splitter_node.requests`` will
         # correctly intercept network calls.
-        content = send_chat(model_name, api_url, messages, timeout=60, requests_module=requests)
+        content = send_chat(
+            model_name, api_url, messages, timeout=60, requests_module=requests
+        )
         if not content:
             return "", ""
         try:
@@ -196,7 +214,13 @@ class PromptSplitterNode:
         """
         return prompt, prompt
 
-    def split_prompt(self, prompt_text: str, model_name: str = None, api_url: str = None, system_prompt: str = "") -> Tuple[str, str]:
+    def split_prompt(
+        self,
+        prompt_text: str,
+        model_name: str = None,
+        api_url: str = None,
+        system_prompt: str = "",
+    ) -> Tuple[str, str]:
         """Public method invoked by ComfyUI to split prompts.
 
         Args:

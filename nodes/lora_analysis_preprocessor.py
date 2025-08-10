@@ -80,7 +80,9 @@ _ANALYSIS_SYSTEM_PROMPT = (
 )
 
 
-def _call_ollama_for_analysis(example_prompts: List[str], model_name: str, api_url: str) -> Optional[Dict[str, any]]:
+def _call_ollama_for_analysis(
+    example_prompts: List[str], model_name: str, api_url: str
+) -> Optional[Dict[str, any]]:
     """Send the example prompts to Ollama and parse the analysis response.
 
     This helper constructs a chat request containing the system prompt and
@@ -100,9 +102,7 @@ def _call_ollama_for_analysis(example_prompts: List[str], model_name: str, api_u
         print("LoRA analysis: 'requests' library not available; skipping analysis.")
         return None
     # Build user message containing the example prompts as JSON for clarity.
-    user_content = {
-        "example_prompts": example_prompts
-    }
+    user_content = {"example_prompts": example_prompts}
     messages = [
         {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
         {"role": "user", "content": json.dumps(user_content, ensure_ascii=False)},
@@ -142,7 +142,9 @@ def _call_ollama_for_analysis(example_prompts: List[str], model_name: str, api_u
             else:
                 return None
         except Exception as parse_err:
-            print(f"LoRA analysis: JSON parse error: {parse_err}; content was: {content}")
+            print(
+                f"LoRA analysis: JSON parse error: {parse_err}; content was: {content}"
+            )
             return None
     except Exception as e:
         print(f"LoRA analysis: error contacting Ollama: {e}")
@@ -216,9 +218,7 @@ def analyze_all_loras(
             continue
         meta_path = os.path.join(loras_folder, fname)
         # The analysis file name: insert `.analyzed` before `.metadata.json`
-        analyzed_path = meta_path.replace(
-            ".metadata.json", ".analyzed.metadata.json"
-        )
+        analyzed_path = meta_path.replace(".metadata.json", ".analyzed.metadata.json")
         # Skip if analysis already exists
         if os.path.exists(analyzed_path):
             continue
@@ -245,7 +245,7 @@ def analyze_all_loras(
             try:
                 PromptServer.instance.send_sync(
                     status_channel,
-                    {"status": f"Analyzing LoRA '{fname}' for usage summary..."}
+                    {"status": f"Analyzing LoRA '{fname}' for usage summary..."},
                 )
             except Exception:
                 pass
@@ -270,8 +270,7 @@ def analyze_all_loras(
         if status_channel and PromptServer is not None:
             try:
                 PromptServer.instance.send_sync(
-                    status_channel,
-                    {"status": f"Finished analyzing LoRA '{fname}'."}
+                    status_channel, {"status": f"Finished analyzing LoRA '{fname}'."}
                 )
             except Exception:
                 pass

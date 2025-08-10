@@ -4,6 +4,7 @@ except ImportError:
     # Fallback for when this module is imported directly (e.g., during testing)
     import sys
     import os
+
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, current_dir)
     from nodes.lora_visualizer_node import LoRAVisualizerNode

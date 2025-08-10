@@ -154,6 +154,7 @@ def call_ollama_chat(
         print("ollama_utils: 'requests' library not available; cannot contact Ollama.")
         return ""
 
+
 def send_chat(
     model_name: str,
     api_url: str,

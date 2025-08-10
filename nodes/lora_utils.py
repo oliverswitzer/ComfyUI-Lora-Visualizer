@@ -66,7 +66,9 @@ def get_loras_folder() -> Optional[str]:
         return None
 
 
-def parse_lora_tags(prompt_text: str) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+def parse_lora_tags(
+    prompt_text: str,
+) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
     """Parse LoRA tags from the given prompt text.
 
     This function looks for substrings of the form ``<lora:name:strength>``
@@ -95,30 +97,36 @@ def parse_lora_tags(prompt_text: str) -> Tuple[List[Dict[str, str]], List[Dict[s
         idx = content.rfind(":")
         if idx > 0:
             name = content[:idx].strip()
-            strength = content[idx + 1:].strip()
-            standard_loras.append({
-                "name": name,
-                "strength": strength,
-                "type": "lora",
-                "tag": match.group(0),
-            })
+            strength = content[idx + 1 :].strip()
+            standard_loras.append(
+                {
+                    "name": name,
+                    "strength": strength,
+                    "type": "lora",
+                    "tag": match.group(0),
+                }
+            )
     # Find wan LoRA tags
     for match in re.finditer(wanlora_pattern, prompt_text):
         content = match.group(1).strip()
         idx = content.rfind(":")
         if idx > 0:
             name = content[:idx].strip()
-            strength = content[idx + 1:].strip()
-            wanloras.append({
-                "name": name,
-                "strength": strength,
-                "type": "wanlora",
-                "tag": match.group(0),
-            })
+            strength = content[idx + 1 :].strip()
+            wanloras.append(
+                {
+                    "name": name,
+                    "strength": strength,
+                    "type": "wanlora",
+                    "tag": match.group(0),
+                }
+            )
     return standard_loras, wanloras
 
 
-def load_lora_metadata(loras_folder: Optional[str], lora_name: str) -> Optional[Dict[str, Any]]:
+def load_lora_metadata(
+    loras_folder: Optional[str], lora_name: str
+) -> Optional[Dict[str, Any]]:
     """Load the metadata JSON for a given LoRA name from a folder.
 
     Tries to locate a file named ``{name}.metadata.json`` or
@@ -152,7 +160,9 @@ def load_lora_metadata(loras_folder: Optional[str], lora_name: str) -> Optional[
     return None
 
 
-def extract_lora_info(lora_data: Dict[str, Any], metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def extract_lora_info(
+    lora_data: Dict[str, Any], metadata: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
     """Extract display information from parsed LoRA tag and optional metadata.
 
     Combines the tag information (name, strength, type, raw tag) with
@@ -192,7 +202,9 @@ def extract_lora_info(lora_data: Dict[str, Any], metadata: Optional[Dict[str, An
         civ = metadata.get("civitai", {})
         # trained words
         if isinstance(civ.get("trainedWords"), list):
-            info["trigger_words"] = [w for w in civ["trainedWords"] if isinstance(w, str)]
+            info["trigger_words"] = [
+                w for w in civ["trainedWords"] if isinstance(w, str)
+            ]
         # civitai URL
         model_id = civ.get("modelId")
         if model_id:
@@ -206,14 +218,16 @@ def extract_lora_info(lora_data: Dict[str, Any], metadata: Optional[Dict[str, An
             examples = []
             for img in images:
                 try:
-                    examples.append({
-                        "url": img.get("url"),
-                        "width": img.get("width", 0),
-                        "height": img.get("height", 0),
-                        "nsfw_level": img.get("nsfwLevel", 1),
-                        "type": img.get("type", "image"),
-                        "meta": img.get("meta", {}),
-                    })
+                    examples.append(
+                        {
+                            "url": img.get("url"),
+                            "width": img.get("width", 0),
+                            "height": img.get("height", 0),
+                            "nsfw_level": img.get("nsfwLevel", 1),
+                            "type": img.get("type", "image"),
+                            "meta": img.get("meta", {}),
+                        }
+                    )
                 except Exception:
                     pass
             info["example_images"] = examples

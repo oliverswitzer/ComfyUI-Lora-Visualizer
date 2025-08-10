@@ -10,6 +10,7 @@ and ``NODE_DISPLAY_NAME_MAPPINGS`` accordingly.
 from .lora_visualizer_node import LoRAVisualizerNode  # type: ignore
 from .prompt_splitter_node import PromptSplitterNode  # type: ignore
 from .lora_prompt_composer_node import LoRAPromptComposerNode  # type: ignore
+
 # Import analysis preprocessor for background LoRA analysis.  This import
 # is optional; if the module or function is unavailable, analysis will
 # simply be skipped.  See below for invocation.
@@ -49,6 +50,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Background LoRA analysis at import time
 
+
 # When the module is imported within a running ComfyUI session, attempt to
 # analyse all LoRA metadata files in the configured "loras" directory.
 # This is executed in a daemon thread so it does not block the main
@@ -59,6 +61,7 @@ def _trigger_background_lora_analysis():
     """Spawn a background thread to analyse LoRA metadata if configured."""
     import threading
     import os
+
     # Respect environment variable override
     if os.environ.get("COMFYUI_SKIP_LORA_ANALYSIS"):
         return
@@ -68,6 +71,7 @@ def _trigger_background_lora_analysis():
     # Use folder_paths to locate LoRA directory
     try:
         import folder_paths  # type: ignore
+
         paths = folder_paths.get_folder_paths("loras")
         if not paths:
             return
@@ -77,14 +81,22 @@ def _trigger_background_lora_analysis():
     # Determine a default model for analysis (use PromptSplitterNode's default)
     default_model = PromptSplitterNode._DEFAULT_MODEL_NAME
     api_url = PromptSplitterNode._DEFAULT_API_URL
+
     # Start analysis in a separate thread
     def worker():
         try:
-            analyze_all_loras(lora_dir, model_name=default_model, api_url=api_url, status_channel="lora_analysis_status")
+            analyze_all_loras(
+                lora_dir,
+                model_name=default_model,
+                api_url=api_url,
+                status_channel="lora_analysis_status",
+            )
         except Exception as e:
             # Print errors but do not propagate
             print(f"Background LoRA analysis error: {e}")
+
     thread = threading.Thread(target=worker, daemon=True)
     thread.start()
+
 
 _trigger_background_lora_analysis()

@@ -141,34 +141,49 @@ class LoRAPromptComposerNode:
         return {
             "required": {},
             "optional": {
-                "num_wan_loras": ("INT", {
-                    "default": 1,
-                    "min": 1,
-                    "max": 5,
-                    "step": 1,
-                    "tooltip": "Maximum number of video (WAN) LoRAs to combine."
-                }),
-                "num_image_loras": ("INT", {
-                    "default": 1,
-                    "min": 1,
-                    "max": 5,
-                    "step": 1,
-                    "tooltip": "Maximum number of image LoRAs to combine."
-                }),
-                "model_name": ("STRING", {
-                    "default": cls._DEFAULT_MODEL_NAME,
-                    "tooltip": "Name of the Ollama model to use for composing the prompt."
-                }),
-                "api_url": ("STRING", {
-                    "default": cls._DEFAULT_API_URL,
-                    "tooltip": "URL of the Ollama chat API endpoint."
-                }),
-                "system_prompt": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "placeholder": "Custom system prompt (leave blank to use default).",
-                    "tooltip": "Override the default system instructions sent to the Ollama model."
-                }),
+                "num_wan_loras": (
+                    "INT",
+                    {
+                        "default": 1,
+                        "min": 1,
+                        "max": 5,
+                        "step": 1,
+                        "tooltip": "Maximum number of video (WAN) LoRAs to combine.",
+                    },
+                ),
+                "num_image_loras": (
+                    "INT",
+                    {
+                        "default": 1,
+                        "min": 1,
+                        "max": 5,
+                        "step": 1,
+                        "tooltip": "Maximum number of image LoRAs to combine.",
+                    },
+                ),
+                "model_name": (
+                    "STRING",
+                    {
+                        "default": cls._DEFAULT_MODEL_NAME,
+                        "tooltip": "Name of the Ollama model to use for composing the prompt.",
+                    },
+                ),
+                "api_url": (
+                    "STRING",
+                    {
+                        "default": cls._DEFAULT_API_URL,
+                        "tooltip": "URL of the Ollama chat API endpoint.",
+                    },
+                ),
+                "system_prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "placeholder": "Custom system prompt (leave blank to use default).",
+                        "tooltip": "Override the default system instructions sent to the Ollama model.",
+                    },
+                ),
             },
         }
 
@@ -194,7 +209,9 @@ class LoRAPromptComposerNode:
             status_channel="lora_prompt_composer_status",
         )
 
-    def _call_ollama(self, user_message: str, model_name: str, api_url: str, system_prompt: str) -> str:
+    def _call_ollama(
+        self, user_message: str, model_name: str, api_url: str, system_prompt: str
+    ) -> str:
         """Call the Ollama chat API via shared helper and return raw content.
 
         Uses ``send_chat`` from ``ollama_utils`` to send the system and
@@ -255,10 +272,14 @@ class LoRAPromptComposerNode:
                                 data["analysis"] = analysis_data
                         except Exception as ae:
                             # If analysis cannot be loaded, silently skip
-                            print(f"LoRAPromptComposerNode: failed to load analysis for {fname}: {ae}")
+                            print(
+                                f"LoRAPromptComposerNode: failed to load analysis for {fname}: {ae}"
+                            )
                     result.append(data)
             except Exception as e:
-                print(f"LoRAPromptComposerNode: failed to load metadata from {fname}: {e}")
+                print(
+                    f"LoRAPromptComposerNode: failed to load metadata from {fname}: {e}"
+                )
                 continue
         return result
 
@@ -293,7 +314,9 @@ class LoRAPromptComposerNode:
         trigger = trigger.replace(" ", "_").replace("/", "_")
         return trigger.lower()
 
-    def _classify_loras(self, metas: List[Dict[str, any]]) -> Tuple[List[Dict[str, any]], List[Dict[str, any]]]:
+    def _classify_loras(
+        self, metas: List[Dict[str, any]]
+    ) -> Tuple[List[Dict[str, any]], List[Dict[str, any]]]:
         """Separate metadata into image and video LoRA lists.
 
         Determines whether a LoRA is for video generation by inspecting
@@ -423,7 +446,8 @@ class LoRAPromptComposerNode:
         # prompt already instructs the assistant how to interpret it.
         user_message = (
             "Here is the available LoRA data and selection limits as JSON. "
-            "Please choose and compose a prompt accordingly.\n" + json.dumps(user_payload, ensure_ascii=False)
+            "Please choose and compose a prompt accordingly.\n"
+            + json.dumps(user_payload, ensure_ascii=False)
         )
         # Determine model and API URL
         model = model_name or self._DEFAULT_MODEL_NAME
