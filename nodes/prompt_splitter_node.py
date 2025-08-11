@@ -4,16 +4,16 @@ Prompt Splitter Node Implementation
 
 This node takes a single natural language prompt (which may include
 LoRA tags such as ``<lora:name:strength>`` or ``<wanlora:name:strength>``)
-and splits it into two distinct prompts: one suitable for Stable
-Diffusion XL (SDXL) image generation and another appropriate for WAN
-video generation. The split is performed by delegating to an Ollama
+and splits it into two distinct prompts: one suitable for image
+generation and another appropriate for WAN video generation. The split is
+performed by delegating to an Ollama
 model running locally via its chat API.
 
 The default system prompt used for the Ollama call encodes the
 recommendations developed with the user earlier in this conversation.
 It instructs the model to preserve LoRA and WanLoRA tags exactly as
 given, avoid duplicating sentences across the two prompts, and treat
-the SDXL prompt as a single still frame while allowing the WAN prompt
+the image prompt as a single still frame while allowing the WAN prompt
 to describe motion.  Example input/output is included for clarity.
 
 Users may override the Ollama model name, API URL or system prompt at
@@ -51,7 +51,7 @@ class PromptSplitterNode:
     """Split a combined prompt into image and video components using Ollama."""
 
     CATEGORY = "conditioning"
-    DESCRIPTION = """Splits a scene description into separate SDXL and WAN prompts.
+    DESCRIPTION = """Splits a scene description into separate image and WAN prompts.
 
     This node sends your prompt to a local Ollama model with a system
     prompt that explains how to construct a still image prompt and a
@@ -77,55 +77,49 @@ class PromptSplitterNode:
     # indentation here is intentional; triple-quoted strings preserve
     # newlines and spaces which the model will see.
     _SYSTEM_PROMPT = """
-You are a creative prompt engineer for a two-stage pipeline:
-1) Stable Diffusion XL (SDXL) generates a still image,
-2) WAN Image-to-Video (I2V) animates it.
+You are splitting a single combined scene description into two separate outputs:
 
-You will receive a single free-form scene prompt (not guaranteed to be vetted).
-Transform it into TWO coordinated outputs:
+1. IMAGE_PROMPT — For SD image generation.
+   - Keep only static, visual descriptors: characters, clothing, environment, props, positions, facial expressions (if static).
+   - Preserve all <lora:...> tags exactly as in the source.
+   - Do NOT include any <wanlora:...> tags.
+   - Do NOT add or remove descriptive terms unless they already appear in the source.
+   - Keep all or any explicit or sexual descriptors exactly as written, without euphemisms or softening.
+   - Do NOT add adjectives, tone, style words, or any narrative text unless they are in the original.
 
-1) SDXL Prompt (first frame):
-- Describe a single, detailed still moment that will be the FIRST FRAME of the video.
-- Focus on subject(s), pose, apparel, background, composition, lighting, camera/framing.
-- ALLOW keyword/CSV-style tokens (e.g., 'woman, 4k, red dress, ultra-detailed, rim light') and quality tokens ('masterpiece', 'best quality').
-- Preserve <lora:name:strength> exactly as given, and preserve any provided trigger words for those LoRAs.
-- NEVER include <wanlora:...> tags here — they belong only in the WAN prompt.
-- If a motion verb is present, bias toward moving it to the WAN prompt unless the SDXL LoRA(s) clearly depict an action pose that requires it for context.
-- Do not add descriptive elements, emotions, or modifiers that were not explicitly present in the input prompt.
+2. WAN_PROMPT — For WAN I2V video generation.
+   - Keep only motion/action descriptors.
+   - Preserve all <wanlora:...> tags exactly as in the source.
+   - Do NOT include any <lora:...> tags.
+   - Do NOT add new actions or change their meaning.
+   - Use the exact same explicit terms from the source (do not reword).
+   - No narrative, story, emotional tone, or metaphor — only plain action description.
 
-2) WAN Prompt (motion):
-- Describe a short, coherent motion sequence that naturally continues from the SDXL still.
-- Written in clear, natural sentences (NOT keyword/CSV lists). Avoid quality/resolution tokens (e.g., 4k, HDR, masterpiece).
-- Include camera motion and temporal phrasing if relevant.
-- Preserve <lora:...> and <wanlora:...> exactly as given. All <wanlora:...> tags must appear here if they exist in the input.
-- Avoid copying full sentences from the SDXL prompt; instead, expand the described moment into an immediate action.
-- Do not inject emotions, intensifiers, or subjective tone words (e.g., 'passionately', 'joyfully') unless they were explicitly stated in the input.
+General Rules:
+- Do not merge, rename, or fabricate tags.
+- Do not add any adjectives, storylines, or implied emotions that are not in the source.
+- Copy source words exactly, unless you must remove them because they are irrelevant to the specific output type.
+- If unsure which output a term belongs in, place it in the IMAGE_PROMPT.
+- Return your final result in JSON with keys "image_prompt" and "wan_prompt".
 
-Consistency & Constraints:
-- Maintain subject count, genders, and relationships exactly as described.
-- Do not add or remove characters, species, or props unless the input clearly implies them.
-- If the input is ambiguous, choose a reasonable interpretation and still output both prompts.
-- The SDXL prompt should stand alone as a great still; the WAN prompt should read as a natural continuation.
-- Preserve any provided trigger words for LoRAs exactly. (Note: external logic in the calling system should identify these trigger words.)
-
-Output format: valid JSON with keys 'sdxl_prompt' and 'wan_prompt'.
+Output format: valid JSON with keys 'image_prompt' and 'wan_prompt'.
 
 Examples:
 Input Prompt: "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, <lora:reddress:1.0> she starts to twirl under the lights <wanlora:dance:0.8>"
 {
-  "sdxl_prompt": "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, shallow depth of field, relaxed stance, poised to move, <lora:reddress:1.0>",
+  "image_prompt": "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, shallow depth of field, relaxed stance, poised to move, <lora:reddress:1.0>",
   "wan_prompt": "She twirls beneath the string lights, the fabric of her dress sweeping outward as the camera slowly circles. <wanlora:dance:0.8>"
 }
 
 Input Prompt: "two girls and one boy, sunlit park picnic, casual outfits, golden hour, laughing together on a blanket, ultra-detailed"
 {
-  "sdxl_prompt": "two girls and one boy, sunlit park picnic, casual outfits, golden hour, laughing together on a blanket, ultra-detailed, soft rim light",
+  "image_prompt": "two girls and one boy, sunlit park picnic, casual outfits, golden hour, laughing together on a blanket, ultra-detailed, soft rim light",
   "wan_prompt": "They lean in, share the phone between them, and burst into louder laughter as the boy nudges the snack bowl."
 }
 
 Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, moody backlight, gritty texture, he moves toward a fight <wanlora:fightscene:0.8>"
 {
-  "sdxl_prompt": "teen boy in a leather jacket <lora:badboy:1.2>, narrow alley, moody backlight, gritty texture, intense expression, stance squared, fists lowered",
+  "image_prompt": "teen boy in a leather jacket <lora:badboy:1.2>, narrow alley, moody backlight, gritty texture, intense expression, stance squared, fists lowered",
   "wan_prompt": "He cracks his knuckles and steps forward, shoulders tightening as he squares up, while the camera eases backward. <wanlora:fightscene:0.8>"
 }
 """
@@ -203,7 +197,7 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
 
         Uses the shared ``call_ollama_chat`` helper to obtain the assistant's
         content.  The content is then expected to be a JSON object
-        containing ``sdxl_prompt`` and ``wan_prompt`` keys.  If any
+        containing ``iamge_prompt`` and ``wan_prompt`` keys.  If any
         error occurs (including JSON parsing failure), empty strings are
         returned.
         """
@@ -220,9 +214,9 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
             return "", ""
         try:
             result = json.loads(content.strip())
-            sdxl_prompt = str(result.get("sdxl_prompt", ""))
+            image_prompt = str(result.get("image_prompt", ""))
             wan_prompt = str(result.get("wan_prompt", ""))
-            return sdxl_prompt, wan_prompt
+            return image_prompt, wan_prompt
         except json.JSONDecodeError:
             # Content is not valid JSON; treat as failure
             return "", ""
@@ -271,9 +265,9 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
         except Exception as e:
             log_error(f"Error ensuring model availability: {e}")
         # Try contacting Ollama first
-        sdxl, wan = self._call_ollama(prompt_text, model, url, sys_prompt)
-        if sdxl and wan:
-            return sdxl, wan
+        image, wan = self._call_ollama(prompt_text, model, url, sys_prompt)
+        if image and wan:
+            return image, wan
         # If Ollama returned empty or invalid responses, do not attempt a
         # naive fallback.  Return empty strings to signal failure.
         return "", ""

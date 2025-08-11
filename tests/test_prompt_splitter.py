@@ -31,8 +31,8 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node, "_call_ollama", return_value=("image", "video")
         ) as mock_call:
             with patch.object(self.node, "_ensure_model_available") as mock_ensure:
-                sdxl, wan = self.node.split_prompt("A test prompt")
-        self.assertEqual(sdxl, "image")
+                image, wan = self.node.split_prompt("A test prompt")
+        self.assertEqual(image, "image")
         self.assertEqual(wan, "video")
         mock_call.assert_called_once()
         mock_ensure.assert_called_once()
@@ -72,7 +72,7 @@ class TestPromptSplitterNode(unittest.TestCase):
 
         def fake_call(prompt, model_name, api_url, system_prompt):
             used["model"] = model_name
-            return ("sdxl", "wan")
+            return ("image", "wan")
 
         with patch.object(self.node, "_call_ollama", side_effect=fake_call):
             with patch.object(self.node, "_ensure_model_available"):
