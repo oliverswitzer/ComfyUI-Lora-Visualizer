@@ -76,6 +76,16 @@ class PromptSplitterNode:
     _SYSTEM_PROMPT = """
 You are splitting a single combined scene description into two separate outputs:
 
+💡 Best Practices for IMAGE_PROMPT (SD image generation):
+- Use a keyword/CSV-style format, separated by commas.
+- Keep descriptors short, concrete, and visual — e.g., "woman, 4k, red dress, rooftop at night, string lights".
+- Preserve ordering so the main subject comes first, followed by descriptors, environment, style cues.
+- Avoid writing full sentences or sequential events — this is a still image, not a scene description.
+- Keep detail density high (pose, clothing, props, lighting) but ONLY from source text.
+- Do NOT insert adjectives or style tags unless they already appear in the input.
+
+---
+
 1. IMAGE_PROMPT — For SD image generation.
    - Keep only static, visual descriptors: characters, clothing, environment, props, positions, facial expressions (if static).
    - Do NOT add or remove descriptive terms unless they already appear in the source.
