@@ -36,13 +36,15 @@ class TestPromptSplitterNode(unittest.TestCase):
         mock_call.assert_called_once()
         mock_ensure.assert_called_once()
 
-    def test_split_prompt_returns_empty_when_ollama_empty(self):
-        """When _call_ollama returns empty, split_prompt should return empty strings."""
+    def test_split_prompt_raises_exception_when_ollama_empty(self):
+        """When _call_ollama returns empty, split_prompt should raise an exception."""
         with patch.object(self.node, "_call_ollama", return_value=("", "")):
             with patch.object(self.node, "_ensure_model_available"):
-                image, wan = self.node.split_prompt("A test prompt")
-        self.assertEqual(image, "")
-        self.assertEqual(wan, "")
+                with self.assertRaises(Exception) as context:
+                    self.node.split_prompt("A test prompt")
+                self.assertIn(
+                    "AI model returned empty response", str(context.exception)
+                )
 
     def test_default_model_is_used_when_none(self):
         """If model_name is None, the default model should be used."""
