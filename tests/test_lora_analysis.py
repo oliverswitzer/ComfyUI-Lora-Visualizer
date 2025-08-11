@@ -257,9 +257,12 @@ class TestImageAnalyzer(unittest.TestCase):
         self.assertEqual(result["when_to_use"], "Test usage")
 
     def test_parse_analysis_response_invalid_json(self):
-        """Test parsing invalid JSON response."""
+        """Test parsing invalid JSON response with fallback."""
         result = self.analyzer._parse_analysis_response("Not valid JSON")
-        self.assertIsNone(result)
+        # Should return fallback response instead of None
+        self.assertIsNotNone(result)
+        self.assertIn("when_to_use", result)
+        self.assertIn("example_prompts_and_analysis", result)
 
         result = self.analyzer._parse_analysis_response("")
         self.assertIsNone(result)
