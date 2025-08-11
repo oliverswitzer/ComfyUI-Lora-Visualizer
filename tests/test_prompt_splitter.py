@@ -267,7 +267,10 @@ class TestPromptSplitterNode(unittest.TestCase):
 
     def test_split_prompt_with_trigger_words(self):
         """split_prompt should handle trigger words correctly."""
-        input_prompt = "beautiful woman <lora:style:0.8> dancing with motion-blur <wanlora:motion:1.0>"
+        input_prompt = (
+            "beautiful woman <lora:style:0.8> dancing with motion-blur "
+            "<wanlora:motion:1.0>"
+        )
 
         # Mock metadata for LoRAs
         mock_image_metadata = {"civitai": {"trainedWords": ["beautiful"]}}

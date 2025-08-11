@@ -21,6 +21,7 @@ from nodes.lora_visualizer_node import LoRAVisualizerNode
 
 
 class TestLoRAVisualizerNode(unittest.TestCase):
+    """Test LoRA parsing functionality in the visualizer node."""
 
     def setUp(self):
         """Set up test fixtures before each test method."""
@@ -236,6 +237,7 @@ class TestLoRAVisualizerNode(unittest.TestCase):
 
 
 class TestVisualizeLoras(unittest.TestCase):
+    """Test the visualize_loras method integration."""
 
     def setUp(self):
         """Set up test fixtures before each test method."""

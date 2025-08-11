@@ -139,7 +139,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                         "(video: twirls gracefully) <wanlora:motion:1.0>",
                         "tooltip": (
                             "Combined prompt to be split into image and video prompts.\n"
-                            "Supports: <lora:name:strength> → image, <wanlora:name:strength> → video\n"
+                            "Supports: <lora:name:strength> → image, "
+                            "<wanlora:name:strength> → video\n"
                             "Verbatim: (image: text) → image, (video: text) → video\n"
                             "AI splits remaining content into static visuals vs motion/actions."
                         ),
@@ -411,7 +412,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             self._extract_verbatim_directives(prompt_text)
         )
         log(
-            f"Prompt Splitter: Found {len(image_verbatim)} image and {len(video_verbatim)} video verbatim directives"
+            f"Prompt Splitter: Found {len(image_verbatim)} image and "
+            f"{len(video_verbatim)} video verbatim directives"
         )
 
         self._send_progress_update(0.2, "Parsing LoRA tags and trigger words...")
@@ -420,7 +422,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         log("Prompt Splitter: Parsing LoRA tags...")
         standard_loras, wanloras = self.parse_lora_tags(prompt_text)
         log(
-            f"Prompt Splitter: Found {len(standard_loras)} standard LoRAs and {len(wanloras)} WanLoRAs"
+            f"Prompt Splitter: Found {len(standard_loras)} standard LoRAs and "
+            f"{len(wanloras)} WanLoRAs"
         )
 
         # Extract and remove trigger words for all LoRAs (use prompt without wrappers)
