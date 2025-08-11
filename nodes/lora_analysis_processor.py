@@ -216,6 +216,78 @@ def _analyze_single_lora_with_vision(
     )
 
 
+def _process_single_metadata_file(
+    loras_folder: str, fname: str, api_url: str, status_channel: Optional[str]
+) -> None:
+    """Process a single metadata file for LoRA analysis."""
+    meta_path = os.path.join(loras_folder, fname)
+    # The analysis file name: insert `.analyzed` before `.metadata.json`
+    analyzed_path = meta_path.replace(".metadata.json", ".analyzed.metadata.json")
+
+    # Skip if analysis already exists
+    if os.path.exists(analyzed_path):
+        return
+
+    # Load metadata
+    meta: Dict[str, any] = {}
+    try:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+    except Exception as e:
+        log_error(f"Failed to read {fname}: {e}")
+        return
+
+    # Check if we have example images for vision analysis
+    extractor = MetadataExtractor()
+    examples = extractor.extract_example_data(meta)
+    if not examples:
+        # Nothing to analyze; write empty analysis to avoid reprocessing
+        _write_empty_analysis(analyzed_path)
+        return
+
+    # Inform user that vision analysis is starting
+    _send_status_message(
+        status_channel,
+        f"Analyzing LoRA '{fname}' with vision model (downloading images)...",
+    )
+
+    # Use vision analysis instead of text-only analysis
+    result = _analyze_single_lora_with_vision(meta, api_url)
+    if result is None:
+        # Write empty analysis to avoid repeated attempts
+        _write_empty_analysis(analyzed_path)
+        return
+
+    # Write analysis to file
+    try:
+        with open(analyzed_path, "w", encoding="utf-8") as out:
+            json.dump(result, out, ensure_ascii=False, indent=2)
+    except Exception as e:
+        log_error(f"Failed to write {analyzed_path}: {e}")
+        return
+
+    # Notify completion
+    _send_status_message(status_channel, f"Finished analyzing LoRA '{fname}'.")
+
+
+def _write_empty_analysis(analyzed_path: str) -> None:
+    """Write an empty analysis file to avoid reprocessing."""
+    try:
+        with open(analyzed_path, "w", encoding="utf-8") as out:
+            json.dump({}, out)
+    except Exception:
+        pass
+
+
+def _send_status_message(status_channel: Optional[str], message: str) -> None:
+    """Send a status message to the ComfyUI frontend if available."""
+    if status_channel and PromptServer is not None:
+        try:
+            PromptServer.instance.send_sync(status_channel, {"status": message})
+        except Exception:
+            pass
+
+
 def analyze_all_loras(
     loras_folder: str,
     model_name: str = "nous-hermes2",  # Legacy param, now unused but kept for compatibility  # pylint: disable=unused-argument
@@ -248,72 +320,6 @@ def analyze_all_loras(
     ]
     log(f"Found {len(metadata_files)} LoRA metadata files to process")
 
-    # Determine base URL for status messages
-    for fname in os.listdir(loras_folder):
-        if not fname.endswith(".metadata.json"):
-            continue
-        meta_path = os.path.join(loras_folder, fname)
-        # The analysis file name: insert `.analyzed` before `.metadata.json`
-        analyzed_path = meta_path.replace(".metadata.json", ".analyzed.metadata.json")
-        # Skip if analysis already exists
-        if os.path.exists(analyzed_path):
-            continue
-        # Load metadata
-        meta: Dict[str, any] = {}
-        try:
-            with open(meta_path, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-        except Exception as e:
-            log_error(f"Failed to read {fname}: {e}")
-            continue
-        # Check if we have example images for vision analysis
-        extractor = MetadataExtractor()
-        examples = extractor.extract_example_data(meta)
-        if not examples:
-            # Nothing to analyze; write empty analysis to avoid reprocessing
-            try:
-                with open(analyzed_path, "w", encoding="utf-8") as out:
-                    json.dump({}, out)
-            except Exception:
-                pass
-            continue
-
-        # Inform user that vision analysis is starting
-        if status_channel and PromptServer is not None:
-            try:
-                PromptServer.instance.send_sync(
-                    status_channel,
-                    {
-                        "status": (
-                            f"Analyzing LoRA '{fname}' with vision model (downloading images)..."
-                        )
-                    },
-                )
-            except Exception:
-                pass
-
-        # Use vision analysis instead of text-only analysis
-        result = _analyze_single_lora_with_vision(meta, api_url)
-        if result is None:
-            # Write empty analysis to avoid repeated attempts
-            try:
-                with open(analyzed_path, "w", encoding="utf-8") as out:
-                    json.dump({}, out)
-            except Exception:
-                pass
-            continue
-        # Write analysis to file
-        try:
-            with open(analyzed_path, "w", encoding="utf-8") as out:
-                json.dump(result, out, ensure_ascii=False, indent=2)
-        except Exception as e:
-            log_error(f"Failed to write {analyzed_path}: {e}")
-            continue
-        # Notify completion
-        if status_channel and PromptServer is not None:
-            try:
-                PromptServer.instance.send_sync(
-                    status_channel, {"status": f"Finished analyzing LoRA '{fname}'."}
-                )
-            except Exception:
-                pass
+    # Process each metadata file
+    for fname in metadata_files:
+        _process_single_metadata_file(loras_folder, fname, api_url, status_channel)
