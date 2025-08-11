@@ -224,6 +224,7 @@ custom_nodes/your-node/
 - Input validation at API boundaries
 - Defensive programming for external data
 - Comprehensive test coverage for edge cases
+- *Always* call `pdm format` and then `pdm lint` after every batch of changes you do
 
 ### Code Reuse & Duplication Prevention
 - **ALWAYS search existing codebase** before implementing new functionality
