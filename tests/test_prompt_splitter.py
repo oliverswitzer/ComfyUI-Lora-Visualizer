@@ -58,7 +58,7 @@ class TestPromptSplitterNode(unittest.TestCase):
             with patch.object(self.node, "_ensure_model_available"):
                 self.node.split_prompt("Prompt without model", model_name=None)
         # Expect the default model name defined in the node to be used
-        self.assertEqual(used["model"], self.node._DEFAULT_MODEL_NAME)
+        self.assertEqual(used["model"], "nollama/mythomax-l2-13b:Q4_K_M")
 
     def test_ensure_model_called_once(self):
         """_ensure_model_available should be called exactly once per split call."""
