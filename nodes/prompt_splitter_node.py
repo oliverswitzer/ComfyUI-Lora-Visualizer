@@ -2,29 +2,21 @@
 Prompt Splitter Node Implementation
 -----------------------------------
 
-This node takes a single natural language prompt (which may include
-LoRA tags such as ``<lora:name:strength>`` or ``<wanlora:name:strength>``)
-and splits it into two distinct prompts: one suitable for image
-generation and another appropriate for WAN video generation. The split is
-performed by delegating to an Ollama
-model running locally via its chat API.
+Intelligently splits a combined prompt into separate image and video prompts
+using Ollama AI. Handles LoRA tags, trigger words, and verbatim directives
+deterministically for precise control over prompt distribution.
 
-The default system prompt used for the Ollama call encodes the
-recommendations developed with the user earlier in this conversation.
-It instructs the model to preserve LoRA and WanLoRA tags exactly as
-given, avoid duplicating sentences across the two prompts, and treat
-the image prompt as a single still frame while allowing the WAN prompt
-to describe motion.  Example input/output is included for clarity.
+Features:
+- LoRA tag routing: <lora:name:strength> → image prompt
+- WanLoRA tag routing: <wanlora:name:strength> → video prompt  
+- Automatic trigger word extraction from LoRA metadata files
+- Verbatim directives: (image: text) and (video: text) for exact placement
+- Configurable Ollama model (default: nollama/mythomax-l2-13b:Q4_K_M)
 
-Users may override the Ollama model name, API URL or system prompt at
-runtime via optional inputs.  The node will always return a pair of
-strings (image_prompt, wan_prompt) ready for downstream conditioning
-nodes.
+The AI focuses on content splitting while deterministic rules handle
+tag placement and verbatim text distribution.
 
-Note: This node requires the ``requests`` library at runtime.  If
-``requests`` is not available in your Python environment, install it
-with ``pip install requests`` or add it to your ComfyUI environment's
-requirements file.
+Note: Requires Ollama running locally and ``requests`` library.
 """
 
 import json
@@ -55,11 +47,14 @@ class PromptSplitterNode:
     CATEGORY = "conditioning"
     DESCRIPTION = """Splits a scene description into separate image and WAN prompts.
 
-    This node sends your prompt to a local Ollama model with a system
-    prompt that explains how to construct a still image prompt and a
-    corresponding video prompt.  It preserves any LoRA or WanLoRA tags
-    and returns the two prompts as strings.  Optional inputs allow you
-    to override the Ollama model, API URL and system prompt.
+    Uses Ollama to intelligently split your prompt into static visual elements
+    (image prompt) and motion/action elements (video prompt). Features:
+
+    • Handles LoRA tags: <lora:name:strength> → image prompt
+    • Handles WanLoRA tags: <wanlora:name:strength> → video prompt  
+    • Extracts trigger words from LoRA metadata automatically
+    • Verbatim directives: (image: text) → image prompt, (video: text) → video prompt
+    • Configurable Ollama model, API URL, and system prompt
     """
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -133,12 +128,13 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
                     {
                         "multiline": True,
                         "default": "",
-                        "placeholder": "Enter the full prompt describing your scene, "
-                        "including any LoRA tags...",
+                        "placeholder": "woman dancing <lora:style:0.8> (image: beautiful face) "
+                        "(video: twirls gracefully) <wanlora:motion:1.0>",
                         "tooltip": (
                             "Combined prompt to be split into image and video prompts.\n"
-                            "Include <lora:...> or <wanlora:...> tags if needed; "
-                            "they will be preserved."
+                            "Supports: <lora:name:strength> → image, <wanlora:name:strength> → video\n"
+                            "Verbatim: (image: text) → image, (video: text) → video\n"
+                            "AI splits remaining content into static visuals vs motion/actions."
                         ),
                     },
                 ),
