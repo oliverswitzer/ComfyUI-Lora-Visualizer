@@ -5,6 +5,8 @@ This module provides a consistent logging interface for all components
 of the LoRA Visualizer custom node.
 """
 
+import os
+
 
 def log(message: str) -> None:
     """
@@ -19,11 +21,13 @@ def log(message: str) -> None:
 def log_debug(message: str) -> None:
     """
     Log a debug message with DEBUG prefix.
+    Only prints if COMFYUI_LORA_DEBUG environment variable is set.
 
     Args:
         message: The debug message to log
     """
-    print(f"[ComfyUI-Lora-Visualizer] DEBUG: {message}")
+    if os.getenv("COMFYUI_LORA_DEBUG"):
+        print(f"[ComfyUI-Lora-Visualizer] DEBUG: {message}")
 
 
 def log_warning(message: str) -> None:

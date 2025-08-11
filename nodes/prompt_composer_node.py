@@ -16,7 +16,7 @@ from .lora_metadata_utils import (
     classify_lora_type,
     extract_recommended_weight,
 )
-from .logging_utils import log, log_error
+from .logging_utils import log, log_debug, log_error
 
 
 class PromptComposerNode:
@@ -202,7 +202,7 @@ This node
             clean_scene = re.sub(r"<(?:lora|wanlora):[^>]+>", "", scene_description)
             clean_scene = " ".join(clean_scene.split())  # Remove extra whitespace
             preview = clean_scene[:50] + ("..." if len(clean_scene) > 50 else "")
-            log(f"  🧹 Cleaned scene for embedding: '{preview}'")
+            log_debug(f"  🧹 Cleaned scene for embedding: '{preview}'")
 
             # Generate embedding for cleaned scene description
             scene_embedding = self._embedding_model.encode(clean_scene)
@@ -227,18 +227,20 @@ This node
                     similarity = cosine_similarity([scene_embedding], [lora_embedding])[
                         0
                     ][0]
-                    log(f"  📊 {lora_name} base similarity: {similarity:.4f}")
+                    log_debug(f"  📊 {lora_name} base similarity: {similarity:.4f}")
 
                     # Apply content boost for character/pose LoRAs
                     if self._is_content_lora(metadata):
                         old_similarity = similarity
                         similarity *= content_boost
-                        log(
+                        log_debug(
                             f"  🚀 {lora_name} content boost applied: "
                             f"{old_similarity:.4f} → {similarity:.4f}"
                         )
                     else:
-                        log(f"  📋 {lora_name} no content boost (not content-specific)")
+                        log_debug(
+                            f"  📋 {lora_name} no content boost (not content-specific)"
+                        )
 
                     # Apply keyword matching bonus for exact position matches
                     keyword_boost = self._get_keyword_boost(
@@ -247,7 +249,7 @@ This node
                     if keyword_boost > 1.0:
                         old_similarity = similarity
                         similarity *= keyword_boost
-                        log(
+                        log_debug(
                             f"  🎯 {lora_name} keyword boost applied: "
                             f"{old_similarity:.4f} → {similarity:.4f}"
                         )
@@ -338,14 +340,14 @@ This node
         scene_lower = clean_scene.lower()
         boost = 1.0
 
-        log(f"    🔍 Keyword boost check for {lora_name}")
+        log_debug(f"    🔍 Keyword boost check for {lora_name}")
         orig_preview = scene_description[:50] + (
             "..." if len(scene_description) > 50 else ""
         )
         clean_preview = clean_scene[:50] + ("..." if len(clean_scene) > 50 else "")
-        log(f"    📝 Original scene: '{orig_preview}'")
-        log(f"    🧹 Cleaned scene: '{clean_preview}'")
-        log(f"    📁 LoRA name: '{lora_name.lower()}'")
+        log_debug(f"    📝 Original scene: '{orig_preview}'")
+        log_debug(f"    🧹 Cleaned scene: '{clean_preview}'")
+        log_debug(f"    📁 LoRA name: '{lora_name.lower()}'")
 
         # Position-specific keyword matching
         position_keywords = {
@@ -369,8 +371,8 @@ This node
                 tag.lower() for tag in metadata["civitai"]["model"].get("tags", [])
             ]
 
-        log(f"    📋 LoRA tags: {lora_tags_lower}")
-        log(f"    🌐 Civitai tags: {civitai_tags}")
+        log_debug(f"    📋 LoRA tags: {lora_tags_lower}")
+        log_debug(f"    🌐 Civitai tags: {civitai_tags}")
 
         for position, keywords in position_keywords.items():
             scene_has_keyword = any(keyword in scene_lower for keyword in keywords)
@@ -398,19 +400,21 @@ This node
                 best_position = position
                 best_source = "civitai"
 
-            log(f"    🎯 Position '{position}': Scene has keyword, checking sources...")
-            log(f"      📁 Title match: {lora_has_keyword}")
-            log(f"      📋 Tag match: {tag_has_keyword}")
-            log(f"      🌐 Civitai match: {civitai_has_keyword}")
+            log_debug(
+                f"    🎯 Position '{position}': Scene has keyword, checking sources..."
+            )
+            log_debug(f"      📁 Title match: {lora_has_keyword}")
+            log_debug(f"      📋 Tag match: {tag_has_keyword}")
+            log_debug(f"      🌐 Civitai match: {civitai_has_keyword}")
 
         # Apply the best boost found
         if best_boost > 1.0:
             boost *= best_boost
-            log(
+            log_debug(
                 f"    ✨ Applied {best_boost}x boost for '{best_position}' match in {best_source}!"
             )
 
-        log(f"    📊 Final keyword boost for {lora_name}: {boost}x")
+        log_debug(f"    📊 Final keyword boost for {lora_name}: {boost}x")
         return boost
 
     def _analyze_prompt_style(self, example_prompts: List[str]) -> Dict[str, Any]:
@@ -479,17 +483,17 @@ This node
             Composed prompt string
         """
         try:
-            log("_compose_final_prompt: Starting composition")
+            log_debug("_compose_final_prompt: Starting composition")
             prompt_parts = []
 
             # Add LoRA tags at the beginning
-            log("_compose_final_prompt: Adding image LoRA tags")
+            log_debug("_compose_final_prompt: Adding image LoRA tags")
             for i, lora in enumerate(image_loras):
                 weight = lora["recommended_weight"]
                 tag = f"<lora:{lora['name']}:{weight}>"
                 prompt_parts.append(tag)
 
-            log("_compose_final_prompt: Adding video LoRA tags")
+            log_debug("_compose_final_prompt: Adding video LoRA tags")
             for i, lora in enumerate(video_loras):
                 weight = lora["recommended_weight"]
                 tag = f"<wanlora:{lora['name']}:{weight}>"
@@ -500,7 +504,7 @@ This node
 
         # Collect trigger words
         try:
-            log("_compose_final_prompt: Collecting trigger words")
+            log_debug("_compose_final_prompt: Collecting trigger words")
             trigger_words = []
             for i, lora in enumerate(image_loras + video_loras):
 
@@ -518,7 +522,7 @@ This node
 
         # Add trigger words (remove duplicates but preserve order)
         try:
-            log("_compose_final_prompt: Deduplicating trigger words")
+            log_debug("_compose_final_prompt: Deduplicating trigger words")
             seen_triggers = set()
             unique_triggers = []
             for i, word in enumerate(trigger_words):
@@ -526,7 +530,7 @@ This node
                     unique_triggers.append(word)
                     seen_triggers.add(word.lower())
 
-            log(
+            log_debug(
                 f"_compose_final_prompt: Found {len(unique_triggers)} unique trigger words"
             )
             if unique_triggers:
@@ -535,22 +539,24 @@ This node
             # Add the cleaned scene description (remove existing LoRA tags)
             clean_scene = re.sub(r"<(?:lora|wanlora):[^>]+>", "", scene_description)
             clean_scene = " ".join(clean_scene.split())  # Remove extra whitespace
-            log("_compose_final_prompt: Adding cleaned scene description")
+            log_debug("_compose_final_prompt: Adding cleaned scene description")
             prompt_parts.append(clean_scene)
 
             # Analyze style from all selected LoRAs
-            log("_compose_final_prompt: Analyzing style from example prompts")
+            log_debug("_compose_final_prompt: Analyzing style from example prompts")
             all_example_prompts = []
             for i, lora in enumerate(image_loras + video_loras):
                 lora_name = lora.get("name", "unknown")
-                log(
+                log_debug(
                     f"_compose_final_prompt: Extracting examples from LoRA {i}: {lora_name}"
                 )
                 metadata = lora.get("metadata")
-                log(f"_compose_final_prompt: Metadata type: {type(metadata)}")
+                log_debug(f"_compose_final_prompt: Metadata type: {type(metadata)}")
                 examples = extract_example_prompts(metadata, limit=2)
                 example_count = len(examples) if examples else 0
-                log(f"_compose_final_prompt: Found {example_count} example prompts")
+                log_debug(
+                    f"_compose_final_prompt: Found {example_count} example prompts"
+                )
                 if examples:
                     all_example_prompts.extend(examples)
         except Exception as e:
@@ -641,11 +647,11 @@ This node
             log(f"Found {len(image_loras)} image LoRAs, {len(video_loras)} video LoRAs")
 
             # Compose the final prompt
-            log("Starting prompt composition...")
+            log_debug("Starting prompt composition...")
             composed_prompt = self._compose_final_prompt(
                 scene_description, image_loras, video_loras, style_preference
             )
-            log("Prompt composition completed successfully")
+            log_debug("Prompt composition completed successfully")
 
             # Create analysis output
             analysis_data = {

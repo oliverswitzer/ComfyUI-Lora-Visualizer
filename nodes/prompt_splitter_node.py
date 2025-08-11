@@ -30,7 +30,7 @@ from .ollama_utils import (
     ensure_model_available as _shared_ensure_model_available,
 )  # noqa: E402
 from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
-from .logging_utils import log, log_error
+from .logging_utils import log, log_debug, log_error
 from .lora_metadata_utils import get_metadata_loader, parse_lora_tags
 
 try:
@@ -252,7 +252,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             content = match.group(1).strip()
             if content:
                 image_verbatim.append(content)
-                log(f"Prompt Splitter: Found image verbatim directive: '{content}'")
+                log_debug(
+                    f"Prompt Splitter: Found image verbatim directive: '{content}'"
+                )
 
         # Pattern for (video: content) - capture everything until the closing parenthesis
         video_pattern = r"\(video:\s*([^)]+)\)"
@@ -260,7 +262,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             content = match.group(1).strip()
             if content:
                 video_verbatim.append(content)
-                log(f"Prompt Splitter: Found video verbatim directive: '{content}'")
+                log_debug(
+                    f"Prompt Splitter: Found video verbatim directive: '{content}'"
+                )
 
         # Remove the wrapper syntax but keep the content for LLM context
         # Replace (image: content) with just content
@@ -441,11 +445,15 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         prompt_without_triggers, extracted_trigger_words = (
             self._extract_and_remove_trigger_words(prompt_without_wrappers, all_loras)
         )
-        log(f"Prompt Splitter: Extracted {len(extracted_trigger_words)} trigger words")
+        log_debug(
+            f"Prompt Splitter: Extracted {len(extracted_trigger_words)} trigger words"
+        )
 
         # Remove all LoRA tags from prompt before sending to LLM
         clean_prompt = self._remove_all_lora_tags(prompt_without_triggers)
-        log(f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters")
+        log_debug(
+            f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters"
+        )
 
         # Determine which model to use: the caller-supplied name or the default.
         model = model_name or self._DEFAULT_MODEL_NAME
@@ -457,9 +465,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
         # Ensure the model is available before attempting to generate
         try:
-            log(f"Prompt Splitter: Checking model availability for '{model}'")
+            log_debug(f"Prompt Splitter: Checking model availability for '{model}'")
             self._ensure_model_available(model, url)
-            log(f"Prompt Splitter: Model '{model}' is ready")
+            log_debug(f"Prompt Splitter: Model '{model}' is ready")
         except Exception as e:
             log_error(f"Prompt Splitter: Error ensuring model availability: {e}")
             if "Connection" in str(e) or "refused" in str(e):
@@ -489,7 +497,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             # Standard LoRAs go to image prompt
             for lora in standard_loras:
                 image_prompt = f"{image_prompt} {lora['tag']}"
-                log(f"Prompt Splitter: Added {lora['tag']} to image prompt")
+                log_debug(f"Prompt Splitter: Added {lora['tag']} to image prompt")
 
                 # Add trigger words for this LoRA to image prompt
                 trigger_words = metadata_loader.extract_trigger_words(
@@ -505,7 +513,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             # WanLoRAs go to video prompt
             for wanlora in wanloras:
                 wan_prompt = f"{wan_prompt} {wanlora['tag']}"
-                log(f"Prompt Splitter: Added {wanlora['tag']} to video prompt")
+                log_debug(f"Prompt Splitter: Added {wanlora['tag']} to video prompt")
 
                 # Add trigger words for this WanLoRA to video prompt
                 trigger_words = metadata_loader.extract_trigger_words(
@@ -521,11 +529,11 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             # Add verbatim directives back to appropriate prompts deterministically
             for verbatim in image_verbatim:
                 image_prompt = f"{image_prompt} {verbatim}"
-                log(f"Prompt Splitter: Added image verbatim: '{verbatim}'")
+                log_debug(f"Prompt Splitter: Added image verbatim: '{verbatim}'")
 
             for verbatim in video_verbatim:
                 wan_prompt = f"{wan_prompt} {verbatim}"
-                log(f"Prompt Splitter: Added video verbatim: '{verbatim}'")
+                log_debug(f"Prompt Splitter: Added video verbatim: '{verbatim}'")
 
             self._send_progress_update(1.0, "Prompt splitting completed!")
 

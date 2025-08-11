@@ -17,7 +17,7 @@ except ImportError:
     # folder_paths may not be available during testing
     folder_paths = None
 
-from .logging_utils import log, log_error
+from .logging_utils import log, log_debug, log_error
 
 
 class LoRAMetadataLoader:
@@ -276,16 +276,16 @@ def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
     content_parts = []
     lora_name = metadata.get("file_name", "unknown")
 
-    log(f"🔍 Extracting embeddable content for LoRA: {lora_name}")
+    log_debug(f"🔍 Extracting embeddable content for LoRA: {lora_name}")
 
     # PRIORITY 1: File name (extract and repeat key words)
     if "file_name" in metadata:
         file_name = metadata["file_name"]
-        log(f"  📁 File name: '{file_name}'")
+        log_debug(f"  📁 File name: '{file_name}'")
 
         # Extract meaningful words from filename (remove version numbers, common prefixes)
         title_words = re.findall(r"[a-zA-Z]{3,}", file_name.lower())
-        log(f"  🔤 Extracted title words: {title_words}")
+        log_debug(f"  🔤 Extracted title words: {title_words}")
 
         # Filter out common non-descriptive words
         filtered_words = [
@@ -303,17 +303,17 @@ def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
                 "version",
             ]
         ]
-        log(f"  ✨ Filtered title words: {filtered_words}")
+        log_debug(f"  ✨ Filtered title words: {filtered_words}")
 
         # Repeat important title words 3x for higher semantic weight
         for word in filtered_words:
             content_parts.extend([word] * 3)
-            log(f"  🔁 Added '{word}' x3 for high priority")
+            log_debug(f"  🔁 Added '{word}' x3 for high priority")
 
     # PRIORITY 2: Model name and description
     if "model_name" in metadata:
         model_name = metadata["model_name"]
-        log(f"  📝 Model name: '{model_name}'")
+        log_debug(f"  📝 Model name: '{model_name}'")
         content_parts.append(model_name)
 
         # Also extract and repeat key words from model name
@@ -321,7 +321,7 @@ def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
         filtered_model_words = [
             w for w in model_words if w not in ["lora", "for", "wan", "the"]
         ]
-        log(f"  🎯 Model words added: {filtered_model_words}")
+        log_debug(f"  🎯 Model words added: {filtered_model_words}")
         content_parts.extend(filtered_model_words)
 
     if "modelDescription" in metadata:
@@ -359,10 +359,10 @@ def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
 
     preview = final_content[:100]
     suffix = "..." if len(final_content) > 100 else ""
-    log(
+    log_debug(
         f"  📊 Final embeddable content ({len(final_content)} chars): '{preview}{suffix}'"
     )
-    log(f"  📈 Word count: {len(final_content.split())} words")
+    log_debug(f"  📈 Word count: {len(final_content.split())} words")
 
     return final_content
 

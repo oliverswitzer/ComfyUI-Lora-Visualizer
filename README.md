@@ -273,6 +273,44 @@ Alternatively, use the ComfyUI CLI: `comfy node publish`
 
 For more details, see the [ComfyUI Registry Publishing Guide](https://docs.comfy.org/registry/publishing).
 
+## 🐛 Debugging and Troubleshooting
+
+### Enable Debug Logging
+
+By default, the LoRA Tools Suite shows only high-level progress messages. For detailed debugging information (similarity scores, boost calculations, metadata processing), enable debug logging:
+
+**Windows (Command Prompt):**
+```cmd
+set COMFYUI_LORA_DEBUG=1
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:COMFYUI_LORA_DEBUG = "1"
+```
+
+**macOS/Linux:**
+```bash
+export COMFYUI_LORA_DEBUG=1
+```
+
+Then start ComfyUI. You'll see detailed debug messages like:
+```
+[ComfyUI-Lora-Visualizer] Finding relevant image LoRAs...
+[ComfyUI-Lora-Visualizer] DEBUG: 🧹 Cleaned scene for embedding: 'cyberpunk woman in neon-lit alley'
+[ComfyUI-Lora-Visualizer] DEBUG: 📊 DetailAmplifier similarity: 0.7243
+[ComfyUI-Lora-Visualizer] DEBUG: 🚀 DetailAmplifier content boost applied: 0.7243 → 0.8692
+[ComfyUI-Lora-Visualizer] Found 3 image LoRAs: ['DetailAmplifier', 'CyberPunkAI', 'NeonStyle']
+```
+
+Debug logging helps troubleshoot:
+- LoRA discovery and similarity matching
+- Keyword boost calculations  
+- Prompt composition steps
+- Metadata processing details
+
+**To disable:** Remove the environment variable or set it to an empty value.
+
 ## Development
 
 ### Prerequisites
