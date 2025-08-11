@@ -32,8 +32,9 @@ format = "black ."
 lint = "pylint nodes/ tests/"
 test = "pytest tests"
 
+
 [tool.setuptools.packages.find]
 include = [ "nodes*",]
 
-[tool.pdm.scripts.check]
-composite = [ "format", "lint",]
+[tool.pdm.scripts.ci]
+composite = ["format", "test", "lint"]
