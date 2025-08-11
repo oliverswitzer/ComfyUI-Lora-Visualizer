@@ -39,6 +39,7 @@ from .ollama_utils import (
 )  # noqa: E402
 from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
 from .logging_utils import log, log_error
+from .lora_metadata_utils import get_metadata_loader
 
 try:
     import requests  # type: ignore[import]
@@ -223,6 +224,42 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
 
         return standard_loras, wanloras
 
+    def _extract_and_remove_trigger_words(
+        self, prompt_text: str, lora_list: List[Dict]
+    ) -> Tuple[str, List[str]]:
+        """
+        Extract trigger words for LoRAs from prompt and remove them.
+
+        Args:
+            prompt_text: The input prompt text
+            lora_list: List of LoRA dicts with name, strength, type, tag
+
+        Returns:
+            Tuple of (cleaned_prompt, extracted_trigger_words)
+        """
+        extracted_trigger_words = []
+        metadata_loader = get_metadata_loader()
+
+        for lora in lora_list:
+            lora_name = lora["name"]
+            trigger_words = metadata_loader.extract_trigger_words(
+                metadata_loader.load_metadata(lora_name)
+            )
+
+            for trigger_word in trigger_words:
+                if trigger_word.lower() in prompt_text.lower():
+                    extracted_trigger_words.append(trigger_word)
+                    # Remove trigger word from prompt (case-insensitive)
+                    pattern = re.compile(re.escape(trigger_word), re.IGNORECASE)
+                    prompt_text = pattern.sub("", prompt_text)
+                    log(
+                        f"Prompt Splitter: Extracted trigger word '{trigger_word}' for {lora_name}"
+                    )
+
+        # Clean up extra whitespace after removals
+        prompt_text = re.sub(r"\s+", " ", prompt_text).strip()
+        return prompt_text, extracted_trigger_words
+
     def _remove_all_lora_tags(self, prompt_text: str) -> str:
         """Remove all LoRA and WanLoRA tags from prompt text."""
         # Remove both types of tags
@@ -332,11 +369,16 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
             f"Prompt Splitter: Found {len(standard_loras)} standard LoRAs and {len(wanloras)} WanLoRAs"
         )
 
-        # Remove all LoRA tags from prompt before sending to LLM
-        clean_prompt = self._remove_all_lora_tags(prompt_text)
-        log(
-            f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters"
+        # Extract and remove trigger words for all LoRAs
+        all_loras = standard_loras + wanloras
+        prompt_without_triggers, extracted_trigger_words = (
+            self._extract_and_remove_trigger_words(prompt_text, all_loras)
         )
+        log(f"Prompt Splitter: Extracted {len(extracted_trigger_words)} trigger words")
+
+        # Remove all LoRA tags from prompt before sending to LLM
+        clean_prompt = self._remove_all_lora_tags(prompt_without_triggers)
+        log(f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters")
 
         # Determine which model to use: the caller-supplied name or the default.
         model = model_name or self._DEFAULT_MODEL_NAME
@@ -361,16 +403,40 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
         )
 
         if image_prompt and wan_prompt:
-            # Add LoRA tags back to the appropriate prompts
+            # Add LoRA tags and trigger words back to appropriate prompts
+            metadata_loader = get_metadata_loader()
+
             # Standard LoRAs go to image prompt
             for lora in standard_loras:
                 image_prompt = f"{image_prompt} {lora['tag']}"
                 log(f"Prompt Splitter: Added {lora['tag']} to image prompt")
 
+                # Add trigger words for this LoRA to image prompt
+                trigger_words = metadata_loader.extract_trigger_words(
+                    metadata_loader.load_metadata(lora["name"])
+                )
+                for trigger_word in trigger_words:
+                    if trigger_word in extracted_trigger_words:
+                        image_prompt = f"{image_prompt} {trigger_word}"
+                        log(
+                            f"Prompt Splitter: Added trigger word '{trigger_word}' to image prompt"
+                        )
+
             # WanLoRAs go to video prompt
             for wanlora in wanloras:
                 wan_prompt = f"{wan_prompt} {wanlora['tag']}"
                 log(f"Prompt Splitter: Added {wanlora['tag']} to video prompt")
+
+                # Add trigger words for this WanLoRA to video prompt
+                trigger_words = metadata_loader.extract_trigger_words(
+                    metadata_loader.load_metadata(wanlora["name"])
+                )
+                for trigger_word in trigger_words:
+                    if trigger_word in extracted_trigger_words:
+                        wan_prompt = f"{wan_prompt} {trigger_word}"
+                        log(
+                            f"Prompt Splitter: Added trigger word '{trigger_word}' to video prompt"
+                        )
 
             log("Prompt Splitter: Successfully split prompt")
             log(
