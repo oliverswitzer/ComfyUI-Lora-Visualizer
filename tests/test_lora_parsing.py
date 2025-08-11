@@ -266,9 +266,9 @@ class TestVisualizeLoras(unittest.TestCase):
         result, processed_prompt = self.node.visualize_loras(prompt)
 
         # Parse JSON result
-        import json
+        import json as json_module
 
-        metadata = json.loads(result)
+        metadata = json_module.loads(result)
 
         self.assertEqual(metadata["total_loras_found"], 2)
         self.assertEqual(metadata["standard_loras_count"], 1)

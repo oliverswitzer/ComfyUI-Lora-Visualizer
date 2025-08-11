@@ -337,7 +337,10 @@ class TestPromptSplitterNode(unittest.TestCase):
 
     def test_extract_verbatim_directives_multiple(self):
         """_extract_verbatim_directives should handle multiple directives of same type."""
-        prompt = "(image: character1) dancing (image: outfit: dress) and (video: motion1) then (video: motion2)"
+        prompt = (
+            "(image: character1) dancing (image: outfit: dress) and "
+            "(video: motion1) then (video: motion2)"
+        )
 
         clean_prompt, image_verbatim, video_verbatim = (
             self.node._extract_verbatim_directives(prompt)
@@ -369,7 +372,10 @@ class TestPromptSplitterNode(unittest.TestCase):
 
     def test_split_prompt_with_verbatim_directives(self):
         """split_prompt should handle verbatim directives correctly."""
-        input_prompt = "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
+        input_prompt = (
+            "woman dancing (image: overwatch, ana) gracefully "
+            "(video: she jumps up and down)"
+        )
 
         # Mock _call_ollama to return clean responses (verbatim content added back separately)
         with patch.object(
@@ -390,7 +396,10 @@ class TestPromptSplitterNode(unittest.TestCase):
 
     def test_split_prompt_with_loras_and_verbatim(self):
         """split_prompt should handle both LoRAs and verbatim directives together."""
-        input_prompt = "(image: overwatch, ana) woman <lora:style:0.8> dancing (video: she jumps) <wanlora:motion:1.0>"
+        input_prompt = (
+            "(image: overwatch, ana) woman <lora:style:0.8> dancing "
+            "(video: she jumps) <wanlora:motion:1.0>"
+        )
 
         # Mock metadata loader for LoRAs
         with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_get_loader:
