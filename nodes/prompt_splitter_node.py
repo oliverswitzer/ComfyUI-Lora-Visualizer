@@ -68,7 +68,7 @@ class PromptSplitterNode:
     FUNCTION = "split_prompt"
 
     # Default values for optional parameters
-    _DEFAULT_MODEL_NAME = "nous-hermes2"
+    _DEFAULT_MODEL_NAME = "nollama/mythomax-l2-13b:Q4_K_M"
     _DEFAULT_API_URL = "http://localhost:11434/api/chat"
 
     # Default model name used when the caller does not supply a model_name.
