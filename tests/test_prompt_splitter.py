@@ -320,7 +320,8 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node._extract_verbatim_directives(prompt)
         )
 
-        self.assertEqual(clean_prompt, "woman dancing gracefully")
+        # Prompt should be unchanged since we keep verbatim directives for LLM context
+        self.assertEqual(clean_prompt, prompt)
         self.assertEqual(len(image_verbatim), 1)
         self.assertEqual(len(video_verbatim), 1)
         self.assertEqual(image_verbatim[0], "overwatch, ana")
@@ -334,7 +335,8 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node._extract_verbatim_directives(prompt)
         )
 
-        self.assertEqual(clean_prompt, "dancing and then")
+        # Prompt should be unchanged since we keep verbatim directives for LLM context
+        self.assertEqual(clean_prompt, prompt)
         self.assertEqual(len(image_verbatim), 2)
         self.assertEqual(len(video_verbatim), 2)
         self.assertIn("character1", image_verbatim)
@@ -350,7 +352,8 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node._extract_verbatim_directives(prompt)
         )
 
-        self.assertEqual(clean_prompt, "woman dancing gracefully")
+        # Prompt should be unchanged since we keep verbatim directives for LLM context
+        self.assertEqual(clean_prompt, prompt)
         self.assertEqual(len(image_verbatim), 0)
         self.assertEqual(len(video_verbatim), 0)
 
@@ -358,16 +361,16 @@ class TestPromptSplitterNode(unittest.TestCase):
         """split_prompt should handle verbatim directives correctly."""
         input_prompt = "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
 
-        # Mock _call_ollama to return clean responses
+        # Mock _call_ollama to return responses with verbatim content included by LLM
         with patch.object(
             self.node,
             "_call_ollama",
-            return_value=("woman dancing gracefully", "woman dances"),
+            return_value=("woman dancing gracefully, overwatch, ana", "woman dances, she jumps up and down"),
         ):
             with patch.object(self.node, "_ensure_model_available"):
                 image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
 
-        # Should have verbatim content added
+        # Should have verbatim content included by LLM
         self.assertIn("overwatch, ana", image_prompt)
         self.assertIn("she jumps up and down", wan_prompt)
 
@@ -385,16 +388,16 @@ class TestPromptSplitterNode(unittest.TestCase):
             mock_loader.load_metadata.return_value = None
             mock_loader.extract_trigger_words.return_value = []
 
-            # Mock _call_ollama to return clean responses
+            # Mock _call_ollama to return responses with verbatim content included by LLM
             with patch.object(
                 self.node,
                 "_call_ollama",
-                return_value=("woman dancing", "woman dances"),
+                return_value=("woman dancing, overwatch, ana", "woman dances, she jumps"),
             ):
                 with patch.object(self.node, "_ensure_model_available"):
                     image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
 
-        # Should have verbatim content
+        # Should have verbatim content included by LLM
         self.assertIn("overwatch, ana", image_prompt)
         self.assertIn("she jumps", wan_prompt)
 
