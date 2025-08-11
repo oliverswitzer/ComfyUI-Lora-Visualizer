@@ -366,19 +366,16 @@ class TestPromptSplitterNode(unittest.TestCase):
         """split_prompt should handle verbatim directives correctly."""
         input_prompt = "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
 
-        # Mock _call_ollama to return responses with verbatim content included by LLM
+        # Mock _call_ollama to return clean responses (verbatim content added back separately)
         with patch.object(
             self.node,
             "_call_ollama",
-            return_value=(
-                "woman dancing gracefully, overwatch, ana",
-                "woman dances, she jumps up and down",
-            ),
+            return_value=("woman dancing gracefully", "woman dances"),
         ):
             with patch.object(self.node, "_ensure_model_available"):
                 image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
 
-        # Should have verbatim content included by LLM
+        # Should have verbatim content added back deterministically
         self.assertIn("overwatch, ana", image_prompt)
         self.assertIn("she jumps up and down", wan_prompt)
 
@@ -396,19 +393,16 @@ class TestPromptSplitterNode(unittest.TestCase):
             mock_loader.load_metadata.return_value = None
             mock_loader.extract_trigger_words.return_value = []
 
-            # Mock _call_ollama to return responses with verbatim content included by LLM
+            # Mock _call_ollama to return clean responses (verbatim content added back separately)
             with patch.object(
                 self.node,
                 "_call_ollama",
-                return_value=(
-                    "woman dancing, overwatch, ana",
-                    "woman dances, she jumps",
-                ),
+                return_value=("woman dancing", "woman dances"),
             ):
                 with patch.object(self.node, "_ensure_model_available"):
                     image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
 
-        # Should have verbatim content included by LLM
+        # Should have verbatim content added back deterministically
         self.assertIn("overwatch, ana", image_prompt)
         self.assertIn("she jumps", wan_prompt)
 

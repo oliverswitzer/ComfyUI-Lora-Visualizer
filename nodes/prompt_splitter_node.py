@@ -93,8 +93,7 @@ General Rules:
 - Copy source words exactly, unless you must remove them because they are irrelevant to the specific output type.
 - If unsure which output a term belongs in, place it in the IMAGE_PROMPT.
 - IGNORE any LoRA tags like <lora:...> or <wanlora:...> - they will be handled separately.
-- For verbatim directives: content from (image: content) goes to IMAGE_PROMPT, content from (video: content) goes to WAN_PROMPT.
-- Include the verbatim content directly, the wrapper syntax has been removed from the input.
+- IGNORE verbatim directive content - it has been extracted and will be added back separately.
 - Return your final result in JSON with keys "image_prompt" and "wan_prompt".
 
 Output format: valid JSON with keys 'image_prompt' and 'wan_prompt'.
@@ -121,7 +120,7 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
 
 Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 {
-  "image_prompt": "woman dancing gracefully, overwatch, ana",
+  "image_prompt": "woman dancing gracefully",
   "wan_prompt": "the woman dances, then jumps up and down several times"
 }
 """
@@ -493,16 +492,14 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                             f"Prompt Splitter: Added trigger word '{trigger_word}' to video prompt"
                         )
 
-            # Note: Verbatim directives are handled by the LLM in its response
-            # We don't need to add them back since they should already be included
-            if image_verbatim:
-                log(
-                    f"Prompt Splitter: LLM should have included {len(image_verbatim)} image verbatim directives"
-                )
-            if video_verbatim:
-                log(
-                    f"Prompt Splitter: LLM should have included {len(video_verbatim)} video verbatim directives"
-                )
+            # Add verbatim directives back to appropriate prompts deterministically
+            for verbatim in image_verbatim:
+                image_prompt = f"{image_prompt} {verbatim}"
+                log(f"Prompt Splitter: Added image verbatim: '{verbatim}'")
+
+            for verbatim in video_verbatim:
+                wan_prompt = f"{wan_prompt} {verbatim}"
+                log(f"Prompt Splitter: Added video verbatim: '{verbatim}'")
 
             log("Prompt Splitter: Successfully split prompt")
             log(
