@@ -52,6 +52,16 @@ NOTE: If you aren't having any lora show up, try to reduce the threshold paramet
 - **✅ Flexible Model Support**: Works with any Ollama-compatible model
 - **✅ Structured Output**: Clean, consistent formatting for downstream nodes
 
+## Example: Integration Composer -> Visualizer -> Prompt Splitter
+
+![Integration Composer -> Visualizer -> Prompt Splitter](docs/images/full-node-pipeline.png)
+
+1. Node 1: We generate a new prompt based on the lora installed on our machine using the `LoRA Prompt Composer`, providing it an initial prompt without lora references
+
+2. Node 2: We visualize the `lora` and `wanlora` that were referenced via the `LoRA Visualizer`
+
+3. Node 3: We split that prompt out into a Wan prompt and a SD prompt with the `Prompt Splitter` node. You would then pass these prompts as positive conditioning into SD generation and Wan generation workflows.
+
 ## Shared Features
 
 - **✅ Backend-Frontend Architecture**: Python handles parsing and logic, JavaScript handles visualization
