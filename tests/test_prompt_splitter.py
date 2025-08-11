@@ -48,7 +48,9 @@ class TestPromptSplitterNode(unittest.TestCase):
         """If model_name is None, the default model should be used."""
         used = {}
 
-        def fake_call(prompt, model_name, api_url, system_prompt):  # pylint: disable=unused-argument
+        def fake_call(
+            prompt, model_name, api_url, system_prompt
+        ):  # pylint: disable=unused-argument
             used["model"] = model_name
             return ("x", "y")
 
@@ -69,7 +71,9 @@ class TestPromptSplitterNode(unittest.TestCase):
         """Providing a model_name should override the default."""
         used = {}
 
-        def fake_call(prompt, model_name, api_url, system_prompt):  # pylint: disable=unused-argument
+        def fake_call(
+            prompt, model_name, api_url, system_prompt
+        ):  # pylint: disable=unused-argument
             used["model"] = model_name
             return ("image", "wan")
 

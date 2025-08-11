@@ -37,7 +37,7 @@ from .ollama_utils import (
     ensure_model_available as _shared_ensure_model_available,
 )  # noqa: E402
 from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
-from .logging_utils import log_error
+from .logging_utils import log, log_error
 
 try:
     import requests  # type: ignore[import]
@@ -202,6 +202,7 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
         returned.
         """
         # Call the shared helper directly
+        log("Prompt Splitter: Contacting Ollama API...")
         content = _shared_call_ollama_chat(
             system_prompt,
             prompt,
@@ -211,14 +212,21 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
             requests_module=requests,
         )
         if not content:
+            log_error("Prompt Splitter: Ollama returned empty response")
             return "", ""
+
+        log(
+            f"Prompt Splitter: Received response from Ollama ({len(content)} characters)"
+        )
         try:
             result = json.loads(content.strip())
             image_prompt = str(result.get("image_prompt", ""))
             wan_prompt = str(result.get("wan_prompt", ""))
+            log("Prompt Splitter: Successfully parsed JSON response")
             return image_prompt, wan_prompt
-        except json.JSONDecodeError:
-            # Content is not valid JSON; treat as failure
+        except json.JSONDecodeError as e:
+            log_error(f"Prompt Splitter: Failed to parse JSON response: {e}")
+            log_error(f"Prompt Splitter: Raw response: {content[:200]}...")
             return "", ""
 
     def _naive_split(self, prompt: str) -> Tuple[str, str]:
@@ -254,20 +262,39 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
             (image_prompt, wan_prompt)
         """
         if not prompt_text or not prompt_text.strip():
+            log("Prompt Splitter: Empty input prompt, returning empty results")
             return "", ""
+
         # Determine which model to use: the caller-supplied name or the default.
         model = model_name or self._DEFAULT_MODEL_NAME
         url = api_url or self._DEFAULT_API_URL
         sys_prompt = system_prompt if system_prompt else self._SYSTEM_PROMPT
+
+        log(f"Prompt Splitter: Starting split using model '{model}'")
+        log(f"Prompt Splitter: Input prompt length: {len(prompt_text)} characters")
+
         # Ensure the model is available before attempting to generate
         try:
+            log(f"Prompt Splitter: Checking model availability for '{model}'")
             self._ensure_model_available(model, url)
+            log(f"Prompt Splitter: Model '{model}' is ready")
         except Exception as e:
-            log_error(f"Error ensuring model availability: {e}")
+            log_error(f"Prompt Splitter: Error ensuring model availability: {e}")
+            return "", ""
+
         # Try contacting Ollama first
+        log("Prompt Splitter: Sending request to Ollama...")
         image, wan = self._call_ollama(prompt_text, model, url, sys_prompt)
+
         if image and wan:
+            log(f"Prompt Splitter: Successfully split prompt")
+            log(f"Prompt Splitter: Image prompt length: {len(image)} characters")
+            log(f"Prompt Splitter: Video prompt length: {len(wan)} characters")
             return image, wan
+
         # If Ollama returned empty or invalid responses, do not attempt a
         # naive fallback.  Return empty strings to signal failure.
+        log_error(
+            "Prompt Splitter: Failed to split prompt - Ollama returned empty response"
+        )
         return "", ""
