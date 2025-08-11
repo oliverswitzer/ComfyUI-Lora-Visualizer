@@ -35,6 +35,7 @@ from .lora_metadata_utils import (
     get_metadata_loader,
     parse_lora_tags,
     extract_example_prompts,
+    extract_model_description,
 )
 
 try:
@@ -242,24 +243,26 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
     def _extract_lora_examples(
         self, loras: List[Dict[str, str]]
-    ) -> Dict[str, List[str]]:
+    ) -> tuple[Dict[str, List[str]], Dict[str, str]]:
         """
-        Extract example prompts from LoRA metadata to ground LLM behavior.
+        Extract example prompts and descriptions from LoRA metadata to ground LLM behavior.
 
         Args:
             loras: List of LoRA dictionaries with 'name' and 'tag' keys
 
         Returns:
-            Dict mapping LoRA names to their example prompts
+            Tuple of (lora_examples dict, lora_descriptions dict) mapping LoRA names to their data
         """
         metadata_loader = get_metadata_loader()
         lora_examples = {}
+        lora_descriptions = {}
 
         for lora in loras:
             lora_name = lora["name"]
             try:
                 metadata = metadata_loader.load_metadata(lora_name)
                 if metadata:
+                    # Extract examples
                     examples = extract_example_prompts(metadata, limit=3)
                     if examples:
                         # Clean examples: remove any existing LoRA tags and limit length
@@ -278,60 +281,87 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                         if cleaned_examples:
                             lora_examples[lora_name] = cleaned_examples
                             log_debug(
-                                f"Prompt Splitter: Found {len(cleaned_examples)} examples for LoRA '{lora_name}'"
+                                f"Prompt Splitter: Found {len(cleaned_examples)} examples for '{lora_name}'"
                             )
+
+                    # Extract model description
+                    description = extract_model_description(metadata)
+                    if description:
+                        lora_descriptions[lora_name] = description
+                        log_debug(
+                            f"Prompt Splitter: Found description for '{lora_name}': {len(description)} chars"
+                        )
 
             except Exception as e:
                 log_debug(
-                    f"Prompt Splitter: Could not extract examples for LoRA '{lora_name}': {e}"
+                    f"Prompt Splitter: Could not extract data for LoRA '{lora_name}': {e}"
                 )
                 continue
 
-        return lora_examples
+        return lora_examples, lora_descriptions
 
     def _create_contextualized_system_prompt(
-        self, lora_examples: Dict[str, List[str]]
+        self, lora_examples: Dict[str, List[str]], lora_descriptions: Dict[str, str]
     ) -> str:
         """
-        Create a system prompt that includes LoRA examples to ground the LLM's understanding.
+        Create a system prompt with LoRA examples and descriptions to ground the LLM.
 
         Args:
             lora_examples: Dict mapping LoRA names to their example prompts
+            lora_descriptions: Dict mapping LoRA names to their model descriptions
 
         Returns:
-            Enhanced system prompt with LoRA examples
+            Enhanced system prompt with LoRA context
         """
         base_prompt = self._SYSTEM_PROMPT
 
-        # If no examples found, return base prompt
-        if not lora_examples:
+        # If no examples or descriptions found, return base prompt
+        if not lora_examples and not lora_descriptions:
             return base_prompt
 
-        # Build examples section
-        examples_section = "\n\n--- LoRA USAGE EXAMPLES ---\n"
-        examples_section += "Use these actual LoRA examples to understand the expected style and content patterns:\n\n"
+        # Build LoRA context section
+        context_section = "\n\n--- LoRA CONTEXT ---\n"
+        context_section += (
+            "Use this LoRA information to understand their intended use and style:\n\n"
+        )
 
-        for lora_name, examples in lora_examples.items():
-            examples_section += f"'{lora_name}' LoRA examples:\n"
-            for i, example in enumerate(
-                examples[:2], 1
-            ):  # Limit to 2 examples per LoRA
-                examples_section += f"  {i}. {example}\n"
-            examples_section += "\n"
+        # Include descriptions first
+        if lora_descriptions:
+            for lora_name, description in lora_descriptions.items():
+                context_section += f"'{lora_name}' LoRA:\n"
+                truncated_desc = description[:300] + (
+                    "..." if len(description) > 300 else ""
+                )
+                context_section += f"  Purpose: {truncated_desc}\n\n"
 
-        examples_section += "IMPORTANT: When splitting prompts, maintain the same style, terminology, and content patterns shown in these examples. Avoid adding creative flourishes or story elements not present in the original input or these examples.\n"
+        # Include examples
+        if lora_examples:
+            context_section += "--- LoRA USAGE EXAMPLES ---\n"
+            for lora_name, examples in lora_examples.items():
+                context_section += f"'{lora_name}' examples:\n"
+                for i, example in enumerate(
+                    examples[:2], 1
+                ):  # Limit to 2 examples per LoRA
+                    context_section += f"  {i}. {example}\n"
+                context_section += "\n"
 
-        # Insert examples section before the final examples in the base prompt
+        context_section += (
+            "IMPORTANT: When splitting prompts, maintain the same style, terminology, and content patterns "
+            "shown in these examples and descriptions. Avoid adding creative flourishes or story elements "
+            "not present in the original input or this context.\n"
+        )
+
+        # Insert context section before the final examples in the base prompt
         insertion_point = base_prompt.find("Examples:")
         if insertion_point != -1:
             enhanced_prompt = (
                 base_prompt[:insertion_point]
-                + examples_section
+                + context_section
                 + base_prompt[insertion_point:]
             )
         else:
             # Fallback: append to end
-            enhanced_prompt = base_prompt + examples_section
+            enhanced_prompt = base_prompt + context_section
 
         return enhanced_prompt
 
@@ -457,12 +487,90 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log("Prompt Splitter: Successfully parsed JSON response")
             return image_prompt, wan_prompt
         except json.JSONDecodeError as e:
-            log_error(f"Prompt Splitter: Failed to parse JSON response: {e}")
-            log_error(f"Prompt Splitter: Raw response: {content[:200]}...")
-            raise Exception(
-                "Invalid response from AI model. The AI model returned malformed "
-                "data. Try a different model or check your system prompt."
-            )
+            log_debug(f"Prompt Splitter: Failed to parse JSON response: {e}")
+            log_debug(f"Prompt Splitter: Raw response: {content[:200]}...")
+
+            # Fallback: try to parse plain text format
+            log("Prompt Splitter: Attempting fallback parsing for plain text format...")
+            image_prompt, wan_prompt = self._parse_plain_text_response(content)
+
+            if image_prompt or wan_prompt:
+                log("Prompt Splitter: Successfully parsed plain text response")
+                return image_prompt, wan_prompt
+            else:
+                log_error("Prompt Splitter: Could not parse response in any format")
+                raise Exception(
+                    "Invalid response from AI model. The AI model returned malformed "
+                    "data that could not be parsed as JSON or plain text. "
+                    "Try a different model or check your system prompt."
+                )
+
+    def _parse_plain_text_response(self, content: str) -> Tuple[str, str]:
+        """
+        Parse plain text response that contains IMAGE_PROMPT: and WAN_PROMPT: sections.
+
+        Args:
+            content: Raw text response from LLM
+
+        Returns:
+            Tuple of (image_prompt, wan_prompt)
+        """
+        image_prompt = ""
+        wan_prompt = ""
+
+        # Split the content into lines for processing
+        lines = content.strip().split("\n")
+        current_section = None
+        current_content = []
+
+        for line in lines:
+            line = line.strip()
+
+            # Check for section headers
+            if line.startswith("IMAGE_PROMPT:"):
+                # Save previous section
+                if current_section == "WAN_PROMPT":
+                    wan_prompt = " ".join(current_content).strip()
+                elif current_section == "IMAGE_PROMPT":
+                    image_prompt = " ".join(current_content).strip()
+
+                # Start new section
+                current_section = "IMAGE_PROMPT"
+                current_content = []
+                # Get content after the colon
+                after_colon = line[len("IMAGE_PROMPT:") :].strip()
+                if after_colon:
+                    current_content.append(after_colon)
+
+            elif line.startswith("WAN_PROMPT:"):
+                # Save previous section
+                if current_section == "IMAGE_PROMPT":
+                    image_prompt = " ".join(current_content).strip()
+                elif current_section == "WAN_PROMPT":
+                    wan_prompt = " ".join(current_content).strip()
+
+                # Start new section
+                current_section = "WAN_PROMPT"
+                current_content = []
+                # Get content after the colon
+                after_colon = line[len("WAN_PROMPT:") :].strip()
+                if after_colon:
+                    current_content.append(after_colon)
+
+            elif current_section and line:
+                # Add to current section if we're in one
+                current_content.append(line)
+
+        # Save the last section
+        if current_section == "IMAGE_PROMPT":
+            image_prompt = " ".join(current_content).strip()
+        elif current_section == "WAN_PROMPT":
+            wan_prompt = " ".join(current_content).strip()
+
+        log_debug(
+            f"Parsed plain text - Image: {len(image_prompt)} chars, WAN: {len(wan_prompt)} chars"
+        )
+        return image_prompt, wan_prompt
 
     def _send_progress_update(self, progress: float, message: str) -> None:
         """Send progress update to ComfyUI's standard progress system.
@@ -559,27 +667,33 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters"
         )
 
-        # Extract LoRA examples to ground LLM behavior
-        log_debug("Prompt Splitter: Extracting LoRA examples for context...")
-        lora_examples = self._extract_lora_examples(all_loras)
+        # Extract LoRA examples and descriptions to ground LLM behavior
+        log_debug(
+            "Prompt Splitter: Extracting LoRA examples and descriptions for context..."
+        )
+        lora_examples, lora_descriptions = self._extract_lora_examples(all_loras)
 
         # Determine which model to use: the caller-supplied name or the default.
         model = model_name or self._DEFAULT_MODEL_NAME
         url = api_url or self._DEFAULT_API_URL
 
-        # Create contextualized system prompt with LoRA examples
+        # Create contextualized system prompt with LoRA examples and descriptions
         if system_prompt:
             # User provided custom system prompt, use as-is
             sys_prompt = system_prompt
         else:
-            # Use our enhanced system prompt with LoRA examples
-            sys_prompt = self._create_contextualized_system_prompt(lora_examples)
-            if lora_examples:
+            # Use our enhanced system prompt with LoRA context
+            sys_prompt = self._create_contextualized_system_prompt(
+                lora_examples, lora_descriptions
+            )
+            if lora_examples or lora_descriptions:
                 total_examples = sum(
                     len(examples) for examples in lora_examples.values()
                 )
+                total_descriptions = len(lora_descriptions)
                 log(
-                    f"Prompt Splitter: Enhanced system prompt with {total_examples} LoRA examples from {len(lora_examples)} LoRAs"
+                    f"Prompt Splitter: Enhanced system prompt with {total_examples} examples "
+                    f"and {total_descriptions} descriptions from LoRAs"
                 )
 
         log(f"Prompt Splitter: Starting split using model '{model}'")

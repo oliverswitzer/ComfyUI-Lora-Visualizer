@@ -480,12 +480,76 @@ class TestPromptSplitterNode(unittest.TestCase):
                     "stunning portrait, high quality, cinematic",
                 ]
 
-                examples = self.node._extract_lora_examples(loras)
+                examples, descriptions = self.node._extract_lora_examples(loras)
 
         # Should have examples for test_lora but not nonexistent_lora
         self.assertIn("test_lora", examples)
         self.assertNotIn("nonexistent_lora", examples)
         self.assertEqual(len(examples["test_lora"]), 2)
+
+    def test_extract_lora_examples_with_descriptions(self):
+        """_extract_lora_examples should extract both examples and descriptions."""
+        loras = [{"name": "test_lora", "tag": "<lora:test_lora:0.8>"}]
+
+        mock_metadata = {
+            "modelDescription": "Test LoRA description",
+            "civitai": {
+                "model": {"description": "Detailed LoRA info"},
+                "images": [{"meta": {"prompt": "test prompt"}}],
+            },
+        }
+
+        with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_loader:
+            mock_loader_instance = mock_loader.return_value
+            mock_loader_instance.load_metadata.return_value = mock_metadata
+
+            with patch(
+                "nodes.prompt_splitter_node.extract_example_prompts"
+            ) as mock_extract:
+                mock_extract.return_value = ["test prompt"]
+
+                examples, descriptions = self.node._extract_lora_examples(loras)
+
+        self.assertIn("test_lora", examples)
+        self.assertIn("test_lora", descriptions)
+        self.assertIn("Test LoRA description", descriptions["test_lora"])
+
+    def test_parse_plain_text_response(self):
+        """_parse_plain_text_response should parse non-JSON LLM responses."""
+        # Test case 1: Normal plain text format
+        content1 = """IMAGE_PROMPT: woman, 4k, detailed, masterpiece
+
+WAN_PROMPT: woman dancing, fluid movement, graceful"""
+
+        image_prompt, wan_prompt = self.node._parse_plain_text_response(content1)
+
+        self.assertEqual(image_prompt, "woman, 4k, detailed, masterpiece")
+        self.assertEqual(wan_prompt, "woman dancing, fluid movement, graceful")
+
+        # Test case 2: Multiline content
+        content2 = """IMAGE_PROMPT: woman, detailed face,
+professional lighting, studio quality
+
+WAN_PROMPT: The woman moves gracefully
+through the scene with fluid motion"""
+
+        image_prompt2, wan_prompt2 = self.node._parse_plain_text_response(content2)
+
+        self.assertEqual(
+            image_prompt2, "woman, detailed face, professional lighting, studio quality"
+        )
+        self.assertEqual(
+            wan_prompt2,
+            "The woman moves gracefully through the scene with fluid motion",
+        )
+
+        # Test case 3: Empty or missing sections
+        content3 = "IMAGE_PROMPT: just an image prompt"
+
+        image_prompt3, wan_prompt3 = self.node._parse_plain_text_response(content3)
+
+        self.assertEqual(image_prompt3, "just an image prompt")
+        self.assertEqual(wan_prompt3, "")
 
     def test_create_contextualized_system_prompt(self):
         """_create_contextualized_system_prompt should enhance base prompt with LoRA examples."""
@@ -499,23 +563,32 @@ class TestPromptSplitterNode(unittest.TestCase):
                 "running athlete, dynamic pose",
             ],
         }
+        lora_descriptions = {
+            "StyleLoRA": "A LoRA for artistic oil painting styles and vintage effects",
+            "MotionLoRA": "Specialized LoRA for dynamic movement and action poses",
+        }
 
-        enhanced_prompt = self.node._create_contextualized_system_prompt(lora_examples)
+        enhanced_prompt = self.node._create_contextualized_system_prompt(
+            lora_examples, lora_descriptions
+        )
 
         # Should contain base prompt content
         self.assertIn("IMAGE_PROMPT", enhanced_prompt)
         self.assertIn("WAN_PROMPT", enhanced_prompt)
 
-        # Should contain LoRA examples section
-        self.assertIn("LoRA USAGE EXAMPLES", enhanced_prompt)
+        # Should contain LoRA context sections
+        self.assertIn("LoRA CONTEXT", enhanced_prompt)
         self.assertIn("StyleLoRA", enhanced_prompt)
         self.assertIn("MotionLoRA", enhanced_prompt)
         self.assertIn("artistic woman, oil painting style", enhanced_prompt)
         self.assertIn("dancing figure, fluid movement", enhanced_prompt)
+        self.assertIn(
+            "artistic oil painting styles", enhanced_prompt
+        )  # From description
 
     def test_create_contextualized_system_prompt_no_examples(self):
         """_create_contextualized_system_prompt should return base prompt when no examples."""
-        enhanced_prompt = self.node._create_contextualized_system_prompt({})
+        enhanced_prompt = self.node._create_contextualized_system_prompt({}, {})
 
         # Should be identical to base prompt
         self.assertEqual(enhanced_prompt, self.node._SYSTEM_PROMPT)

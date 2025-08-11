@@ -367,6 +367,45 @@ def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
     return final_content
 
 
+def extract_model_description(metadata: Dict[str, Any]) -> str:
+    """
+    Extract model description from LoRA metadata.
+
+    Args:
+        metadata: LoRA metadata dictionary
+
+    Returns:
+        Combined description text from all available sources
+    """
+    if not metadata:
+        return ""
+
+    description_parts = []
+
+    # Extract from modelDescription field
+    if "modelDescription" in metadata and metadata["modelDescription"]:
+        description_parts.append(metadata["modelDescription"].strip())
+
+    # Extract from civitai model description
+    if "civitai" in metadata and "model" in metadata["civitai"]:
+        if (
+            "description" in metadata["civitai"]["model"]
+            and metadata["civitai"]["model"]["description"]
+        ):
+            description_parts.append(
+                metadata["civitai"]["model"]["description"].strip()
+            )
+
+    # Join all parts and limit length for context
+    full_description = " ".join(description_parts)
+
+    # Truncate if too long to keep manageable for LLM context
+    if len(full_description) > 800:
+        full_description = full_description[:800].rstrip()
+
+    return full_description
+
+
 def extract_example_prompts(metadata: Dict[str, Any], limit: int = 5) -> List[str]:
     """
     Extract example prompts from LoRA metadata for style analysis.
@@ -446,14 +485,7 @@ def extract_recommended_weight(metadata: Dict[str, Any]) -> float:
         Recommended weight (default 0.8 if not found)
     """
     # Look for weight recommendations in description
-    description_text = ""
-
-    if "modelDescription" in metadata:
-        description_text += metadata["modelDescription"]
-
-    if "civitai" in metadata and "model" in metadata["civitai"]:
-        if "description" in metadata["civitai"]["model"]:
-            description_text += " " + metadata["civitai"]["model"]["description"]
+    description_text = extract_model_description(metadata)
 
     # Look for weight patterns like "0.7", "weight: 0.8", "strength 0.6-0.9"
     weight_patterns = [
