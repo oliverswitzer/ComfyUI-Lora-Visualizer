@@ -312,6 +312,100 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.assertNotIn("<wanlora:", image_prompt)
             self.assertNotIn("<lora:", wan_prompt)
 
+    def test_extract_verbatim_directives(self):
+        """_extract_verbatim_directives should find and extract verbatim text."""
+        prompt = "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
+
+        clean_prompt, image_verbatim, video_verbatim = (
+            self.node._extract_verbatim_directives(prompt)
+        )
+
+        self.assertEqual(clean_prompt, "woman dancing gracefully")
+        self.assertEqual(len(image_verbatim), 1)
+        self.assertEqual(len(video_verbatim), 1)
+        self.assertEqual(image_verbatim[0], "overwatch, ana")
+        self.assertEqual(video_verbatim[0], "she jumps up and down")
+
+    def test_extract_verbatim_directives_multiple(self):
+        """_extract_verbatim_directives should handle multiple directives of same type."""
+        prompt = "(image: character1) dancing (image: outfit: dress) and (video: motion1) then (video: motion2)"
+
+        clean_prompt, image_verbatim, video_verbatim = (
+            self.node._extract_verbatim_directives(prompt)
+        )
+
+        self.assertEqual(clean_prompt, "dancing and then")
+        self.assertEqual(len(image_verbatim), 2)
+        self.assertEqual(len(video_verbatim), 2)
+        self.assertIn("character1", image_verbatim)
+        self.assertIn("outfit: dress", image_verbatim)
+        self.assertIn("motion1", video_verbatim)
+        self.assertIn("motion2", video_verbatim)
+
+    def test_extract_verbatim_directives_empty_content(self):
+        """_extract_verbatim_directives should ignore empty directives."""
+        prompt = "woman dancing (image: ) gracefully (video:   )"
+
+        clean_prompt, image_verbatim, video_verbatim = (
+            self.node._extract_verbatim_directives(prompt)
+        )
+
+        self.assertEqual(clean_prompt, "woman dancing gracefully")
+        self.assertEqual(len(image_verbatim), 0)
+        self.assertEqual(len(video_verbatim), 0)
+
+    def test_split_prompt_with_verbatim_directives(self):
+        """split_prompt should handle verbatim directives correctly."""
+        input_prompt = "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
+
+        # Mock _call_ollama to return clean responses
+        with patch.object(
+            self.node,
+            "_call_ollama",
+            return_value=("woman dancing gracefully", "woman dances"),
+        ):
+            with patch.object(self.node, "_ensure_model_available"):
+                image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+
+        # Should have verbatim content added
+        self.assertIn("overwatch, ana", image_prompt)
+        self.assertIn("she jumps up and down", wan_prompt)
+
+        # Should have base content from LLM
+        self.assertIn("woman dancing gracefully", image_prompt)
+        self.assertIn("woman dances", wan_prompt)
+
+    def test_split_prompt_with_loras_and_verbatim(self):
+        """split_prompt should handle both LoRAs and verbatim directives together."""
+        input_prompt = "(image: overwatch, ana) woman <lora:style:0.8> dancing (video: she jumps) <wanlora:motion:1.0>"
+
+        # Mock metadata loader for LoRAs
+        with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_get_loader:
+            mock_loader = mock_get_loader.return_value
+            mock_loader.load_metadata.return_value = None
+            mock_loader.extract_trigger_words.return_value = []
+
+            # Mock _call_ollama to return clean responses
+            with patch.object(
+                self.node,
+                "_call_ollama",
+                return_value=("woman dancing", "woman dances"),
+            ):
+                with patch.object(self.node, "_ensure_model_available"):
+                    image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+
+        # Should have verbatim content
+        self.assertIn("overwatch, ana", image_prompt)
+        self.assertIn("she jumps", wan_prompt)
+
+        # Should have LoRA tags
+        self.assertIn("<lora:style:0.8>", image_prompt)
+        self.assertIn("<wanlora:motion:1.0>", wan_prompt)
+
+        # Should have base content from LLM
+        self.assertIn("woman dancing", image_prompt)
+        self.assertIn("woman dances", wan_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
