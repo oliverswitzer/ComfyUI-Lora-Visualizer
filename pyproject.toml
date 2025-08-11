@@ -2,11 +2,8 @@
 name = "comfyui-lora-visualizer"
 description = "A ComfyUI custom node that parses prompt text for LoRA tags and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images."
 version = "2.0.0"
-requires-python = "==3.10.*"
-dependencies = [ 
-    "pytest>=8.4.1", 
-    "black>=22.0.0", 
-    "pylint>=2.12.0",
+requires-python = ">=3.8"
+dependencies = [
     "sentence-transformers>=2.2.0",
     "scikit-learn>=1.0.0",
 ]
@@ -31,7 +28,11 @@ DisplayName = "LoRA Visualizer"
 Icon = ""
 
 [tool.pdm.dev-dependencies]
-dev = [ "pytest>=7.0.0", "black>=22.0.0", "pylint>=2.12.0",]
+dev = [
+    "pytest>=8.4.1",
+    "black>=22.0.0",
+    "pylint>=2.12.0",
+]
 
 [tool.pdm.scripts]
 format = "black ."
