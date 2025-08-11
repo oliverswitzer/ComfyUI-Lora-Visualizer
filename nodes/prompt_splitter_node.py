@@ -46,6 +46,12 @@ except Exception:
     # will be passed through to shared helpers if available.
     requests = None
 
+try:
+    from server import PromptServer  # type: ignore[import]
+except Exception:
+    # PromptServer may not be available during testing
+    PromptServer = None
+
 
 class PromptSplitterNode:
     """Split a combined prompt into image and video components using Ollama."""
@@ -172,6 +178,17 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
             },
         }
 
+    def _send_status(self, message: str) -> None:
+        """Send a status message to ComfyUI's progress bar if available."""
+        if PromptServer is not None:
+            try:
+                PromptServer.instance.send_sync(
+                    "prompt_splitter_status", {"status": message}
+                )
+            except Exception:
+                # Silently ignore if status sending fails
+                pass
+
     def _ensure_model_available(self, model: str, api_url: str) -> None:
         """Delegate to shared utility to ensure the Ollama model exists.
 
@@ -273,20 +290,28 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
         log(f"Prompt Splitter: Starting split using model '{model}'")
         log(f"Prompt Splitter: Input prompt length: {len(prompt_text)} characters")
 
+        # Send status to ComfyUI progress bar
+        self._send_status(f"Checking model '{model}' availability...")
+
         # Ensure the model is available before attempting to generate
         try:
             log(f"Prompt Splitter: Checking model availability for '{model}'")
             self._ensure_model_available(model, url)
             log(f"Prompt Splitter: Model '{model}' is ready")
         except Exception as e:
+            self._send_status(f"Error: Model '{model}' not available")
             log_error(f"Prompt Splitter: Error ensuring model availability: {e}")
             return "", ""
+
+        # Send status for API call
+        self._send_status(f"Splitting prompt using {model}...")
 
         # Try contacting Ollama first
         log("Prompt Splitter: Sending request to Ollama...")
         image, wan = self._call_ollama(prompt_text, model, url, sys_prompt)
 
         if image and wan:
+            self._send_status("Prompt split completed successfully!")
             log(f"Prompt Splitter: Successfully split prompt")
             log(f"Prompt Splitter: Image prompt length: {len(image)} characters")
             log(f"Prompt Splitter: Video prompt length: {len(wan)} characters")
@@ -294,6 +319,7 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
 
         # If Ollama returned empty or invalid responses, do not attempt a
         # naive fallback.  Return empty strings to signal failure.
+        self._send_status("Error: Failed to split prompt")
         log_error(
             "Prompt Splitter: Failed to split prompt - Ollama returned empty response"
         )
