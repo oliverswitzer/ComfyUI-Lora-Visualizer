@@ -1,15 +1,21 @@
-# LoRA Visualizer - ComfyUI Custom Node
+# LoRA Tools Suite - ComfyUI Custom Nodes
 
-A ComfyUI custom node that parses prompt text for LoRA tags (wan and image gen, using `<lora:yourtag:1.0>` syntax and `<wanlora:yourtag:1.0>` syntax respectively) and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images.
+A comprehensive ComfyUI custom node package for LoRA management and intelligent prompt composition. Includes three powerful nodes for parsing, visualizing, and composing prompts with LoRA tags.
+
+## 📋 Prerequisites
+
+**Required for all functionality**: Install [ComfyUI-Lora-Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) first. This provides the essential LoRA metadata that powers our visualization and discovery features.
+
+## Included Nodes
+
+### 🔍 LoRA Visualizer
+**Parses and visualizes LoRAo tags with rich metadata display**
 
 ![LoRA Visualizer node in workflow](docs/images/node-in-workflow.png)
 
 ![LoRA Visualizer node interface](docs/images/just-node.png)
 
 ![LoRA Visualizer hover interaction](docs/images/node-hover.png)
-
-
-## Features
 
 - **✅ Consistent LoRA Parsing**: Backend Python parsing handles both standard `<lora:name:strength>` and custom `<wanlora:name:strength>` tags with identical logic
 - **✅ Complex Name Support**: Handles LoRA names with spaces, colons, and special characters (e.g., `<lora:Detail Enhancer v2.0: Professional Edition:0.8>`)
@@ -18,24 +24,117 @@ A ComfyUI custom node that parses prompt text for LoRA tags (wan and image gen, 
 - **✅ Separate Visual Lists**: Standard LoRAs (blue theme) and WanLoRAs (orange theme) displayed in distinct, color-coded sections
 - **✅ Canvas-based Rendering**: Properly integrated with ComfyUI's node system using custom widget drawing
 - **✅ Hover Gallery**: Hover over thumbnails to see trigger words and example images
+
+### 🎯 Prompt Composer
+**Looks at your installed Wan and SD lora, and intelligently discovers and composes LoRA tags using semantic matching**
+
+![Lora prompt composer](docs/images/lora-prompt-composer-node.png)
+
+- **✅ Semantic LoRA Discovery**: Uses sentence-transformers to find relevant LoRAs based on scene descriptions
+- **✅ Natural Language Input**: Describe your scene in plain English, get optimized LoRA suggestions
+- **✅ Intelligent Weight Optimization**: Automatically determines optimal LoRA strengths from metadata analysis
+- **✅ Content-Aware Matching**: Understands all content types without censorship
+- **✅ Image & Video LoRA Support**: Separate limits and handling for image vs video LoRAs
+- **✅ Trigger Word Integration**: Automatically includes relevant trigger words in output
+- **✅ Style Mimicry**: Learns from example prompts to match artistic styles
+
+NOTE: If you aren't having any lora show up, try to reduce the threshold parameter! This adjusts the semantic matching threshold.
+
+### ✂️ Prompt Splitter (AI-Powered)
+**Intelligently splits prompts for image/video workflows using local LLM, while preserving lora/wanlora tags**
+
+![LoRA Prompt Splitter Node](docs/images/lora-prompt-splitter-node.png)
+
+- **✅ AI-Powered Analysis**: Uses local Ollama LLM for intelligent prompt processing informed by best prompting practices for SD vs. Wan
+- **✅ Dual Output Generation**: Creates separate optimized prompts for image and video generation
+- **✅ Content Preservation**: Maintains all descriptive elements while optimizing for each medium
+- **✅ Local Processing**: No external API calls, complete privacy
+- **✅ Flexible Model Support**: Works with any Ollama-compatible model
+- **✅ Structured Output**: Clean, consistent formatting for downstream nodes
+
+## Shared Features
+
 - **✅ Backend-Frontend Architecture**: Python handles parsing and logic, JavaScript handles visualization
 - **✅ Comprehensive Testing**: Unit tests cover edge cases and complex name parsing
 
 ## Installation
 
-1. Clone or download this repository to your ComfyUI `custom_nodes` directory:
+### Option 1: ComfyUI Manager (Recommended)
+
+1. **Install via ComfyUI Manager**: Search for "LoRA Visualizer" in ComfyUI Manager
+2. **Restart ComfyUI**: All Python dependencies install automatically
+3. **Install external dependencies**: See [Requirements](#requirements--dependencies) section below
+
+### Option 2: Manual Installation
+
+1. **Clone repository** to your ComfyUI `custom_nodes` directory:
    ```bash
    cd ComfyUI/custom_nodes
-   git clone <repository-url> lora-visualizer
+   git clone https://github.com/oliverswitzer/ComfyUI-Lora-Visualizer.git
    ```
 
-2. Restart ComfyUI to load the custom node
+2. **Install Python dependencies** (if not auto-installed):
+   ```bash
+   cd ComfyUI-Lora-Visualizer
+   pip install -r requirements.txt
+   ```
 
-3. The node will appear in the ComfyUI node menu under **conditioning** → **LoRA Visualizer**
+3. **Restart ComfyUI** to load the custom node
 
-## Requirements
+4. **Install external dependencies**: See [Requirements](#requirements--dependencies) section below
 
-- **ComfyUI LoRA Manager**: This node depends on the ComfyUI LoRA Manager custom node being installed, as it uses the metadata files that the LoRA Manager downloads and maintains.
+### Post-Installation
+
+The nodes will appear in ComfyUI under:
+- **conditioning** → **LoRA Visualizer**
+- **conditioning** → **Prompt Composer** 
+- **conditioning** → **Prompt Splitter**
+
+## Requirements & Dependencies
+
+### Node Prerequisites Matrix
+
+| Node | LoRA Visualizer | Prompt Composer | Prompt Splitter |
+|------|----------------|-----------------|-----------------|
+| **External Dependencies** | None | None | Ollama (Local LLM) |
+| **Python Dependencies** | None | ✅ sentence-transformers<br/>✅ scikit-learn | None |
+| **ComfyUI Dependencies** | ComfyUI LoRA Manager | ComfyUI LoRA Manager | None |
+| **Automatic Installation** | ✅ All included | ✅ All included | ✅ All included |
+
+### External Dependencies Setup
+
+#### For Prompt Splitter Node Only
+
+**Ollama Installation** (Required for AI-powered prompt splitting):
+
+1. **Install Ollama**: Download from [ollama.ai](https://ollama.ai)
+2. **Install the default model**: Run `ollama pull nollama/mythomax-l2-13b:Q4_K_M`
+3. **Verify installation**: Run `ollama list` to see installed models
+4. **Start Ollama service**: Ollama runs automatically on most systems
+
+**Supported Ollama Models**:
+- `nollama/mythomax-l2-13b:Q4_K_M` (default, ~7GB)
+- `llama3.2:3b` (alternative, ~2GB)
+- `llama3.2:1b` (lightweight, ~1GB)  
+- `qwen2.5:3b` (alternative, ~2GB)
+- Any other Ollama-compatible model
+
+#### For LoRA Visualizer & Prompt Composer Nodes
+
+**ComfyUI LoRA Manager** (Required for metadata):
+- Install the [ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) custom node
+- Ensures LoRA metadata files are downloaded and maintained
+- Required for both visualization and intelligent LoRA discovery features
+
+### Python Dependencies (Auto-Installed)
+
+All Python dependencies are automatically installed when you install this node:
+
+- **sentence-transformers**: For semantic LoRA matching (Prompt Composer)
+- **scikit-learn**: For similarity calculations (Prompt Composer)  
+- **pytest, black, pylint**: Development tools
+
+**Note**: The node ships with all Python dependencies pre-configured. ComfyUI will automatically install `sentence-transformers` and `scikit-learn` when you first load the Prompt Composer node. No manual Python package installation is required!
 
 ## Usage
 
@@ -61,40 +160,7 @@ This will display:
 - **Standard LoRAs**: realistic_skin (strength: 0.7)
 - **WanLoRAs**: Woman877.v2 (strength: 0.8)
 
-## Metadata File Requirements
 
-The node looks for metadata files in the `models/loras/` directory with the naming pattern:
-- `{lora_name}.metadata.json`
-- `{lora_name}.safetensors.metadata.json`
-
-These files should contain metadata in the format used by the ComfyUI LoRA Manager, including:
-- `civitai.trainedWords`: Array of trigger words
-- `preview_url`: Path to thumbnail image
-- `civitai.images`: Array of example images
-- `base_model`: Base model information
-- `model_name`: Display name of the model
-
-### Example Metadata Structure
-
-```json
-{
-  "file_name": "Woman877.v2",
-  "model_name": "Photorealistic AI Influencer – Woman877",
-  "preview_url": "/path/to/Woman877.v2.webp",
-  "base_model": "SDXL 1.0",
-  "civitai": {
-    "trainedWords": ["woman877"],
-    "images": [
-      {
-        "url": "https://example.com/image1.jpg",
-        "width": 768,
-        "height": 1152,
-        "nsfwLevel": 1
-      }
-    ]
-  }
-}
-```
 
 ## Output
 
@@ -284,13 +350,4 @@ def test_new_feature(self):
 
 ## License
 
-[Add your license here]
-
-## Changelog
-
-### v1.0.0
-- Initial release
-- Basic LoRA tag parsing
-- Metadata visualization
-- Thumbnail display
-- Separate lists for standard and WanLoRAs
+MIT License - see [LICENSE](LICENSE) file for details.

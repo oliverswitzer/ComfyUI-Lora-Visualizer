@@ -1,8 +1,11 @@
-# Requirements for LoRA Visualizer Custom Node
-# This node depends on ComfyUI's built-in modules and doesn't require additional packages
-# However, if using PDM for development, these would be useful:
+# Requirements for LoRA Tools Suite Custom Nodes
+# Core dependencies for all node functionality
 
-# Development dependencies (optional)
-pytest>=7.0.0
+# Production dependencies (required for Prompt Composer node)
+sentence-transformers>=2.2.0
+scikit-learn>=1.0.0
+
+# Development dependencies (optional, for development only)
+pytest>=8.4.1
 black>=22.0.0
 pylint>=2.12.0
