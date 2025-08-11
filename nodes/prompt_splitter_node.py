@@ -31,7 +31,11 @@ from .ollama_utils import (
 )  # noqa: E402
 from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
 from .logging_utils import log, log_debug, log_error
-from .lora_metadata_utils import get_metadata_loader, parse_lora_tags
+from .lora_metadata_utils import (
+    get_metadata_loader,
+    parse_lora_tags,
+    extract_example_prompts,
+)
 
 try:
     import requests  # type: ignore[import]
@@ -57,8 +61,13 @@ class PromptSplitterNode:
     • Configurable Ollama model, API URL, and system prompt
     """
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("image_prompt", "wan_prompt")
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image_prompt", "wan_prompt", "lora_analysis")
+    OUTPUT_TOOLTIPS = (
+        "Image prompt with LoRA tags, trigger words, and static visual elements",
+        "Video prompt with WanLoRA tags, trigger words, and motion/action elements",
+        "JSON analysis of LoRAs used and their examples that were fed to the LLM",
+    )
     OUTPUT_NODE = True
     FUNCTION = "split_prompt"
 
@@ -231,6 +240,101 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         prompt_text = re.sub(r"\s+", " ", prompt_text).strip()
         return prompt_text, extracted_trigger_words
 
+    def _extract_lora_examples(
+        self, loras: List[Dict[str, str]]
+    ) -> Dict[str, List[str]]:
+        """
+        Extract example prompts from LoRA metadata to ground LLM behavior.
+
+        Args:
+            loras: List of LoRA dictionaries with 'name' and 'tag' keys
+
+        Returns:
+            Dict mapping LoRA names to their example prompts
+        """
+        metadata_loader = get_metadata_loader()
+        lora_examples = {}
+
+        for lora in loras:
+            lora_name = lora["name"]
+            try:
+                metadata = metadata_loader.load_metadata(lora_name)
+                if metadata:
+                    examples = extract_example_prompts(metadata, limit=3)
+                    if examples:
+                        # Clean examples: remove any existing LoRA tags and limit length
+                        cleaned_examples = []
+                        for example in examples:
+                            # Remove LoRA tags from examples
+                            cleaned = re.sub(r"<(?:lora|wanlora):[^>]+>", "", example)
+                            cleaned = " ".join(
+                                cleaned.split()
+                            )  # Remove extra whitespace
+                            # Truncate length to keep prompt manageable
+                            if len(cleaned) > 500:
+                                cleaned = cleaned[:500].rstrip()
+                            cleaned_examples.append(cleaned)
+
+                        if cleaned_examples:
+                            lora_examples[lora_name] = cleaned_examples
+                            log_debug(
+                                f"Prompt Splitter: Found {len(cleaned_examples)} examples for LoRA '{lora_name}'"
+                            )
+
+            except Exception as e:
+                log_debug(
+                    f"Prompt Splitter: Could not extract examples for LoRA '{lora_name}': {e}"
+                )
+                continue
+
+        return lora_examples
+
+    def _create_contextualized_system_prompt(
+        self, lora_examples: Dict[str, List[str]]
+    ) -> str:
+        """
+        Create a system prompt that includes LoRA examples to ground the LLM's understanding.
+
+        Args:
+            lora_examples: Dict mapping LoRA names to their example prompts
+
+        Returns:
+            Enhanced system prompt with LoRA examples
+        """
+        base_prompt = self._SYSTEM_PROMPT
+
+        # If no examples found, return base prompt
+        if not lora_examples:
+            return base_prompt
+
+        # Build examples section
+        examples_section = "\n\n--- LoRA USAGE EXAMPLES ---\n"
+        examples_section += "Use these actual LoRA examples to understand the expected style and content patterns:\n\n"
+
+        for lora_name, examples in lora_examples.items():
+            examples_section += f"'{lora_name}' LoRA examples:\n"
+            for i, example in enumerate(
+                examples[:2], 1
+            ):  # Limit to 2 examples per LoRA
+                examples_section += f"  {i}. {example}\n"
+            examples_section += "\n"
+
+        examples_section += "IMPORTANT: When splitting prompts, maintain the same style, terminology, and content patterns shown in these examples. Avoid adding creative flourishes or story elements not present in the original input or these examples.\n"
+
+        # Insert examples section before the final examples in the base prompt
+        insertion_point = base_prompt.find("Examples:")
+        if insertion_point != -1:
+            enhanced_prompt = (
+                base_prompt[:insertion_point]
+                + examples_section
+                + base_prompt[insertion_point:]
+            )
+        else:
+            # Fallback: append to end
+            enhanced_prompt = base_prompt + examples_section
+
+        return enhanced_prompt
+
     def _extract_verbatim_directives(
         self, prompt_text: str
     ) -> Tuple[str, List[str], List[str]]:
@@ -398,7 +502,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         model_name: str = None,
         api_url: str = None,
         system_prompt: str = "",
-    ) -> Tuple[str, str]:
+    ) -> Tuple[str, str, str]:
         """Public method invoked by ComfyUI to split prompts.
 
         Args:
@@ -411,11 +515,11 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 built-in default is used.
 
         Returns:
-            (image_prompt, wan_prompt)
+            (image_prompt, wan_prompt, lora_analysis)
         """
         if not prompt_text or not prompt_text.strip():
             log("Prompt Splitter: Empty input prompt, returning empty results")
-            return "", ""
+            return "", "", "{}"
 
         # Send initial progress update
         self._send_progress_update(0.1, "Starting prompt analysis...")
@@ -455,10 +559,28 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters"
         )
 
+        # Extract LoRA examples to ground LLM behavior
+        log_debug("Prompt Splitter: Extracting LoRA examples for context...")
+        lora_examples = self._extract_lora_examples(all_loras)
+
         # Determine which model to use: the caller-supplied name or the default.
         model = model_name or self._DEFAULT_MODEL_NAME
         url = api_url or self._DEFAULT_API_URL
-        sys_prompt = system_prompt if system_prompt else self._SYSTEM_PROMPT
+
+        # Create contextualized system prompt with LoRA examples
+        if system_prompt:
+            # User provided custom system prompt, use as-is
+            sys_prompt = system_prompt
+        else:
+            # Use our enhanced system prompt with LoRA examples
+            sys_prompt = self._create_contextualized_system_prompt(lora_examples)
+            if lora_examples:
+                total_examples = sum(
+                    len(examples) for examples in lora_examples.values()
+                )
+                log(
+                    f"Prompt Splitter: Enhanced system prompt with {total_examples} LoRA examples from {len(lora_examples)} LoRAs"
+                )
 
         log(f"Prompt Splitter: Starting split using model '{model}'")
         self._send_progress_update(0.3, f"Checking Ollama model '{model}'...")
@@ -537,6 +659,54 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
             self._send_progress_update(1.0, "Prompt splitting completed!")
 
+            # Create LoRA analysis output
+            analysis_data = {
+                "scene_description": clean_prompt,
+                "loras_used": {
+                    "image_loras": [
+                        {
+                            "name": lora["name"],
+                            "tag": lora["tag"],
+                            "examples_fed_to_llm": lora_examples.get(lora["name"], []),
+                            "trigger_words": (
+                                metadata_loader.extract_trigger_words(
+                                    metadata_loader.load_metadata(lora["name"])
+                                )
+                                if metadata_loader.load_metadata(lora["name"])
+                                else []
+                            ),
+                        }
+                        for lora in standard_loras
+                    ],
+                    "video_loras": [
+                        {
+                            "name": lora["name"],
+                            "tag": lora["tag"],
+                            "examples_fed_to_llm": lora_examples.get(lora["name"], []),
+                            "trigger_words": (
+                                metadata_loader.extract_trigger_words(
+                                    metadata_loader.load_metadata(lora["name"])
+                                )
+                                if metadata_loader.load_metadata(lora["name"])
+                                else []
+                            ),
+                        }
+                        for lora in wanloras
+                    ],
+                },
+                "total_examples_used": sum(
+                    len(examples) for examples in lora_examples.values()
+                ),
+                "verbatim_directives": {
+                    "image_verbatim": image_verbatim,
+                    "video_verbatim": video_verbatim,
+                },
+                "model_used": model,
+                "processing_successful": True,
+            }
+
+            analysis_output = json.dumps(analysis_data, indent=2, ensure_ascii=False)
+
             log("Prompt Splitter: Successfully split prompt")
             log(
                 f"Prompt Splitter: Final image prompt length: {len(image_prompt)} characters"
@@ -544,13 +714,22 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log(
                 f"Prompt Splitter: Final video prompt length: {len(wan_prompt)} characters"
             )
-            return image_prompt.strip(), wan_prompt.strip()
+            return image_prompt.strip(), wan_prompt.strip(), analysis_output
 
         # If Ollama returned empty or invalid responses, do not attempt a
         # naive fallback.  Return empty strings to signal failure.
         log_error(
             "Prompt Splitter: Failed to split prompt - Ollama returned empty response"
         )
+
+        # Create error analysis output
+        error_analysis = json.dumps(
+            {
+                "error": "AI model returned empty response",
+                "processing_successful": False,
+            }
+        )
+
         raise Exception(
             "AI model returned empty response. The AI model may be overloaded or "
             "experiencing issues. Try again or use a different model."

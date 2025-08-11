@@ -30,7 +30,7 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node, "_call_ollama", return_value=("image", "video")
         ) as mock_call:
             with patch.object(self.node, "_ensure_model_available") as mock_ensure:
-                image, wan = self.node.split_prompt("A test prompt")
+                image, wan, analysis = self.node.split_prompt("A test prompt")
         self.assertEqual(image, "image")
         self.assertEqual(wan, "video")
         mock_call.assert_called_once()
@@ -211,7 +211,9 @@ class TestPromptSplitterNode(unittest.TestCase):
             return_value=("woman dancing gracefully", "woman dances"),
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+                image_prompt, wan_prompt, analysis = self.node.split_prompt(
+                    input_prompt
+                )
 
         # LoRA should be added to image prompt
         self.assertIn("<lora:style:0.8>", image_prompt)
@@ -233,7 +235,9 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node, "_call_ollama", return_value=("woman dancing", "woman dances")
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+                image_prompt, wan_prompt, analysis = self.node.split_prompt(
+                    input_prompt
+                )
 
         self.assertEqual(image_prompt, "woman dancing")
         self.assertEqual(wan_prompt, "woman dances")
@@ -309,7 +313,9 @@ class TestPromptSplitterNode(unittest.TestCase):
                 return_value=("woman dancing", "woman dances"),
             ):
                 with patch.object(self.node, "_ensure_model_available"):
-                    image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+                    image_prompt, wan_prompt, analysis = self.node.split_prompt(
+                        input_prompt
+                    )
 
             # Should have LoRA tag and trigger word
             self.assertIn("<lora:style:0.8>", image_prompt)
@@ -390,7 +396,9 @@ class TestPromptSplitterNode(unittest.TestCase):
             return_value=("woman dancing gracefully", "woman dances"),
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+                image_prompt, wan_prompt, analysis = self.node.split_prompt(
+                    input_prompt
+                )
 
         # Should have verbatim content added back deterministically
         self.assertIn("overwatch, ana", image_prompt)
@@ -420,7 +428,9 @@ class TestPromptSplitterNode(unittest.TestCase):
                 return_value=("woman dancing", "woman dances"),
             ):
                 with patch.object(self.node, "_ensure_model_available"):
-                    image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+                    image_prompt, wan_prompt, analysis = self.node.split_prompt(
+                        input_prompt
+                    )
 
         # Should have verbatim content added back deterministically
         self.assertIn("overwatch, ana", image_prompt)
@@ -433,6 +443,141 @@ class TestPromptSplitterNode(unittest.TestCase):
         # Should have base content from LLM
         self.assertIn("woman dancing", image_prompt)
         self.assertIn("woman dances", wan_prompt)
+
+    def test_extract_lora_examples(self):
+        """_extract_lora_examples should extract examples from LoRA metadata."""
+        loras = [
+            {"name": "test_lora", "tag": "<lora:test_lora:0.8>"},
+            {"name": "nonexistent_lora", "tag": "<lora:nonexistent_lora:0.5>"},
+        ]
+
+        # Mock metadata with examples
+        mock_metadata = {
+            "civitai": {
+                "images": [
+                    {
+                        "meta": {
+                            "prompt": "beautiful woman, detailed face, professional lighting"
+                        }
+                    },
+                    {"meta": {"prompt": "stunning portrait, high quality, cinematic"}},
+                ]
+            }
+        }
+
+        with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_loader:
+            mock_loader_instance = mock_loader.return_value
+            # Return metadata for test_lora, None for nonexistent_lora
+            mock_loader_instance.load_metadata.side_effect = lambda name: (
+                mock_metadata if name == "test_lora" else None
+            )
+
+            with patch(
+                "nodes.prompt_splitter_node.extract_example_prompts"
+            ) as mock_extract:
+                mock_extract.return_value = [
+                    "beautiful woman, detailed face, professional lighting",
+                    "stunning portrait, high quality, cinematic",
+                ]
+
+                examples = self.node._extract_lora_examples(loras)
+
+        # Should have examples for test_lora but not nonexistent_lora
+        self.assertIn("test_lora", examples)
+        self.assertNotIn("nonexistent_lora", examples)
+        self.assertEqual(len(examples["test_lora"]), 2)
+
+    def test_create_contextualized_system_prompt(self):
+        """_create_contextualized_system_prompt should enhance base prompt with LoRA examples."""
+        lora_examples = {
+            "StyleLoRA": [
+                "artistic woman, oil painting style",
+                "vintage portrait, sepia tones",
+            ],
+            "MotionLoRA": [
+                "dancing figure, fluid movement",
+                "running athlete, dynamic pose",
+            ],
+        }
+
+        enhanced_prompt = self.node._create_contextualized_system_prompt(lora_examples)
+
+        # Should contain base prompt content
+        self.assertIn("IMAGE_PROMPT", enhanced_prompt)
+        self.assertIn("WAN_PROMPT", enhanced_prompt)
+
+        # Should contain LoRA examples section
+        self.assertIn("LoRA USAGE EXAMPLES", enhanced_prompt)
+        self.assertIn("StyleLoRA", enhanced_prompt)
+        self.assertIn("MotionLoRA", enhanced_prompt)
+        self.assertIn("artistic woman, oil painting style", enhanced_prompt)
+        self.assertIn("dancing figure, fluid movement", enhanced_prompt)
+
+    def test_create_contextualized_system_prompt_no_examples(self):
+        """_create_contextualized_system_prompt should return base prompt when no examples."""
+        enhanced_prompt = self.node._create_contextualized_system_prompt({})
+
+        # Should be identical to base prompt
+        self.assertEqual(enhanced_prompt, self.node._SYSTEM_PROMPT)
+
+    def test_lora_analysis_output_contains_examples(self):
+        """split_prompt should return analysis output with LoRA examples."""
+        input_prompt = "woman dancing <lora:style:0.8> beautiful face <wanlora:motion:1.0> graceful movement"
+
+        # Mock metadata loader and examples
+        with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_loader:
+            mock_loader_instance = mock_loader.return_value
+            mock_loader_instance.load_metadata.return_value = {"some": "metadata"}
+            mock_loader_instance.extract_trigger_words.return_value = [
+                "trigger1",
+                "trigger2",
+            ]
+
+            with patch(
+                "nodes.prompt_splitter_node.extract_example_prompts"
+            ) as mock_extract:
+                mock_extract.return_value = [
+                    "example prompt 1 for this lora",
+                    "example prompt 2 showing usage",
+                ]
+
+                with patch.object(
+                    self.node,
+                    "_call_ollama",
+                    return_value=("woman dancing gracefully", "woman dances"),
+                ):
+                    with patch.object(self.node, "_ensure_model_available"):
+                        image_prompt, wan_prompt, analysis = self.node.split_prompt(
+                            input_prompt
+                        )
+
+        # Parse the JSON analysis
+        import json
+
+        analysis_data = json.loads(analysis)
+
+        # Should contain processing success
+        self.assertTrue(analysis_data["processing_successful"])
+
+        # Should contain LoRA examples
+        self.assertIn("loras_used", analysis_data)
+        self.assertIn("image_loras", analysis_data["loras_used"])
+        self.assertIn("video_loras", analysis_data["loras_used"])
+
+        # Check that examples are included
+        image_loras = analysis_data["loras_used"]["image_loras"]
+        if image_loras:
+            self.assertIn("examples_fed_to_llm", image_loras[0])
+            self.assertIn("trigger_words", image_loras[0])
+
+        video_loras = analysis_data["loras_used"]["video_loras"]
+        if video_loras:
+            self.assertIn("examples_fed_to_llm", video_loras[0])
+            self.assertIn("trigger_words", video_loras[0])
+
+        # Should contain metadata about processing
+        self.assertIn("total_examples_used", analysis_data)
+        self.assertIn("model_used", analysis_data)
 
 
 if __name__ == "__main__":
