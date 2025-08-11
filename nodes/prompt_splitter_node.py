@@ -45,13 +45,7 @@ except Exception:
     # will be passed through to shared helpers if available.
     requests = None
 
-try:
-    # Import shared Ollama utilities
-    from .ollama_utils import ensure_model_available, send_chat  # type: ignore
-except Exception:
-    # Fallback: if utils cannot be imported, local definitions below will be used
-    ensure_model_available = None  # type: ignore
-    send_chat = None  # type: ignore
+
 
 
 class PromptSplitterNode:
@@ -158,11 +152,9 @@ class PromptSplitterNode:
         If the helper is unavailable (e.g. due to import failure), this
         method quietly returns.
         """
-        if ensure_model_available is None:
-            return
         # Pass the imported ``requests`` module to ensure that patched
         # requests in this module are used for network operations during tests.
-        ensure_model_available(
+        _shared_ensure_model_available(
             model,
             api_url,
             requests_module=requests,

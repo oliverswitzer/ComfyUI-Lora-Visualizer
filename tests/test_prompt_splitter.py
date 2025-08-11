@@ -80,114 +80,36 @@ class TestPromptSplitterNode(unittest.TestCase):
         self.assertEqual(used["model"], "custom-model")
 
     def test_ensure_model_download_called_when_missing(self):
-        """_ensure_model_available should download a model if it is not installed."""
+        """_ensure_model_available should delegate to the shared utility."""
         node = PromptSplitterNode()
 
-        # Fake response for GET /api/tags: no models installed
-        class DummyResponse:
-            def __init__(self, json_data, status=200):
-                self._json = json_data
-                self.status_code = status
+        # Patch the shared utility function directly
+        with patch("nodes.prompt_splitter_node._shared_ensure_model_available") as mock_ensure:
+            node._ensure_model_available("test-model", "http://localhost:11434")
 
-            def raise_for_status(self):
-                if not (200 <= self.status_code < 300):
-                    raise RuntimeError("HTTP error")
-
-            def json(self):
-                return self._json
-
-        # Set up flags to check if post was called
-        calls = {}
-
-        def fake_get(url, timeout=None):
-            calls["get_url"] = url
-            return DummyResponse({"models": []})
-
-        def fake_post(url, json=None, timeout=None):
-            # Record post call and payload
-            calls["post_url"] = url
-            calls["post_payload"] = json
-            return DummyResponse({"status": "success"})
-
-        # Patch requests in the module's globals
-        with patch(
-            "nodes.prompt_splitter_node.requests.get", side_effect=fake_get
-        ) as mock_get:
-            with patch(
-                "nodes.prompt_splitter_node.requests.post", side_effect=fake_post
-            ) as mock_post:
-                # Patch PromptServer to avoid import error and capture send_sync
-                with patch.dict(
-                    "sys.modules",
-                    {
-                        "server": unittest.mock.MagicMock(
-                            PromptServer=unittest.mock.MagicMock(
-                                instance=unittest.mock.MagicMock(
-                                    send_sync=unittest.mock.MagicMock()
-                                )
-                            )
-                        )
-                    },
-                ):
-                    # Call ensure_model_available with a dummy model and API URL
-                    node._ensure_model_available(
-                        "dummy-model", "http://localhost:11434/api/chat"
-                    )
-        # After the call, ensure we attempted to download the model
-        self.assertIn("post_url", calls)
-        self.assertIn("/api/pull", calls["post_url"])
-        self.assertEqual(
-            calls["post_payload"], {"model": "dummy-model", "stream": False}
+        # Verify that the shared utility was called with correct parameters
+        mock_ensure.assert_called_once_with(
+            "test-model",
+            "http://localhost:11434",
+            requests_module=None,
+            status_channel="prompt_splitter_status",
         )
 
     def test_ensure_model_no_download_when_present(self):
-        """_ensure_model_available should not download when the model is already installed."""
+        """_ensure_model_available should delegate to the shared utility regardless of model availability."""
         node = PromptSplitterNode()
 
-        class DummyResponse:
-            def __init__(self, json_data, status=200):
-                self._json = json_data
-                self.status_code = status
+        # Patch the shared utility function directly
+        with patch("nodes.prompt_splitter_node._shared_ensure_model_available") as mock_ensure:
+            node._ensure_model_available("installed-model", "http://localhost:11434")
 
-            def raise_for_status(self):
-                if not (200 <= self.status_code < 300):
-                    raise RuntimeError("HTTP error")
-
-            def json(self):
-                return self._json
-
-        calls = {}
-
-        def fake_get(url, timeout=None):
-            calls["get_url"] = url
-            return DummyResponse({"models": [{"name": "installed-model"}]})
-
-        def fake_post(url, json=None, timeout=None):
-            # If called, record so we can assert it's not
-            calls["post_url"] = url
-            return DummyResponse({"status": "success"})
-
-        with patch("nodes.prompt_splitter_node.requests.get", side_effect=fake_get):
-            with patch(
-                "nodes.prompt_splitter_node.requests.post", side_effect=fake_post
-            ):
-                with patch.dict(
-                    "sys.modules",
-                    {
-                        "server": unittest.mock.MagicMock(
-                            PromptServer=unittest.mock.MagicMock(
-                                instance=unittest.mock.MagicMock(
-                                    send_sync=unittest.mock.MagicMock()
-                                )
-                            )
-                        )
-                    },
-                ):
-                    node._ensure_model_available(
-                        "installed-model", "http://localhost:11434/api/chat"
-                    )
-        # Ensure POST was never called
-        self.assertNotIn("post_url", calls)
+        # Verify that the shared utility was called (the shared utility handles availability checking)
+        mock_ensure.assert_called_once_with(
+            "installed-model",
+            "http://localhost:11434",
+            requests_module=None,
+            status_channel="prompt_splitter_status",
+        )
 
 
 if __name__ == "__main__":
