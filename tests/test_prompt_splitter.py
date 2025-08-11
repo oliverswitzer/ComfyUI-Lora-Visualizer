@@ -84,7 +84,9 @@ class TestPromptSplitterNode(unittest.TestCase):
         node = PromptSplitterNode()
 
         # Patch the shared utility function directly
-        with patch("nodes.prompt_splitter_node._shared_ensure_model_available") as mock_ensure:
+        with patch(
+            "nodes.prompt_splitter_node._shared_ensure_model_available"
+        ) as mock_ensure:
             node._ensure_model_available("test-model", "http://localhost:11434")
 
         # Verify that the shared utility was called with correct parameters
@@ -96,14 +98,16 @@ class TestPromptSplitterNode(unittest.TestCase):
         )
 
     def test_ensure_model_no_download_when_present(self):
-        """_ensure_model_available should delegate to the shared utility regardless of model availability."""
+        """_ensure_model_available should delegate to shared utility regardless of availability."""
         node = PromptSplitterNode()
 
         # Patch the shared utility function directly
-        with patch("nodes.prompt_splitter_node._shared_ensure_model_available") as mock_ensure:
+        with patch(
+            "nodes.prompt_splitter_node._shared_ensure_model_available"
+        ) as mock_ensure:
             node._ensure_model_available("installed-model", "http://localhost:11434")
 
-        # Verify that the shared utility was called (the shared utility handles availability checking)
+        # Verify that the shared utility was called (handles availability checking)
         mock_ensure.assert_called_once_with(
             "installed-model",
             "http://localhost:11434",

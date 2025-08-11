@@ -52,11 +52,13 @@ except Exception:
     requests = None
 
 try:
-    # Import shared utilities for Ollama interactions
+    # Import shared utilities for Ollama interactions and LoRA metadata
     from .ollama_utils import ensure_model_available, send_chat  # type: ignore
+    from .lora_utils import MetadataExtractor  # type: ignore
 except Exception:
     ensure_model_available = None  # type: ignore
     send_chat = None  # type: ignore
+    MetadataExtractor = None  # type: ignore
 
 # ComfyUI imports are optional for testing.  When running under
 # pytest these modules are patched/mocked before import.
@@ -181,7 +183,9 @@ class LoRAPromptComposerNode:
                         "multiline": True,
                         "default": "",
                         "placeholder": "Custom system prompt (leave blank to use default).",
-                        "tooltip": "Override the default system instructions sent to the Ollama model.",
+                        "tooltip": (
+                            "Override the default system instructions sent to the Ollama model."
+                        ),
                     },
                 ),
             },
@@ -299,16 +303,22 @@ class LoRAPromptComposerNode:
         Returns:
             A string representing the trigger word.
         """
-        # Try trainedWords
-        try:
-            trained = meta.get("civitai", {}).get("trainedWords", [])
-            if trained:
-                # Use first non-empty string
-                for word in trained:
-                    if isinstance(word, str) and word.strip():
-                        return word.strip().lower()
-        except Exception:
-            pass
+        # Use consolidated MetadataExtractor if available
+        if MetadataExtractor is not None:
+            trigger_words = MetadataExtractor.extract_trigger_words(meta)
+            if trigger_words:
+                return trigger_words[0].lower()
+        else:
+            # Fallback to old parsing logic for testing
+            try:
+                trained = meta.get("civitai", {}).get("trainedWords", [])
+                if trained:
+                    # Use first non-empty string
+                    for word in trained:
+                        if isinstance(word, str) and word.strip():
+                            return word.strip().lower()
+            except Exception:
+                pass
         # Fallback: derive from file_name (remove extension, replace spaces)
         trigger = file_name.rsplit(".", 1)[0]  # remove extension if any
         trigger = trigger.replace(" ", "_").replace("/", "_")

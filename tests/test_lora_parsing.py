@@ -110,7 +110,10 @@ class TestLoRAVisualizerNode(unittest.TestCase):
 
     def test_parse_consistent_handling(self):
         """Test that both LoRA types handle complex names consistently."""
-        prompt = "test <lora:Style: Modern Art v1.0:0.7> and <wanlora:Character: Anime Girl v2.1:0.9> together"
+        prompt = (
+            "test <lora:Style: Modern Art v1.0:0.7> and "
+            "<wanlora:Character: Anime Girl v2.1:0.9> together"
+        )
         standard_loras, wanloras = self.node.parse_lora_tags(prompt)
 
         self.assertEqual(len(standard_loras), 1)

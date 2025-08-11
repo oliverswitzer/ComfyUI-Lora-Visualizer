@@ -1,0 +1,17 @@
+[MASTER]
+init-hook='import sys; sys.path.append(".")'
+
+[MESSAGES CONTROL]
+disable=import-error,invalid-name,broad-exception-caught,import-outside-toplevel,too-many-arguments,too-many-locals,too-many-branches,protected-access,unused-argument,duplicate-code,wrong-import-position,wrong-import-order,ungrouped-imports,useless-return,unused-import,reimported,unused-variable,redefined-outer-name,missing-class-docstring
+
+[FORMAT]
+max-line-length=100
+
+[BASIC]
+# Allow ComfyUI naming patterns
+good-names=i,j,k,ex,Run,_,id,fp,url,api,ui,e
+
+[DESIGN]
+max-args=7
+max-locals=20
+max-branches=15

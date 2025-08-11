@@ -44,9 +44,122 @@ import re
 from typing import Dict, List, Tuple, Optional, Any
 
 try:
-    import folder_paths  # type: ignore
-except Exception:
+    import folder_paths  # type: ignore  # pylint: disable=import-error
+except Exception:  # pylint: disable=broad-exception-caught
     folder_paths = None
+
+
+class ExampleData:  # pylint: disable=too-few-public-methods
+    """Represents an example image with its prompt and URL."""
+
+    def __init__(self, prompt: str, url: str):
+        self.prompt = prompt.strip()
+        self.url = url.strip()
+        self.image_bytes: Optional[bytes] = None
+
+    def __repr__(self) -> str:
+        return f"ExampleData(prompt='{self.prompt[:50]}...', url='{self.url}')"
+
+
+class MetadataExtractor:
+    """Extracts LoRA metadata and example data from JSON files."""
+
+    @staticmethod
+    def extract_example_data(
+        metadata: Dict[str, Any], max_examples: int = 4
+    ) -> List[ExampleData]:
+        """Extract example prompts and image URLs from LoRA metadata.
+
+        Args:
+            metadata: The metadata dictionary loaded from a `.metadata.json` file
+            max_examples: Maximum number of examples to extract
+
+        Returns:
+            List of ExampleData objects with prompts and URLs
+        """
+        examples = []
+        seen_prompts = set()
+
+        try:
+            images = metadata.get("civitai", {}).get("images", [])
+            if not isinstance(images, list):
+                return examples
+
+            for image in images:
+                if not isinstance(image, dict):
+                    continue
+
+                # Extract prompt from nested structure
+                prompt = None
+                if "meta" in image and isinstance(image["meta"], dict):
+                    prompt = image["meta"].get("prompt")
+
+                # Extract image URL
+                url = image.get("url")
+
+                if prompt and isinstance(prompt, str) and url and isinstance(url, str):
+
+                    prompt = prompt.strip()
+                    url = url.strip()
+
+                    # Skip duplicates and empty values
+                    if prompt and url and prompt not in seen_prompts:
+                        examples.append(ExampleData(prompt, url))
+                        seen_prompts.add(prompt)
+
+                        if len(examples) >= max_examples:
+                            break
+
+        except Exception as e:
+            print(f"Error extracting example data: {e}")
+
+        return examples
+
+    @staticmethod
+    def extract_lora_description(metadata: Dict[str, Any]) -> Optional[str]:
+        """Extract the LoRA description from metadata.
+
+        Args:
+            metadata: The metadata dictionary
+
+        Returns:
+            Description text or None if not found
+        """
+        description = metadata.get("modelDescription")
+        if isinstance(description, str) and description.strip():
+            return description.strip()
+        return None
+
+    @staticmethod
+    def extract_trigger_words(metadata: Dict[str, Any]) -> List[str]:
+        """Extract trigger words from metadata.
+
+        Args:
+            metadata: The metadata dictionary
+
+        Returns:
+            List of trigger words (may be empty)
+        """
+        try:
+            words = metadata.get("civitai", {}).get("trainedWords", [])
+            if isinstance(words, list):
+                return [str(word).strip() for word in words if word]
+        except Exception:
+            pass
+        return []
+
+    @staticmethod
+    def extract_example_prompts(metadata: Dict[str, Any]) -> List[str]:
+        """Legacy method for extracting just prompts (for backward compatibility).
+
+        Args:
+            metadata: The metadata dictionary
+
+        Returns:
+            List of example prompts
+        """
+        examples = MetadataExtractor.extract_example_data(metadata)
+        return [ex.prompt for ex in examples]
 
 
 def get_loras_folder() -> Optional[str]:
@@ -173,6 +286,7 @@ def extract_lora_info(
     * ``modelId`` from ``meta['civitai']`` → ``civitai_url``
     * ``preview_url`` → ``preview_url``
     * ``images`` from ``meta['civitai']`` → ``example_images``
+    * ``images`` from ``meta['civitai']`` → ``example_data`` (ExampleData objects)
     * ``model_name``, ``modelDescription``, ``base_model``,
       ``preview_nsfw_level`` for additional fields.
 
@@ -191,6 +305,7 @@ def extract_lora_info(
         "trigger_words": [],
         "preview_url": None,
         "example_images": [],
+        "example_data": [],
         "model_description": None,
         "base_model": None,
         "nsfw_level": 0,
@@ -200,11 +315,8 @@ def extract_lora_info(
         return info
     try:
         civ = metadata.get("civitai", {})
-        # trained words
-        if isinstance(civ.get("trainedWords"), list):
-            info["trigger_words"] = [
-                w for w in civ["trainedWords"] if isinstance(w, str)
-            ]
+        # Use MetadataExtractor for consistent parsing
+        info["trigger_words"] = MetadataExtractor.extract_trigger_words(metadata)
         # civitai URL
         model_id = civ.get("modelId")
         if model_id:
@@ -212,9 +324,10 @@ def extract_lora_info(
         # preview URL
         if metadata.get("preview_url"):
             info["preview_url"] = metadata["preview_url"]
-        # example images
+        # example images - keep both legacy dict format and new ExampleData format
         images = civ.get("images")
         if isinstance(images, list):
+            # Legacy format for backward compatibility
             examples = []
             for img in images:
                 try:
@@ -231,6 +344,9 @@ def extract_lora_info(
                 except Exception:
                     pass
             info["example_images"] = examples
+
+            # New structured format using ExampleData
+            info["example_data"] = MetadataExtractor.extract_example_data(metadata)
         # additional meta fields
         if "model_name" in metadata:
             info["model_name"] = metadata["model_name"]

@@ -15,7 +15,7 @@ from .lora_prompt_composer_node import LoRAPromptComposerNode  # type: ignore
 # is optional; if the module or function is unavailable, analysis will
 # simply be skipped.  See below for invocation.
 try:
-    from .lora_analysis_preprocessor import analyze_all_loras  # type: ignore
+    from .lora_analysis import analyze_all_loras  # type: ignore
 except Exception:
     analyze_all_loras = None  # type: ignore
 

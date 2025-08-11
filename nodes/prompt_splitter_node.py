@@ -46,8 +46,6 @@ except Exception:
     requests = None
 
 
-
-
 class PromptSplitterNode:
     """Split a combined prompt into image and video components using Ollama."""
 
