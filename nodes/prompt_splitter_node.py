@@ -98,28 +98,29 @@ General Rules:
 Output format: valid JSON with keys 'image_prompt' and 'wan_prompt'.
 
 Examples:
+
 Input Prompt: "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, she starts to twirl under the lights"
 {
   "image_prompt": "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, shallow depth of field, relaxed stance, poised to move",
-  "wan_prompt": "She twirls beneath the string lights, the fabric of her dress sweeping outward as the camera slowly circles."
+  "wan_prompt": "the woman twirls slowly under the string lights, her dress moving with the spin"
 }
 
 Input Prompt: "two girls and one boy, sunlit park picnic, casual outfits, golden hour, laughing together on a blanket, ultra-detailed"
 {
   "image_prompt": "two girls and one boy, sunlit park picnic, casual outfits, golden hour, laughing together on a blanket, ultra-detailed, soft rim light",
-  "wan_prompt": "They lean in, share the phone between them, and burst into louder laughter as the boy nudges the snack bowl."
+  "wan_prompt": "they lean in closer on the blanket, laughing and talking together in the sun"
 }
 
 Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gritty texture, he moves toward a fight"
 {
   "image_prompt": "teen boy in a leather jacket, narrow alley, moody backlight, gritty texture, intense expression, stance squared, fists lowered",
-  "wan_prompt": "He cracks his knuckles and steps forward, shoulders tightening as he squares up, while the camera eases backward."
+  "wan_prompt": "he cracks his knuckles and steps toward the other person, ready to fight"
 }
 
 Input Prompt: "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
 {
   "image_prompt": "woman dancing gracefully, overwatch, ana",
-  "wan_prompt": "woman dances, she jumps up and down"
+  "wan_prompt": "the woman dances, then jumps up and down several times"
 }
 """
 
