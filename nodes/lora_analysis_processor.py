@@ -69,6 +69,7 @@ except Exception:  # pylint: disable=broad-exception-caught
 # Import shared utilities
 from .lora_utils import MetadataExtractor
 from .lora_analysis.image_analyzer import ImageAnalyzer
+from .logging_utils import log, log_error, log_warning
 
 # ---------------------------------------------------------------------------
 # System prompt for LoRA analysis
@@ -76,21 +77,33 @@ from .lora_analysis.image_analyzer import ImageAnalyzer
 _ANALYSIS_SYSTEM_PROMPT = (
     "You are an expert at analyzing machine learning models for image generation.\n"
     "You will be given metadata about a LoRA model including its description and trigger words.\n"
-    "You will also be shown example images generated using this LoRA, along with their prompts.\n"
-    "Analyze the visual content of the images to understand what this LoRA does.\n\n"
-    "Write two fields in JSON format:\n"
-    "1. 'when_to_use': A concise paragraph describing the purpose of this LoRA based on the "
-    "visual analysis.\n"
-    "   Focus on the style, subjects, effects, or scenarios this LoRA is best suited for.\n"
-    "2. 'example_prompts_and_analysis': A list of objects where each has 'prompt' and "
-    "'analysis' keys.\n"
-    "   For each example, include the original prompt and describe what you observe in the "
-    "generated image:\n"
-    "   subjects, artistic style, lighting, composition, mood, textures, and distinctive "
-    "visual characteristics.\n\n"
-    "Base your 'when_to_use' summary on patterns you observe across all the example images.\n"
-    "Output strictly valid JSON with keys 'when_to_use' and 'example_prompts_and_analysis'.\n"
-    "Do not mention the LoRA name or file names; describe content in generic terms."
+    "You will also be shown example images generated using this LoRA, along with their prompts.\n\n"
+    "ANALYSIS PRIORITY:\n"
+    "1. PRIMARY: Use the LoRA description and trigger words as your main source of truth\n"
+    "2. SECONDARY: Use example images to supplement understanding\n"
+    "3. If example images vary significantly or seem unrelated, rely heavily on textual metadata\n"
+    "4. Many LoRAs are for specific poses, actions, or characters - the description is "
+    "often most accurate\n\n"
+    "CRITICAL: You MUST respond with valid JSON only. No explanation, no markdown, just JSON.\n\n"
+    "Return this exact JSON structure:\n"
+    "{\n"
+    '  "when_to_use": "A concise paragraph describing the purpose of this LoRA. '
+    "Prioritize the description and trigger words, supplemented by visual analysis. "
+    'Focus on style, subjects, effects, or scenarios this LoRA is best suited for.",\n'
+    '  "example_prompts_and_analysis": [\n'
+    "    {\n"
+    '      "prompt": "original prompt text",\n'
+    '      "analysis": "describe what you observe: subjects, artistic style, lighting, '
+    'composition, mood, textures, distinctive visual characteristics"\n'
+    "    }\n"
+    "  ]\n"
+    "}\n\n"
+    "For 'when_to_use': Start with the LoRA description if available, then enhance "
+    "with visual patterns.\n"
+    "Include one entry in 'example_prompts_and_analysis' for each image you can see.\n"
+    "If you cannot see images properly, focus the analysis on the textual metadata provided.\n"
+    "Do not mention the LoRA name or file names; describe content in generic terms.\n"
+    "IMPORTANT: Reply with JSON only, no other text."
 )
 
 
@@ -113,7 +126,7 @@ def _call_ollama_for_analysis(
         A dictionary with keys 'when_to_use' and 'example_prompts_and_analysis', or None on failure.
     """
     if requests is None:
-        print("LoRA analysis: 'requests' library not available; skipping analysis.")
+        log_warning("'requests' library not available; skipping analysis.")
         return None
     # Build user message containing the example prompts as JSON for clarity.
     user_content = {"example_prompts": example_prompts}
@@ -155,12 +168,10 @@ def _call_ollama_for_analysis(
                 }
             return None
         except (json.JSONDecodeError, KeyError, TypeError) as parse_err:
-            print(
-                f"LoRA analysis: JSON parse error: {parse_err}; content was: {content}"
-            )
+            log_error(f"JSON parse error: {parse_err}; content was: {content}")
             return None
     except Exception as e:
-        print(f"LoRA analysis: error contacting Ollama: {e}")
+        log_error(f"Error contacting Ollama: {e}")
         return None
 
 
@@ -183,13 +194,13 @@ def _analyze_single_lora_with_vision(
     # Extract examples with prompts and URLs
     examples = extractor.extract_example_data(metadata)
     if not examples:
-        print("No example images found in metadata")
+        log_warning("No example images found in metadata")
         return None
 
     # Download images
     examples_with_images = analyzer.download_example_images(examples)
     if not examples_with_images:
-        print("No images could be downloaded for analysis")
+        log_warning("No images could be downloaded for analysis")
         return None
 
     # Extract metadata context
@@ -197,7 +208,7 @@ def _analyze_single_lora_with_vision(
     trigger_words = extractor.extract_trigger_words(metadata)
 
     # Perform vision analysis
-    print(
+    log(
         f"Analyzing {len(examples_with_images)} images with {analyzer.DEFAULT_VISION_MODEL}"
     )
     return analyzer.analyze_with_vision(
@@ -229,7 +240,14 @@ def analyze_all_loras(
             sent.
     """
     if not loras_folder or not os.path.isdir(loras_folder):
+        log_error(f"Invalid LoRA directory: {loras_folder}")
         return
+
+    metadata_files = [
+        f for f in os.listdir(loras_folder) if f.endswith(".metadata.json")
+    ]
+    log(f"Found {len(metadata_files)} LoRA metadata files to process")
+
     # Determine base URL for status messages
     for fname in os.listdir(loras_folder):
         if not fname.endswith(".metadata.json"):
@@ -246,7 +264,7 @@ def analyze_all_loras(
             with open(meta_path, "r", encoding="utf-8") as f:
                 meta = json.load(f)
         except Exception as e:
-            print(f"LoRA analysis: failed to read {fname}: {e}")
+            log_error(f"Failed to read {fname}: {e}")
             continue
         # Check if we have example images for vision analysis
         extractor = MetadataExtractor()
@@ -289,7 +307,7 @@ def analyze_all_loras(
             with open(analyzed_path, "w", encoding="utf-8") as out:
                 json.dump(result, out, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"LoRA analysis: failed to write {analyzed_path}: {e}")
+            log_error(f"Failed to write {analyzed_path}: {e}")
             continue
         # Notify completion
         if status_channel and PromptServer is not None:
