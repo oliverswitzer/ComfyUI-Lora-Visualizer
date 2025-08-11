@@ -33,7 +33,13 @@ except Exception:
 try:
     from server import PromptServer  # type: ignore
 except Exception:
-    PromptServer = None  # PromptServer may not be available during tests
+    PromptServer = None
+
+from .logging_utils import (
+    log,
+    log_error,
+    log_warning,
+)  # PromptServer may not be available during tests
 
 
 def ensure_model_available(
@@ -88,7 +94,7 @@ def ensure_model_available(
         if model_name in installed:
             return
     except Exception as e:
-        print(f"ollama_utils: failed to query installed models: {e}")
+        log_error(f"Failed to query installed models: {e}")
         return
     # Inform user about download
     msg = f"Ollama model '{model_name}' not found. Downloading..."
@@ -98,14 +104,14 @@ def ensure_model_available(
         except Exception:
             pass
     else:
-        print(msg)
+        log(msg)
     # Download model
     try:
         payload = {"model": model_name, "stream": False}
         resp = req.post(pull_url, json=payload, timeout=300)
         resp.raise_for_status()
     except Exception as e:
-        print(f"ollama_utils: failed to download model '{model_name}': {e}")
+        log_error(f"Failed to download model '{model_name}': {e}")
         return
     done_msg = f"Model '{model_name}' downloaded successfully."
     if status_channel and PromptServer is not None:
@@ -114,7 +120,7 @@ def ensure_model_available(
         except Exception:
             pass
     else:
-        print(done_msg)
+        log(done_msg)
 
 
 def call_ollama_chat(
@@ -150,7 +156,7 @@ def call_ollama_chat(
     """
     req = requests_module or requests
     if req is None:
-        print("ollama_utils: 'requests' library not available; cannot contact Ollama.")
+        log_warning("'requests' library not available; cannot contact Ollama.")
         return ""
 
     # Construct chat messages
@@ -183,7 +189,7 @@ def call_ollama_chat(
             content = ""
         return str(content).strip()
     except Exception as e:
-        print(f"ollama_utils: error contacting Ollama: {e}")
+        log_error(f"Error contacting Ollama: {e}")
         return ""
 
 

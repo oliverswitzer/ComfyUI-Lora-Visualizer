@@ -54,6 +54,7 @@ except Exception:
 try:
     # Import shared utilities for Ollama interactions and LoRA metadata
     from .ollama_utils import ensure_model_available, send_chat  # type: ignore
+    from .logging_utils import log, log_error
     from .lora_utils import MetadataExtractor  # type: ignore
 except Exception:
     ensure_model_available = None  # type: ignore
@@ -276,14 +277,10 @@ class LoRAPromptComposerNode:
                                 data["analysis"] = analysis_data
                         except Exception as ae:
                             # If analysis cannot be loaded, silently skip
-                            print(
-                                f"LoRAPromptComposerNode: failed to load analysis for {fname}: {ae}"
-                            )
+                            log_error(f"Failed to load analysis for {fname}: {ae}")
                     result.append(data)
             except Exception as e:
-                print(
-                    f"LoRAPromptComposerNode: failed to load metadata from {fname}: {e}"
-                )
+                log_error(f"Failed to load metadata from {fname}: {e}")
                 continue
         return result
 
@@ -467,7 +464,7 @@ class LoRAPromptComposerNode:
         try:
             self._ensure_model_available(model, url)
         except Exception as e:
-            print(f"LoRAPromptComposerNode: error ensuring model availability: {e}")
+            log_error(f"Error ensuring model availability: {e}")
         # Call Ollama
         prompt = self._call_ollama(user_message, model, url, sys_prompt)
         # Return as a single-element tuple as required by ComfyUI

@@ -37,6 +37,7 @@ from .ollama_utils import (
     ensure_model_available as _shared_ensure_model_available,
 )  # noqa: E402
 from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
+from .logging_utils import log_error
 
 try:
     import requests  # type: ignore[import]
@@ -244,7 +245,7 @@ class PromptSplitterNode:
         try:
             self._ensure_model_available(model, url)
         except Exception as e:
-            print(f"PromptSplitterNode: error ensuring model availability: {e}")
+            log_error(f"Error ensuring model availability: {e}")
         # Try contacting Ollama first
         sdxl, wan = self._call_ollama(prompt_text, model, url, sys_prompt)
         if sdxl and wan:

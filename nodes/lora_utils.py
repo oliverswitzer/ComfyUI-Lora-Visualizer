@@ -48,6 +48,8 @@ try:
 except Exception:  # pylint: disable=broad-exception-caught
     folder_paths = None
 
+from .logging_utils import log_error
+
 
 class ExampleData:  # pylint: disable=too-few-public-methods
     """Represents an example image with its prompt and URL."""
@@ -111,7 +113,7 @@ class MetadataExtractor:
                             break
 
         except Exception as e:
-            print(f"Error extracting example data: {e}")
+            log_error(f"Error extracting example data: {e}")
 
         return examples
 
@@ -268,7 +270,7 @@ def load_lora_metadata(
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
-                print(f"lora_utils: error loading metadata for {lora_name}: {e}")
+                log_error(f"Error loading metadata for {lora_name}: {e}")
                 return None
     return None
 

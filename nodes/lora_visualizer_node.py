@@ -15,6 +15,7 @@ from .lora_utils import (
     load_lora_metadata as _shared_load_lora_metadata,
     extract_lora_info as _shared_extract_lora_info,
 )
+from .logging_utils import log_debug, log_error
 
 
 class LoRAVisualizerNode:
@@ -167,8 +168,8 @@ class LoRAVisualizerNode:
         standard_loras, wanloras = self.parse_lora_tags(prompt_text)
 
         # Debug logging
-        print(f"DEBUG: Parsed {len(standard_loras)} standard LoRAs: {standard_loras}")
-        print(f"DEBUG: Parsed {len(wanloras)} WanLoRAs: {wanloras}")
+        log_debug(f"Parsed {len(standard_loras)} standard LoRAs: {standard_loras}")
+        log_debug(f"Parsed {len(wanloras)} WanLoRAs: {wanloras}")
 
         if not standard_loras and not wanloras:
             return ("No LoRA tags found in prompt.", prompt_text)
@@ -199,10 +200,10 @@ class LoRAVisualizerNode:
             from server import PromptServer
 
             message_data = {"node_id": str(id(self)), "data": self.last_lora_data}
-            print(f"DEBUG: Sending LoRA data to frontend: {message_data}")
+            log_debug(f"Sending LoRA data to frontend: {message_data}")
             PromptServer.instance.send_sync("lora_visualization_data", message_data)
         except Exception as e:
-            print(f"Failed to send LoRA visualization data: {e}")
+            log_error(f"Failed to send LoRA visualization data: {e}")
 
         # Create raw metadata output for debugging/analysis
         raw_metadata = {

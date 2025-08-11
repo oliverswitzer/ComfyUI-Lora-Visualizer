@@ -10,13 +10,14 @@ and ``NODE_DISPLAY_NAME_MAPPINGS`` accordingly.
 from .lora_visualizer_node import LoRAVisualizerNode  # type: ignore
 from .prompt_splitter_node import PromptSplitterNode  # type: ignore
 from .lora_prompt_composer_node import LoRAPromptComposerNode  # type: ignore
+from .logging_utils import log, log_error
 
 # Import analysis preprocessor for background LoRA analysis.  This import
 # is optional; if the module or function is unavailable, analysis will
 # simply be skipped.  See below for invocation.
 try:
-    from .lora_analysis import analyze_all_loras  # type: ignore
-except Exception:
+    from .lora_analysis_processor import analyze_all_loras  # type: ignore
+except Exception:  # pylint: disable=broad-exception-caught
     analyze_all_loras = None  # type: ignore
 
 
@@ -64,9 +65,11 @@ def _trigger_background_lora_analysis():
 
     # Respect environment variable override
     if os.environ.get("COMFYUI_SKIP_LORA_ANALYSIS"):
+        log("Background LoRA analysis disabled by COMFYUI_SKIP_LORA_ANALYSIS")
         return
     # Ensure preprocessor is available
     if analyze_all_loras is None:
+        log("Background LoRA analysis unavailable (analyze_all_loras not imported)")
         return
     # Use folder_paths to locate LoRA directory
     try:
@@ -74,9 +77,12 @@ def _trigger_background_lora_analysis():
 
         paths = folder_paths.get_folder_paths("loras")
         if not paths:
+            log("No LoRA directories configured in ComfyUI")
             return
         lora_dir = paths[0]
-    except Exception:
+        log(f"Starting background LoRA analysis in: {lora_dir}")
+    except Exception as e:
+        log_error(f"Failed to get LoRA directory: {e}")
         return
     # Determine a default model for analysis (use PromptSplitterNode's default)
     default_model = PromptSplitterNode._DEFAULT_MODEL_NAME
@@ -85,18 +91,21 @@ def _trigger_background_lora_analysis():
     # Start analysis in a separate thread
     def worker():
         try:
+            log(f"Background analysis using model: {default_model} at {api_url}")
             analyze_all_loras(
                 lora_dir,
                 model_name=default_model,
                 api_url=api_url,
                 status_channel="lora_analysis_status",
             )
+            log("Background LoRA analysis completed successfully")
         except Exception as e:
             # Print errors but do not propagate
-            print(f"Background LoRA analysis error: {e}")
+            log_error(f"Background LoRA analysis error: {e}")
 
     thread = threading.Thread(target=worker, daemon=True)
     thread.start()
+    log("Background LoRA analysis thread started")
 
 
 _trigger_background_lora_analysis()

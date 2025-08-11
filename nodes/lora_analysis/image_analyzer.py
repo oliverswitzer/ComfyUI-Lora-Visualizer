@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import json
 import base64
+import subprocess
+import tempfile
+import os
 from typing import Dict, List, Optional, Any
 from urllib.parse import urlparse
 
@@ -20,6 +23,7 @@ except Exception:  # pylint: disable=broad-exception-caught
 
 from ..lora_utils import ExampleData
 from ..ollama_utils import ensure_model_available
+from ..logging_utils import log, log_error, log_warning
 
 
 class ImageAnalyzer:
@@ -64,14 +68,96 @@ class ImageAnalyzer:
 
             # Basic content type check
             content_type = response.headers.get("content-type", "").lower()
-            if not content_type.startswith("image/"):
-                print(f"Warning: URL returned non-image content type: {content_type}")
+            if content_type.startswith("image/"):
+                return response.content
+
+            if content_type.startswith("video/") or url.endswith(
+                (".mp4", ".mov", ".avi")
+            ):
+                # Handle video files by extracting the first frame
+                log(f"Detected video content, extracting first frame from: {url}")
+                video_bytes = response.content
+                frame_bytes = self._extract_video_frame(video_bytes)
+                if frame_bytes:
+                    log("Successfully converted video to image frame")
+                    return frame_bytes
+
+                log_warning(f"Failed to extract frame from video: {url}")
                 return None
 
-            return response.content
+            log_warning(
+                f"URL returned non-image/non-video content type: {content_type}"
+            )
+            return None
 
         except Exception as e:
-            print(f"Failed to download image from {url}: {e}")
+            log_error(f"Failed to download image from {url}: {e}")
+            return None
+
+    def _extract_video_frame(self, video_bytes: bytes) -> Optional[bytes]:
+        """
+        Extract the first frame from a video file using ffmpeg.
+
+        Args:
+            video_bytes: The video file content as bytes
+
+        Returns:
+            The first frame as JPEG bytes, or None if extraction fails
+        """
+        try:
+            # Create temporary files for input video and output image
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as video_temp:
+                video_temp.write(video_bytes)
+                video_temp_path = video_temp.name
+
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as image_temp:
+                image_temp_path = image_temp.name
+
+            try:
+                # Use ffmpeg to extract the first frame
+                cmd = [
+                    "ffmpeg",
+                    "-i",
+                    video_temp_path,  # Input video
+                    "-vf",
+                    "select=eq(n\\,0)",  # Select first frame
+                    "-vframes",
+                    "1",  # Output only 1 frame
+                    "-f",
+                    "image2",  # Output format
+                    "-y",  # Overwrite output file
+                    image_temp_path,
+                ]
+
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=30, check=False
+                )
+
+                if result.returncode == 0:
+                    # Read the extracted frame
+                    with open(image_temp_path, "rb") as f:
+                        frame_bytes = f.read()
+                    log(
+                        f"Successfully extracted first frame from video ({len(frame_bytes)} bytes)"
+                    )
+                    return frame_bytes
+
+                log_error(f"ffmpeg failed: {result.stderr}")
+                return None
+
+            finally:
+                # Clean up temporary files
+                try:
+                    os.unlink(video_temp_path)
+                    os.unlink(image_temp_path)
+                except OSError:
+                    pass
+
+        except subprocess.TimeoutExpired:
+            log_error("ffmpeg timeout while extracting video frame")
+            return None
+        except Exception as e:
+            log_error(f"Failed to extract video frame: {e}")
             return None
 
     def download_example_images(self, examples: List[ExampleData]) -> List[ExampleData]:
@@ -86,14 +172,14 @@ class ImageAnalyzer:
         downloaded_examples = []
 
         for example in examples:
-            print(f"Downloading image from: {example.url}")
+            log(f"Downloading image from: {example.url}")
             image_bytes = self.download_image(example.url)
 
             if image_bytes:
                 example.image_bytes = image_bytes
                 downloaded_examples.append(example)
             else:
-                print(f"Failed to download image, skipping: {example.url}")
+                log_warning(f"Failed to download image, skipping: {example.url}")
 
         return downloaded_examples
 
@@ -106,14 +192,26 @@ class ImageAnalyzer:
         """Prepare the context message for vision analysis."""
         context_parts = []
 
+        context_parts.append(
+            "IMPORTANT: Base your analysis primarily on the textual metadata provided below."
+        )
+        context_parts.append(
+            "The example images are supplementary - if they vary significantly, rely on the description and trigger words."
+        )
+
         if lora_description:
             context_parts.append(f"LoRA Description: {lora_description}")
+        else:
+            context_parts.append("LoRA Description: Not provided")
 
         if trigger_words:
             context_parts.append(f"Trigger Words: {', '.join(trigger_words)}")
+        else:
+            context_parts.append("Trigger Words: Not provided")
 
         context_parts.append(
-            f"I will show you {num_examples} example images with their prompts:"
+            f"I will show you {num_examples} example images with their prompts. "
+            f"Use these to supplement your understanding, but prioritize the textual metadata above."
         )
 
         return "\n\n".join(context_parts)
@@ -149,7 +247,7 @@ class ImageAnalyzer:
         # Filter examples that have image data
         valid_examples = [ex for ex in examples if ex.image_bytes]
         if not valid_examples:
-            print("No valid images available for vision analysis")
+            log_warning("No valid images available for vision analysis")
             return None
 
         try:
@@ -169,9 +267,19 @@ class ImageAnalyzer:
 
             # Encode images to base64 (Ollama format)
             encoded_images = []
-            for example in valid_examples:
-                encoded = base64.b64encode(example.image_bytes).decode("utf-8")
-                encoded_images.append(encoded)
+            for i, example in enumerate(valid_examples):
+                if example.image_bytes:
+                    encoded = base64.b64encode(example.image_bytes).decode("utf-8")
+                    encoded_images.append(encoded)
+                    log(
+                        f"Successfully encoded image {i+1}: {len(example.image_bytes)} bytes -> {len(encoded)} chars"
+                    )
+                else:
+                    log_warning(f"Example {i+1} has no image data, skipping")
+
+            if not encoded_images:
+                log_error("No valid images to send to vision model")
+                return None
 
             # Construct message in Ollama's expected format
             messages = [
@@ -185,6 +293,12 @@ class ImageAnalyzer:
 
             # Prepare API payload
             payload = {"model": model_name, "messages": messages, "stream": False}
+
+            # Log request details
+            log(
+                f"Sending vision request with {len(encoded_images)} images to {self.api_url}"
+            )
+            log(f"Total payload size: ~{len(str(payload))} characters")
 
             # Send request to Ollama
             response = self.requests_module.post(
@@ -201,7 +315,7 @@ class ImageAnalyzer:
             return None
 
         except Exception as e:
-            print(f"Vision analysis failed: {e}")
+            log_error(f"Vision analysis failed: {e}")
             return None
 
     def _parse_analysis_response(self, response_text: str) -> Optional[Dict[str, Any]]:
@@ -239,7 +353,51 @@ class ImageAnalyzer:
                 }
 
         except Exception as e:
-            print(f"Failed to parse analysis response: {e}")
-            print(f"Response was: {response_text[:200]}...")
+            log_error(f"Failed to parse analysis response: {e}")
+            log_error(f"Response was: {response_text[:200]}...")
+
+            # Try to create a fallback response from natural language
+            fallback = self._create_fallback_response(response_text)
+            if fallback:
+                log_warning("Using fallback parser for non-JSON response")
+                return fallback
 
         return None
+
+    def _create_fallback_response(self, response_text: str) -> Optional[Dict[str, Any]]:
+        """
+        Create a fallback structured response from natural language text.
+
+        This handles cases where the vision model doesn't return JSON format.
+
+        Args:
+            response_text: Natural language response from the model
+
+        Returns:
+            Structured response dict or None if extraction fails
+        """
+        if not response_text or len(response_text.strip()) < 10:
+            return None
+
+        try:
+            # Clean up the response
+            cleaned = response_text.strip()
+
+            # Create a basic structured response from the natural language
+            return {
+                "when_to_use": (
+                    f"This LoRA appears to be designed for generating images with specific visual "
+                    f"characteristics. Based on the model's analysis: {cleaned[:300]}..."
+                ),
+                "example_prompts_and_analysis": [
+                    {
+                        "prompt": "Analysis based on natural language response",
+                        "analysis": cleaned[:500]
+                        + ("..." if len(cleaned) > 500 else ""),
+                    }
+                ],
+            }
+
+        except Exception as e:
+            log_error(f"Failed to create fallback response: {e}")
+            return None
