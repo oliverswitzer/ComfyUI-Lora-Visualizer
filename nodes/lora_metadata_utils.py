@@ -7,7 +7,8 @@ from LoRA .metadata.json files, used by both the visualizer and prompt splitter 
 
 import os
 import json
-from typing import Dict, List, Optional, Any
+import re
+from typing import Dict, List, Optional, Any, Tuple
 
 try:
     import folder_paths  # type: ignore[import]
@@ -172,3 +173,61 @@ def is_video_lora(lora_name: str) -> bool:
     loader = get_metadata_loader()
     metadata = loader.load_metadata(lora_name)
     return loader.is_video_lora(metadata)
+
+
+def parse_lora_tags(prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
+    """
+    Parse LoRA tags from prompt text.
+
+    Args:
+        prompt_text: Text containing LoRA tags
+
+    Returns:
+        Tuple of (standard_loras, wanloras) where each is a list of dicts
+        containing name, strength, type, and tag information.
+    """
+    standard_loras = []
+    wanloras = []
+
+    # Pattern for both LoRA types: capture everything inside the tags
+    # Both handle names with spaces and special characters the same way
+    lora_pattern = r"<lora:(.+?)>"
+    wanlora_pattern = r"<wanlora:(.+?)>"
+
+    # Find standard LoRA tags
+    for match in re.finditer(lora_pattern, prompt_text):
+        content = match.group(1).strip()
+        # Split by last colon to separate name from strength
+        last_colon_index = content.rfind(":")
+        if last_colon_index > 0:
+            name = content[:last_colon_index].strip()
+            strength = content[last_colon_index + 1 :].strip()
+
+            standard_loras.append(
+                {
+                    "name": name,
+                    "strength": strength,
+                    "type": "lora",
+                    "tag": match.group(0),
+                }
+            )
+
+    # Find wanlora tags (same logic as standard LoRAs)
+    for match in re.finditer(wanlora_pattern, prompt_text):
+        content = match.group(1).strip()
+        # Split by last colon to separate name from strength
+        last_colon_index = content.rfind(":")
+        if last_colon_index > 0:
+            name = content[:last_colon_index].strip()
+            strength = content[last_colon_index + 1 :].strip()
+
+            wanloras.append(
+                {
+                    "name": name,
+                    "strength": strength,
+                    "type": "wanlora",
+                    "tag": match.group(0),
+                }
+            )
+
+    return standard_loras, wanloras
