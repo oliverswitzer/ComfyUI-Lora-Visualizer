@@ -53,46 +53,47 @@ class ImageAnalyzer:
         timeout = timeout or self.DEFAULT_TIMEOUT
 
         try:
-            # Validate URL
-            parsed = urlparse(url)
-            if not parsed.scheme or not parsed.netloc:
-                return None
-
-            headers = {
-                "User-Agent": "ComfyUI-LoRA-Visualizer/1.3.0",
-                "Accept": "image/*",
-            }
-
-            response = self.requests_module.get(url, headers=headers, timeout=timeout)
-            response.raise_for_status()
-
-            # Basic content type check
-            content_type = response.headers.get("content-type", "").lower()
-            if content_type.startswith("image/"):
-                return response.content
-
-            if content_type.startswith("video/") or url.endswith(
-                (".mp4", ".mov", ".avi")
-            ):
-                # Handle video files by extracting the first frame
-                log(f"Detected video content, extracting first frame from: {url}")
-                video_bytes = response.content
-                frame_bytes = self._extract_video_frame(video_bytes)
-                if frame_bytes:
-                    log("Successfully converted video to image frame")
-                    return frame_bytes
-
-                log_warning(f"Failed to extract frame from video: {url}")
-                return None
-
-            log_warning(
-                f"URL returned non-image/non-video content type: {content_type}"
-            )
-            return None
-
+            return self._process_download(url, timeout)
         except Exception as e:
             log_error(f"Failed to download image from {url}: {e}")
             return None
+
+    def _process_download(self, url: str, timeout: int) -> Optional[bytes]:
+        """Process the actual download and content type handling."""
+        # Validate URL
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return None
+
+        headers = {
+            "User-Agent": "ComfyUI-LoRA-Visualizer/1.3.0",
+            "Accept": "image/*",
+        }
+
+        response = self.requests_module.get(url, headers=headers, timeout=timeout)
+        response.raise_for_status()
+
+        # Basic content type check
+        content_type = response.headers.get("content-type", "").lower()
+        if content_type.startswith("image/"):
+            return response.content
+
+        if content_type.startswith("video/") or url.endswith((".mp4", ".mov", ".avi")):
+            return self._handle_video_content(url, response.content)
+
+        log_warning(f"URL returned non-image/non-video content type: {content_type}")
+        return None
+
+    def _handle_video_content(self, url: str, video_bytes: bytes) -> Optional[bytes]:
+        """Handle video content by extracting the first frame."""
+        log(f"Detected video content, extracting first frame from: {url}")
+        frame_bytes = self._extract_video_frame(video_bytes)
+        if frame_bytes:
+            log("Successfully converted video to image frame")
+            return frame_bytes
+
+        log_warning(f"Failed to extract frame from video: {url}")
+        return None
 
     def _extract_video_frame(self, video_bytes: bytes) -> Optional[bytes]:
         """
@@ -138,7 +139,8 @@ class ImageAnalyzer:
                     with open(image_temp_path, "rb") as f:
                         frame_bytes = f.read()
                     log(
-                        f"Successfully extracted first frame from video ({len(frame_bytes)} bytes)"
+                        f"Successfully extracted first frame from video "
+                        f"({len(frame_bytes)} bytes)"
                     )
                     return frame_bytes
 
@@ -196,7 +198,8 @@ class ImageAnalyzer:
             "IMPORTANT: Base your analysis primarily on the textual metadata provided below."
         )
         context_parts.append(
-            "The example images are supplementary - if they vary significantly, rely on the description and trigger words."
+            "The example images are supplementary - if they vary significantly, "
+            "rely on the description and trigger words."
         )
 
         if lora_description:
@@ -211,7 +214,8 @@ class ImageAnalyzer:
 
         context_parts.append(
             f"I will show you {num_examples} example images with their prompts. "
-            f"Use these to supplement your understanding, but prioritize the textual metadata above."
+            f"Use these to supplement your understanding, but prioritize the textual "
+            f"metadata above."
         )
 
         return "\n\n".join(context_parts)
@@ -272,7 +276,8 @@ class ImageAnalyzer:
                     encoded = base64.b64encode(example.image_bytes).decode("utf-8")
                     encoded_images.append(encoded)
                     log(
-                        f"Successfully encoded image {i+1}: {len(example.image_bytes)} bytes -> {len(encoded)} chars"
+                        f"Successfully encoded image {i+1}: {len(example.image_bytes)} bytes -> "
+                        f"{len(encoded)} chars"
                     )
                 else:
                     log_warning(f"Example {i+1} has no image data, skipping")
