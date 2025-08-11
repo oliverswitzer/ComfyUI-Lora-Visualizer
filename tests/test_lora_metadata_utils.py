@@ -11,7 +11,6 @@ from unittest.mock import patch, mock_open
 
 from nodes.lora_metadata_utils import (
     LoRAMetadataLoader,
-    get_metadata_loader,
     load_lora_metadata,
     get_lora_trigger_words,
     is_video_lora,
