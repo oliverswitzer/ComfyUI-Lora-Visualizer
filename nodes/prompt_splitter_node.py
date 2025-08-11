@@ -31,7 +31,7 @@ from .ollama_utils import (
 )  # noqa: E402
 from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
 from .logging_utils import log, log_error
-from .lora_metadata_utils import get_metadata_loader
+from .lora_metadata_utils import get_metadata_loader, parse_lora_tags
 
 try:
     import requests  # type: ignore[import]
@@ -176,57 +176,13 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
     def parse_lora_tags(self, prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
         """
-        Parse LoRA tags from prompt text.
+        Parse LoRA tags from prompt text using shared parsing logic.
 
         Returns:
             Tuple of (standard_loras, wanloras) where each is a list of dicts
             containing name, strength, type, and tag information.
         """
-        standard_loras = []
-        wanloras = []
-
-        # Pattern for both LoRA types: capture everything inside the tags
-        # Both handle names with spaces and special characters the same way
-        lora_pattern = r"<lora:(.+?)>"
-        wanlora_pattern = r"<wanlora:(.+?)>"
-
-        # Find standard LoRA tags
-        for match in re.finditer(lora_pattern, prompt_text):
-            content = match.group(1).strip()
-            # Split by last colon to separate name from strength
-            last_colon_index = content.rfind(":")
-            if last_colon_index > 0:
-                name = content[:last_colon_index].strip()
-                strength = content[last_colon_index + 1 :].strip()
-
-                standard_loras.append(
-                    {
-                        "name": name,
-                        "strength": strength,
-                        "type": "lora",
-                        "tag": match.group(0),
-                    }
-                )
-
-        # Find wanlora tags (same logic as standard LoRAs)
-        for match in re.finditer(wanlora_pattern, prompt_text):
-            content = match.group(1).strip()
-            # Split by last colon to separate name from strength
-            last_colon_index = content.rfind(":")
-            if last_colon_index > 0:
-                name = content[:last_colon_index].strip()
-                strength = content[last_colon_index + 1 :].strip()
-
-                wanloras.append(
-                    {
-                        "name": name,
-                        "strength": strength,
-                        "type": "wanlora",
-                        "tag": match.group(0),
-                    }
-                )
-
-        return standard_loras, wanloras
+        return parse_lora_tags(prompt_text)
 
     def _extract_and_remove_trigger_words(
         self, prompt_text: str, lora_list: List[Dict]
@@ -358,17 +314,18 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log_error(f"Prompt Splitter: Error calling Ollama: {e}")
             if "Connection" in str(e) or "refused" in str(e):
                 raise Exception(
-                    "Cannot connect to Ollama. Please ensure Ollama is installed and running. Visit https://ollama.ai for installation instructions."
+                    "Cannot connect to Ollama. Please ensure Ollama is installed and "
+                    "running. Visit https://ollama.ai for installation instructions."
                 )
-            else:
-                raise Exception(
-                    f"Ollama API error: {e}. Check your Ollama configuration and try again."
-                )
+            raise Exception(
+                f"Ollama API error: {e}. Check your Ollama configuration and try again."
+            )
 
         if not content:
             log_error("Prompt Splitter: Ollama returned empty response")
             raise Exception(
-                "Ollama returned empty response. The AI model may be overloaded or experiencing issues."
+                "Ollama returned empty response. The AI model may be overloaded "
+                "or experiencing issues."
             )
 
         log(
@@ -384,7 +341,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log_error(f"Prompt Splitter: Failed to parse JSON response: {e}")
             log_error(f"Prompt Splitter: Raw response: {content[:200]}...")
             raise Exception(
-                "Invalid response from AI model. The AI model returned malformed data. Try a different model or check your system prompt."
+                "Invalid response from AI model. The AI model returned malformed "
+                "data. Try a different model or check your system prompt."
             )
 
     def _send_progress_update(self, progress: float, message: str) -> None:
@@ -493,12 +451,13 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log_error(f"Prompt Splitter: Error ensuring model availability: {e}")
             if "Connection" in str(e) or "refused" in str(e):
                 raise Exception(
-                    "Cannot connect to Ollama. Please ensure Ollama is installed and running. Visit https://ollama.ai for installation instructions."
+                    "Cannot connect to Ollama. Please ensure Ollama is installed and "
+                    "running. Visit https://ollama.ai for installation instructions."
                 )
-            else:
-                raise Exception(
-                    f"Model availability error: {e}. Check that Ollama is properly configured and the model name is correct."
-                )
+            raise Exception(
+                f"Model availability error: {e}. Check that Ollama is properly "
+                f"configured and the model name is correct."
+            )
 
         self._send_progress_update(0.6, "Generating prompt splits with AI...")
 
@@ -572,5 +531,6 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             "Prompt Splitter: Failed to split prompt - Ollama returned empty response"
         )
         raise Exception(
-            "AI model returned empty response. The AI model may be overloaded or experiencing issues. Try again or use a different model."
+            "AI model returned empty response. The AI model may be overloaded or "
+            "experiencing issues. Try again or use a different model."
         )

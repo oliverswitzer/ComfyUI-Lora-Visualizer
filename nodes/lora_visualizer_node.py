@@ -5,10 +5,9 @@ Parses prompts for LoRA tags and displays metadata, thumbnails, and example imag
 
 import os
 import json
-import re
 import folder_paths
-from typing import Dict, List, Tuple, Optional, Any
-from server import PromptServer
+from typing import Dict, List, Tuple, Optional
+from .lora_metadata_utils import parse_lora_tags
 
 
 class LoRAVisualizerNode:
@@ -42,7 +41,11 @@ class LoRAVisualizerNode:
                         "multiline": True,
                         "default": "",
                         "placeholder": "Enter your prompt with LoRA tags here...",
-                        "tooltip": "Input text containing LoRA tags like <lora:MyLora:0.8> or <wanlora:MyWanLora:1.0>. The node will automatically detect and visualize all LoRA references with their metadata.",
+                        "tooltip": (
+                            "Input text containing LoRA tags like <lora:MyLora:0.8> or "
+                            "<wanlora:MyWanLora:1.0>. The node will automatically detect and "
+                            "visualize all LoRA references with their metadata."
+                        ),
                     },
                 ),
             }
@@ -51,7 +54,10 @@ class LoRAVisualizerNode:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("raw_lora_info", "original_prompt")
     OUTPUT_TOOLTIPS = (
-        "Raw metadata information about detected LoRAs in a structured format for debugging and analysis.",
+        (
+            "Raw metadata information about detected LoRAs in a structured format "
+            "for debugging and analysis."
+        ),
         "The original prompt text passed through unchanged for downstream processing.",
     )
     FUNCTION = "visualize_loras"
@@ -66,57 +72,13 @@ class LoRAVisualizerNode:
 
     def parse_lora_tags(self, prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
         """
-        Parse LoRA tags from prompt text.
+        Parse LoRA tags from prompt text using shared parsing logic.
 
         Returns:
             Tuple of (standard_loras, wanloras) where each is a list of dicts
             containing name, strength, and type information.
         """
-        standard_loras = []
-        wanloras = []
-
-        # Pattern for both LoRA types: capture everything inside the tags
-        # Both handle names with spaces and special characters the same way
-        lora_pattern = r"<lora:(.+?)>"
-        wanlora_pattern = r"<wanlora:(.+?)>"
-
-        # Find standard LoRA tags
-        for match in re.finditer(lora_pattern, prompt_text):
-            content = match.group(1).strip()
-            # Split by last colon to separate name from strength
-            last_colon_index = content.rfind(":")
-            if last_colon_index > 0:
-                name = content[:last_colon_index].strip()
-                strength = content[last_colon_index + 1 :].strip()
-
-                standard_loras.append(
-                    {
-                        "name": name,
-                        "strength": strength,
-                        "type": "lora",
-                        "tag": match.group(0),
-                    }
-                )
-
-        # Find wanlora tags (same logic as standard LoRAs)
-        for match in re.finditer(wanlora_pattern, prompt_text):
-            content = match.group(1).strip()
-            # Split by last colon to separate name from strength
-            last_colon_index = content.rfind(":")
-            if last_colon_index > 0:
-                name = content[:last_colon_index].strip()
-                strength = content[last_colon_index + 1 :].strip()
-
-                wanloras.append(
-                    {
-                        "name": name,
-                        "strength": strength,
-                        "type": "wanlora",
-                        "tag": match.group(0),
-                    }
-                )
-
-        return standard_loras, wanloras
+        return parse_lora_tags(prompt_text)
 
     def load_metadata(self, lora_name: str) -> Optional[Dict]:
         """
@@ -240,22 +202,22 @@ class LoRAVisualizerNode:
             if lora["trigger_words"]:
                 result += f"   Trigger words: {', '.join(lora['trigger_words'])}\n"
             else:
-                result += f"   Trigger words: Not available\n"
+                result += "   Trigger words: Not available\n"
 
             if lora["base_model"]:
                 result += f"   Base model: {lora['base_model']}\n"
 
             if lora["preview_url"]:
-                result += f"   Preview: Available\n"
+                result += "   Preview: Available\n"
             else:
-                result += f"   Preview: Not available\n"
+                result += "   Preview: Not available\n"
 
             if lora["example_images"]:
                 result += (
                     f"   Example images: {len(lora['example_images'])} available\n"
                 )
             else:
-                result += f"   Example images: Not available\n"
+                result += "   Example images: Not available\n"
 
             result += "\n"
 
