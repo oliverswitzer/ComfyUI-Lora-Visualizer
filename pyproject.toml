@@ -29,6 +29,7 @@ dev = [ "pytest>=7.0.0", "black>=22.0.0", "pylint>=2.12.0",]
 
 [tool.pdm.scripts]
 format = "black ."
+format-check = "black --check --diff ."
 lint = "pylint nodes/ tests/"
 test = "pytest tests"
 
@@ -37,4 +38,4 @@ test = "pytest tests"
 include = [ "nodes*",]
 
 [tool.pdm.scripts.ci]
-composite = ["format", "test", "lint"]
+composite = ["format-check", "test", "lint"]

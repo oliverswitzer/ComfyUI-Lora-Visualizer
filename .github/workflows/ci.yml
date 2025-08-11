@@ -1,8 +1,8 @@
 # CI Workflow for ComfyUI-Lora-Visualizer
-# 
+#
 # This workflow runs the same checks as the local `pdm ci` command:
-# - Code formatting with black
-# - Unit tests with pytest  
+# - Code formatting check with black (fails if not formatted)
+# - Unit tests with pytest
 # - Code quality checks with pylint
 #
 # Triggers:
@@ -12,58 +12,61 @@
 #
 # To run the same checks locally before pushing:
 #   pdm ci
+#
+# To fix formatting issues locally:
+#   pdm format
 
 name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: # Allow manual triggering
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        
-    - name: Install PDM
-      uses: pdm-project/setup-pdm@v3
-      with:
-        python-version: '3.10'
-        
-    - name: Cache PDM dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/pdm
-          .venv
-        key: ${{ runner.os }}-pdm-${{ hashFiles('pdm.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-pdm-
-        
-    - name: Install dependencies
-      run: |
-        pdm sync --dev
-        
-    - name: Run CI checks (format, test, lint)
-      run: |
-        pdm ci
-        
-    - name: Upload test results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: test-results-${{ github.run_number }}
-        path: |
-          .coverage
-          htmlcov/
-        retention-days: 30
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install PDM
+        uses: pdm-project/setup-pdm@v3
+        with:
+          python-version: '3.10'
+
+      - name: Cache PDM dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pdm
+            .venv
+          key: ${{ runner.os }}-pdm-${{ hashFiles('pdm.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pdm-
+
+      - name: Install dependencies
+        run: |
+          pdm sync --dev
+
+      - name: Run CI checks (format-check, test, lint)
+        run: |
+          pdm ci
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ github.run_number }}
+          path: |
+            .coverage
+            htmlcov/
+          retention-days: 30
