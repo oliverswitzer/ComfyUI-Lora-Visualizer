@@ -38,7 +38,6 @@ class TestPromptComposerNode(unittest.TestCase):
         self.assertIn("optional", input_types)
         optional = input_types["optional"]
 
-        self.assertIn("relevance_threshold", optional)
         self.assertIn("content_boost", optional)
         self.assertIn("style_preference", optional)
 

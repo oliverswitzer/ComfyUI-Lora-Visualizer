@@ -89,15 +89,6 @@ This node
                 ),
             },
             "optional": {
-                "relevance_threshold": (
-                    "FLOAT",
-                    {
-                        "default": 0.3,
-                        "min": 0.0,
-                        "max": 1.0,
-                        "tooltip": "Minimum relevance score for LoRA inclusion (0.0-1.0)",
-                    },
-                ),
                 "content_boost": (
                     "FLOAT",
                     {
@@ -186,7 +177,6 @@ This node
         scene_description: str,
         lora_type: str,
         max_count: int,
-        relevance_threshold: float,
         content_boost: float,
     ) -> List[Dict[str, Any]]:
         """
@@ -196,11 +186,10 @@ This node
             scene_description: Natural language description
             lora_type: "image" or "video"
             max_count: Maximum number of LoRAs to return
-            relevance_threshold: Minimum relevance score
             content_boost: Boost factor for content-specific LoRAs
 
         Returns:
-            List of relevant LoRA info dicts with scores
+            List of relevant LoRA info dicts with scores, ordered by similarity (top N)
         """
         if not self._embeddings_initialized or not self._embedding_model:
             log_error("Embeddings not initialized")
@@ -263,20 +252,17 @@ This node
                             f"{old_similarity:.4f} → {similarity:.4f}"
                         )
 
-                    # Filter by threshold
-                    if similarity >= relevance_threshold:
-                        relevant_loras.append(
-                            {
-                                "name": lora_name,
-                                "metadata": metadata,
-                                "relevance_score": float(similarity),
-                                "recommended_weight": extract_recommended_weight(
-                                    metadata
-                                ),
-                                "trigger_words": lora_info["trigger_words"],
-                                "type": lora_type,
-                            }
-                        )
+                    # Add to candidates list (no threshold filtering)
+                    relevant_loras.append(
+                        {
+                            "name": lora_name,
+                            "metadata": metadata,
+                            "relevance_score": float(similarity),
+                            "recommended_weight": extract_recommended_weight(metadata),
+                            "trigger_words": lora_info["trigger_words"],
+                            "type": lora_type,
+                        }
+                    )
 
             # Sort by relevance score and limit
             relevant_loras.sort(key=lambda x: x["relevance_score"], reverse=True)
@@ -601,7 +587,6 @@ This node
         scene_description: str,
         max_image_loras: int = 3,
         max_video_loras: int = 2,
-        relevance_threshold: float = 0.3,
         content_boost: float = 1.2,
         style_preference: str = "natural",
     ) -> Tuple[str, str, str]:
@@ -612,7 +597,6 @@ This node
             scene_description: Natural language scene description
             max_image_loras: Maximum number of image LoRAs to include
             max_video_loras: Maximum number of video LoRAs to include
-            relevance_threshold: Minimum relevance score for inclusion
             content_boost: Boost factor for content-specific LoRAs
             style_preference: Style preference ("technical", "artistic", "natural")
 
@@ -639,7 +623,6 @@ This node
                 scene_description,
                 "image",
                 max_image_loras,
-                relevance_threshold,
                 content_boost,
             )
             image_names = [lora.get("name", "unknown") for lora in image_loras]
@@ -650,7 +633,6 @@ This node
                 scene_description,
                 "video",
                 max_video_loras,
-                relevance_threshold,
                 content_boost,
             )
             video_names = [lora.get("name", "unknown") for lora in video_loras]
@@ -687,8 +669,7 @@ This node
                     for lora in video_loras
                 ],
                 "style_preference": style_preference,
-                "thresholds": {
-                    "relevance_threshold": relevance_threshold,
+                "settings": {
                     "content_boost": content_boost,
                 },
             }
