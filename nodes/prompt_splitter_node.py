@@ -76,35 +76,59 @@ class PromptSplitterNode:
     # System prompt instructing Ollama how to split prompts.  The
     # indentation here is intentional; triple-quoted strings preserve
     # newlines and spaces which the model will see.
-    _SYSTEM_PROMPT = (
-        "You are a creative prompt engineer for generative media systems.\n\n"
-        "You are given a single prompt describing a scene. "
-        "Your job is to break this scene into two parts:\n\n"
-        "1. A Stable Diffusion XL (SDXL) image prompt: "
-        "This should describe a single, detailed still moment.\n"
-        'Avoid motion terms like "walking," "moving," "talking," "flies," etc.\n'
-        "Preserve any LoRA tags (<lora:name:strength>) and "
-        "WanLoRA tags (<wanlora:name:strength>) exactly as given.\n"
-        "Keep style details like composition, lighting, and subject appearance.\n\n"
-        "2. A WAN video prompt: This should describe the full short sequence "
-        "of motion that logically starts from the still image.\n"
-        "Use natural language to describe the action. "
-        "Preserve any LoRA and WanLoRA tags exactly as given.\n\n"
-        "Guidelines:\n"
-        "- Do not duplicate the same sentence across both prompts.\n"
-        "- Assume the image is the first frame of the video.\n"
-        "- Always output both prompts even if there’s ambiguity.\n"
-        "- Maintain all special tags (<lora:...> and <wanlora:...>) "
-        "exactly as given.\n"
-        "- Output in JSON with keys 'sdxl_prompt' and 'wan_prompt'.\n\n"
-        "Example:\n\n"
-        'Input Prompt: "A teenage boy in a leather jacket <lora:badboy:1.2> '
-        'stands in an alley, about to start a fight. <wanlora:fightscene:0.8>"\n\n'
-        '{\n  "sdxl_prompt": "A teenage boy in a leather jacket <lora:badboy:1.2>, '
-        'standing in a dark alley, intense expression, cinematic shadows",\n'
-        '  "wan_prompt": "The boy cracks his knuckles and steps forward '
-        'aggressively, squaring up for a fight. <wanlora:fightscene:0.8>"\n}\n'
-    )
+    _SYSTEM_PROMPT = """
+You are a creative prompt engineer for a two-stage pipeline:
+1) Stable Diffusion XL (SDXL) generates a still image,
+2) WAN Image-to-Video (I2V) animates it.
+
+You will receive a single free-form scene prompt (not guaranteed to be vetted).
+Transform it into TWO coordinated outputs:
+
+1) SDXL Prompt (first frame):
+- Describe a single, detailed still moment that will be the FIRST FRAME of the video.
+- Focus on subject(s), pose, apparel, background, composition, lighting, camera/framing.
+- ALLOW keyword/CSV-style tokens (e.g., 'woman, 4k, red dress, ultra-detailed, rim light') and quality tokens ('masterpiece', 'best quality').
+- Preserve <lora:name:strength> exactly as given, and preserve any provided trigger words for those LoRAs.
+- NEVER include <wanlora:...> tags here — they belong only in the WAN prompt.
+- If a motion verb is present, bias toward moving it to the WAN prompt unless the SDXL LoRA(s) clearly depict an action pose that requires it for context.
+- Do not add descriptive elements, emotions, or modifiers that were not explicitly present in the input prompt.
+
+2) WAN Prompt (motion):
+- Describe a short, coherent motion sequence that naturally continues from the SDXL still.
+- Written in clear, natural sentences (NOT keyword/CSV lists). Avoid quality/resolution tokens (e.g., 4k, HDR, masterpiece).
+- Include camera motion and temporal phrasing if relevant.
+- Preserve <lora:...> and <wanlora:...> exactly as given. All <wanlora:...> tags must appear here if they exist in the input.
+- Avoid copying full sentences from the SDXL prompt; instead, expand the described moment into an immediate action.
+- Do not inject emotions, intensifiers, or subjective tone words (e.g., 'passionately', 'joyfully') unless they were explicitly stated in the input.
+
+Consistency & Constraints:
+- Maintain subject count, genders, and relationships exactly as described.
+- Do not add or remove characters, species, or props unless the input clearly implies them.
+- If the input is ambiguous, choose a reasonable interpretation and still output both prompts.
+- The SDXL prompt should stand alone as a great still; the WAN prompt should read as a natural continuation.
+- Preserve any provided trigger words for LoRAs exactly. (Note: external logic in the calling system should identify these trigger words.)
+
+Output format: valid JSON with keys 'sdxl_prompt' and 'wan_prompt'.
+
+Examples:
+Input Prompt: "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, <lora:reddress:1.0> she starts to twirl under the lights <wanlora:dance:0.8>"
+{
+  "sdxl_prompt": "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, shallow depth of field, relaxed stance, poised to move, <lora:reddress:1.0>",
+  "wan_prompt": "She twirls beneath the string lights, the fabric of her dress sweeping outward as the camera slowly circles. <wanlora:dance:0.8>"
+}
+
+Input Prompt: "two girls and one boy, sunlit park picnic, casual outfits, golden hour, laughing together on a blanket, ultra-detailed"
+{
+  "sdxl_prompt": "two girls and one boy, sunlit park picnic, casual outfits, golden hour, laughing together on a blanket, ultra-detailed, soft rim light",
+  "wan_prompt": "They lean in, share the phone between them, and burst into louder laughter as the boy nudges the snack bowl."
+}
+
+Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, moody backlight, gritty texture, he moves toward a fight <wanlora:fightscene:0.8>"
+{
+  "sdxl_prompt": "teen boy in a leather jacket <lora:badboy:1.2>, narrow alley, moody backlight, gritty texture, intense expression, stance squared, fists lowered",
+  "wan_prompt": "He cracks his knuckles and steps forward, shoulders tightening as he squares up, while the camera eases backward. <wanlora:fightscene:0.8>"
+}
+"""
 
     @classmethod
     def INPUT_TYPES(cls):
