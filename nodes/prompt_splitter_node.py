@@ -28,7 +28,8 @@ requirements file.
 """
 
 import json
-from typing import Tuple
+import re
+from typing import Tuple, List, Dict
 
 # Import shared utilities for interacting with Ollama.  These helpers
 # centralize model download and chat requests to avoid duplicating
@@ -45,12 +46,6 @@ except Exception:
     # ``requests`` may not be present in minimal test environments.  It
     # will be passed through to shared helpers if available.
     requests = None
-
-try:
-    from server import PromptServer  # type: ignore[import]
-except Exception:
-    # PromptServer may not be available during testing
-    PromptServer = None
 
 
 class PromptSplitterNode:
@@ -87,34 +82,30 @@ You are splitting a single combined scene description into two separate outputs:
 
 1. IMAGE_PROMPT — For SD image generation.
    - Keep only static, visual descriptors: characters, clothing, environment, props, positions, facial expressions (if static).
-   - Preserve all <lora:...> tags exactly as in the source.
-   - Do NOT include any <wanlora:...> tags.
    - Do NOT add or remove descriptive terms unless they already appear in the source.
    - Keep all or any explicit or sexual descriptors exactly as written, without euphemisms or softening.
    - Do NOT add adjectives, tone, style words, or any narrative text unless they are in the original.
 
 2. WAN_PROMPT — For WAN I2V video generation.
    - Keep only motion/action descriptors.
-   - Preserve all <wanlora:...> tags exactly as in the source.
-   - Do NOT include any <lora:...> tags.
    - Do NOT add new actions or change their meaning.
    - Use the exact same explicit terms from the source (do not reword).
    - No narrative, story, emotional tone, or metaphor — only plain action description.
 
 General Rules:
-- Do not merge, rename, or fabricate tags.
 - Do not add any adjectives, storylines, or implied emotions that are not in the source.
 - Copy source words exactly, unless you must remove them because they are irrelevant to the specific output type.
 - If unsure which output a term belongs in, place it in the IMAGE_PROMPT.
+- IGNORE any LoRA tags like <lora:...> or <wanlora:...> - they will be handled separately.
 - Return your final result in JSON with keys "image_prompt" and "wan_prompt".
 
 Output format: valid JSON with keys 'image_prompt' and 'wan_prompt'.
 
 Examples:
-Input Prompt: "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, <lora:reddress:1.0> she starts to twirl under the lights <wanlora:dance:0.8>"
+Input Prompt: "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, she starts to twirl under the lights"
 {
-  "image_prompt": "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, shallow depth of field, relaxed stance, poised to move, <lora:reddress:1.0>",
-  "wan_prompt": "She twirls beneath the string lights, the fabric of her dress sweeping outward as the camera slowly circles. <wanlora:dance:0.8>"
+  "image_prompt": "woman, 4k, flowing red dress, rooftop party at night, string lights, cinematic, shallow depth of field, relaxed stance, poised to move",
+  "wan_prompt": "She twirls beneath the string lights, the fabric of her dress sweeping outward as the camera slowly circles."
 }
 
 Input Prompt: "two girls and one boy, sunlit park picnic, casual outfits, golden hour, laughing together on a blanket, ultra-detailed"
@@ -123,10 +114,10 @@ Input Prompt: "two girls and one boy, sunlit park picnic, casual outfits, golden
   "wan_prompt": "They lean in, share the phone between them, and burst into louder laughter as the boy nudges the snack bowl."
 }
 
-Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, moody backlight, gritty texture, he moves toward a fight <wanlora:fightscene:0.8>"
+Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gritty texture, he moves toward a fight"
 {
-  "image_prompt": "teen boy in a leather jacket <lora:badboy:1.2>, narrow alley, moody backlight, gritty texture, intense expression, stance squared, fists lowered",
-  "wan_prompt": "He cracks his knuckles and steps forward, shoulders tightening as he squares up, while the camera eases backward. <wanlora:fightscene:0.8>"
+  "image_prompt": "teen boy in a leather jacket, narrow alley, moody backlight, gritty texture, intense expression, stance squared, fists lowered",
+  "wan_prompt": "He cracks his knuckles and steps forward, shoulders tightening as he squares up, while the camera eases backward."
 }
 """
 
@@ -178,16 +169,68 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
             },
         }
 
-    def _send_status(self, message: str) -> None:
-        """Send a status message to ComfyUI's progress bar if available."""
-        if PromptServer is not None:
-            try:
-                PromptServer.instance.send_sync(
-                    "prompt_splitter_status", {"status": message}
+    def parse_lora_tags(self, prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
+        """
+        Parse LoRA tags from prompt text.
+
+        Returns:
+            Tuple of (standard_loras, wanloras) where each is a list of dicts
+            containing name, strength, type, and tag information.
+        """
+        standard_loras = []
+        wanloras = []
+
+        # Pattern for both LoRA types: capture everything inside the tags
+        # Both handle names with spaces and special characters the same way
+        lora_pattern = r"<lora:(.+?)>"
+        wanlora_pattern = r"<wanlora:(.+?)>"
+
+        # Find standard LoRA tags
+        for match in re.finditer(lora_pattern, prompt_text):
+            content = match.group(1).strip()
+            # Split by last colon to separate name from strength
+            last_colon_index = content.rfind(":")
+            if last_colon_index > 0:
+                name = content[:last_colon_index].strip()
+                strength = content[last_colon_index + 1 :].strip()
+
+                standard_loras.append(
+                    {
+                        "name": name,
+                        "strength": strength,
+                        "type": "lora",
+                        "tag": match.group(0),
+                    }
                 )
-            except Exception:
-                # Silently ignore if status sending fails
-                pass
+
+        # Find wanlora tags (same logic as standard LoRAs)
+        for match in re.finditer(wanlora_pattern, prompt_text):
+            content = match.group(1).strip()
+            # Split by last colon to separate name from strength
+            last_colon_index = content.rfind(":")
+            if last_colon_index > 0:
+                name = content[:last_colon_index].strip()
+                strength = content[last_colon_index + 1 :].strip()
+
+                wanloras.append(
+                    {
+                        "name": name,
+                        "strength": strength,
+                        "type": "wanlora",
+                        "tag": match.group(0),
+                    }
+                )
+
+        return standard_loras, wanloras
+
+    def _remove_all_lora_tags(self, prompt_text: str) -> str:
+        """Remove all LoRA and WanLoRA tags from prompt text."""
+        # Remove both types of tags
+        prompt_text = re.sub(r"<lora:[^>]*>", "", prompt_text)
+        prompt_text = re.sub(r"<wanlora:[^>]*>", "", prompt_text)
+        # Clean up extra whitespace
+        prompt_text = re.sub(r"\s+", " ", prompt_text).strip()
+        return prompt_text
 
     def _ensure_model_available(self, model: str, api_url: str) -> None:
         """Delegate to shared utility to ensure the Ollama model exists.
@@ -282,16 +325,25 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
             log("Prompt Splitter: Empty input prompt, returning empty results")
             return "", ""
 
+        # Parse LoRA tags first, before sending to LLM
+        log("Prompt Splitter: Parsing LoRA tags...")
+        standard_loras, wanloras = self.parse_lora_tags(prompt_text)
+        log(
+            f"Prompt Splitter: Found {len(standard_loras)} standard LoRAs and {len(wanloras)} WanLoRAs"
+        )
+
+        # Remove all LoRA tags from prompt before sending to LLM
+        clean_prompt = self._remove_all_lora_tags(prompt_text)
+        log(
+            f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters"
+        )
+
         # Determine which model to use: the caller-supplied name or the default.
         model = model_name or self._DEFAULT_MODEL_NAME
         url = api_url or self._DEFAULT_API_URL
         sys_prompt = system_prompt if system_prompt else self._SYSTEM_PROMPT
 
         log(f"Prompt Splitter: Starting split using model '{model}'")
-        log(f"Prompt Splitter: Input prompt length: {len(prompt_text)} characters")
-
-        # Send status to ComfyUI progress bar
-        self._send_status(f"Checking model '{model}' availability...")
 
         # Ensure the model is available before attempting to generate
         try:
@@ -299,27 +351,38 @@ Input Prompt: "teen boy in leather jacket <lora:badboy:1.2> in a narrow alley, m
             self._ensure_model_available(model, url)
             log(f"Prompt Splitter: Model '{model}' is ready")
         except Exception as e:
-            self._send_status(f"Error: Model '{model}' not available")
             log_error(f"Prompt Splitter: Error ensuring model availability: {e}")
             return "", ""
 
-        # Send status for API call
-        self._send_status(f"Splitting prompt using {model}...")
-
-        # Try contacting Ollama first
+        # Send clean prompt (without LoRA tags) to Ollama
         log("Prompt Splitter: Sending request to Ollama...")
-        image, wan = self._call_ollama(prompt_text, model, url, sys_prompt)
+        image_prompt, wan_prompt = self._call_ollama(
+            clean_prompt, model, url, sys_prompt
+        )
 
-        if image and wan:
-            self._send_status("Prompt split completed successfully!")
-            log(f"Prompt Splitter: Successfully split prompt")
-            log(f"Prompt Splitter: Image prompt length: {len(image)} characters")
-            log(f"Prompt Splitter: Video prompt length: {len(wan)} characters")
-            return image, wan
+        if image_prompt and wan_prompt:
+            # Add LoRA tags back to the appropriate prompts
+            # Standard LoRAs go to image prompt
+            for lora in standard_loras:
+                image_prompt = f"{image_prompt} {lora['tag']}"
+                log(f"Prompt Splitter: Added {lora['tag']} to image prompt")
+
+            # WanLoRAs go to video prompt
+            for wanlora in wanloras:
+                wan_prompt = f"{wan_prompt} {wanlora['tag']}"
+                log(f"Prompt Splitter: Added {wanlora['tag']} to video prompt")
+
+            log("Prompt Splitter: Successfully split prompt")
+            log(
+                f"Prompt Splitter: Final image prompt length: {len(image_prompt)} characters"
+            )
+            log(
+                f"Prompt Splitter: Final video prompt length: {len(wan_prompt)} characters"
+            )
+            return image_prompt.strip(), wan_prompt.strip()
 
         # If Ollama returned empty or invalid responses, do not attempt a
         # naive fallback.  Return empty strings to signal failure.
-        self._send_status("Error: Failed to split prompt")
         log_error(
             "Prompt Splitter: Failed to split prompt - Ollama returned empty response"
         )
