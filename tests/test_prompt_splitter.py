@@ -232,6 +232,86 @@ class TestPromptSplitterNode(unittest.TestCase):
         self.assertNotIn("<lora:", image_prompt)
         self.assertNotIn("<wanlora:", wan_prompt)
 
+    def test_extract_and_remove_trigger_words(self):
+        """_extract_and_remove_trigger_words should find and remove trigger words."""
+        # Mock the metadata loader
+        mock_metadata = {"civitai": {"trainedWords": ["beautiful", "style-anime"]}}
+
+        with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_get_loader:
+            mock_loader = mock_get_loader.return_value
+            mock_loader.load_metadata.return_value = mock_metadata
+            mock_loader.extract_trigger_words.return_value = [
+                "beautiful",
+                "style-anime",
+            ]
+
+            lora_list = [
+                {
+                    "name": "test-lora",
+                    "strength": "1.0",
+                    "type": "lora",
+                    "tag": "<lora:test-lora:1.0>",
+                }
+            ]
+            prompt = "beautiful woman with style-anime features"
+
+            clean_prompt, trigger_words = self.node._extract_and_remove_trigger_words(
+                prompt, lora_list
+            )
+
+            self.assertEqual(clean_prompt, "woman with features")
+            self.assertIn("beautiful", trigger_words)
+            self.assertIn("style-anime", trigger_words)
+
+    def test_split_prompt_with_trigger_words(self):
+        """split_prompt should handle trigger words correctly."""
+        input_prompt = "beautiful woman <lora:style:0.8> dancing with motion-blur <wanlora:motion:1.0>"
+
+        # Mock metadata for LoRAs
+        mock_image_metadata = {"civitai": {"trainedWords": ["beautiful"]}}
+        mock_video_metadata = {"civitai": {"trainedWords": ["motion-blur"]}}
+
+        with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_get_loader:
+            mock_loader = mock_get_loader.return_value
+
+            def mock_load_metadata(lora_name):
+                if lora_name == "style":
+                    return mock_image_metadata
+                elif lora_name == "motion":
+                    return mock_video_metadata
+                return None
+
+            def mock_extract_trigger_words(metadata):
+                if metadata == mock_image_metadata:
+                    return ["beautiful"]
+                elif metadata == mock_video_metadata:
+                    return ["motion-blur"]
+                return []
+
+            mock_loader.load_metadata.side_effect = mock_load_metadata
+            mock_loader.extract_trigger_words.side_effect = mock_extract_trigger_words
+
+            # Mock _call_ollama to return clean responses
+            with patch.object(
+                self.node,
+                "_call_ollama",
+                return_value=("woman dancing", "woman dances"),
+            ):
+                with patch.object(self.node, "_ensure_model_available"):
+                    image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+
+            # Should have LoRA tag and trigger word
+            self.assertIn("<lora:style:0.8>", image_prompt)
+            self.assertIn("beautiful", image_prompt)
+
+            # Should have WanLoRA tag and trigger word
+            self.assertIn("<wanlora:motion:1.0>", wan_prompt)
+            self.assertIn("motion-blur", wan_prompt)
+
+            # Should not have wrong type tags
+            self.assertNotIn("<wanlora:", image_prompt)
+            self.assertNotIn("<lora:", wan_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
