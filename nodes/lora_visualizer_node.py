@@ -5,8 +5,10 @@ Parses prompts for LoRA tags and displays metadata, thumbnails, and example imag
 
 import os
 import json
-import folder_paths
 from typing import Dict, List, Tuple, Optional
+
+import folder_paths
+
 from .lora_metadata_utils import parse_lora_tags
 
 
@@ -33,6 +35,7 @@ class LoRAVisualizerNode:
 
     @classmethod
     def INPUT_TYPES(cls):
+        """Define the input schema for this ComfyUI node."""
         return {
             "required": {
                 "prompt_text": (
@@ -313,8 +316,8 @@ class LoRAVisualizerNode:
         }
 
         # Convert to readable string format
-        import json
+        import json as json_module
 
-        raw_info_output = json.dumps(raw_metadata, indent=2, ensure_ascii=False)
+        raw_info_output = json_module.dumps(raw_metadata, indent=2, ensure_ascii=False)
 
         return (raw_info_output, prompt_text)
