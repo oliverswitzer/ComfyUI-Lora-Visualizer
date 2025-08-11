@@ -345,17 +345,31 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         """
         # Call the shared helper directly
         log("Prompt Splitter: Contacting Ollama API...")
-        content = _shared_call_ollama_chat(
-            system_prompt,
-            prompt,
-            model_name=model_name,
-            api_url=api_url,
-            timeout=60,
-            requests_module=requests,
-        )
+        try:
+            content = _shared_call_ollama_chat(
+                system_prompt,
+                prompt,
+                model_name=model_name,
+                api_url=api_url,
+                timeout=60,
+                requests_module=requests,
+            )
+        except Exception as e:
+            log_error(f"Prompt Splitter: Error calling Ollama: {e}")
+            if "Connection" in str(e) or "refused" in str(e):
+                raise Exception(
+                    "Cannot connect to Ollama. Please ensure Ollama is installed and running. Visit https://ollama.ai for installation instructions."
+                )
+            else:
+                raise Exception(
+                    f"Ollama API error: {e}. Check your Ollama configuration and try again."
+                )
+
         if not content:
             log_error("Prompt Splitter: Ollama returned empty response")
-            return "", ""
+            raise Exception(
+                "Ollama returned empty response. The AI model may be overloaded or experiencing issues."
+            )
 
         log(
             f"Prompt Splitter: Received response from Ollama ({len(content)} characters)"
@@ -369,7 +383,30 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         except json.JSONDecodeError as e:
             log_error(f"Prompt Splitter: Failed to parse JSON response: {e}")
             log_error(f"Prompt Splitter: Raw response: {content[:200]}...")
-            return "", ""
+            raise Exception(
+                "Invalid response from AI model. The AI model returned malformed data. Try a different model or check your system prompt."
+            )
+
+    def _send_progress_update(self, progress: float, message: str) -> None:
+        """Send progress update to ComfyUI's standard progress system.
+
+        Args:
+            progress: Progress value between 0.0 and 1.0
+            message: Status message to display
+        """
+        try:
+            from server import PromptServer
+
+            # Use the standard ComfyUI progress format
+            progress_data = {"node": str(id(self)), "value": progress, "max": 1.0}
+            PromptServer.instance.send_sync("progress", progress_data)
+
+            # Also log to console for debugging
+            log(f"Progress {int(progress * 100)}%: {message}")
+
+        except Exception as e:
+            # Don't fail the entire operation if progress update fails
+            log_error(f"Failed to send progress update: {e}")
 
     def _naive_split(self, prompt: str) -> Tuple[str, str]:
         """Deprecated fallback splitting.
@@ -407,6 +444,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log("Prompt Splitter: Empty input prompt, returning empty results")
             return "", ""
 
+        # Send initial progress update
+        self._send_progress_update(0.1, "Starting prompt analysis...")
+
         # Extract verbatim directives and remove wrapper syntax for LLM context
         log("Prompt Splitter: Extracting verbatim directives...")
         prompt_without_wrappers, image_verbatim, video_verbatim = (
@@ -415,6 +455,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         log(
             f"Prompt Splitter: Found {len(image_verbatim)} image and {len(video_verbatim)} video verbatim directives"
         )
+
+        self._send_progress_update(0.2, "Parsing LoRA tags and trigger words...")
 
         # Parse LoRA tags from original prompt (before wrapper removal)
         log("Prompt Splitter: Parsing LoRA tags...")
@@ -440,6 +482,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         sys_prompt = system_prompt if system_prompt else self._SYSTEM_PROMPT
 
         log(f"Prompt Splitter: Starting split using model '{model}'")
+        self._send_progress_update(0.3, f"Checking Ollama model '{model}'...")
 
         # Ensure the model is available before attempting to generate
         try:
@@ -448,7 +491,16 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log(f"Prompt Splitter: Model '{model}' is ready")
         except Exception as e:
             log_error(f"Prompt Splitter: Error ensuring model availability: {e}")
-            return "", ""
+            if "Connection" in str(e) or "refused" in str(e):
+                raise Exception(
+                    "Cannot connect to Ollama. Please ensure Ollama is installed and running. Visit https://ollama.ai for installation instructions."
+                )
+            else:
+                raise Exception(
+                    f"Model availability error: {e}. Check that Ollama is properly configured and the model name is correct."
+                )
+
+        self._send_progress_update(0.6, "Generating prompt splits with AI...")
 
         # Send clean prompt (without LoRA tags) to Ollama
         log("Prompt Splitter: Sending request to Ollama...")
@@ -457,6 +509,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         )
 
         if image_prompt and wan_prompt:
+            self._send_progress_update(0.8, "Reassembling prompts with LoRA tags...")
+
             # Add LoRA tags and trigger words back to appropriate prompts
             metadata_loader = get_metadata_loader()
 
@@ -501,6 +555,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 wan_prompt = f"{wan_prompt} {verbatim}"
                 log(f"Prompt Splitter: Added video verbatim: '{verbatim}'")
 
+            self._send_progress_update(1.0, "Prompt splitting completed!")
+
             log("Prompt Splitter: Successfully split prompt")
             log(
                 f"Prompt Splitter: Final image prompt length: {len(image_prompt)} characters"
@@ -515,4 +571,6 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         log_error(
             "Prompt Splitter: Failed to split prompt - Ollama returned empty response"
         )
-        return "", ""
+        raise Exception(
+            "AI model returned empty response. The AI model may be overloaded or experiencing issues. Try again or use a different model."
+        )
