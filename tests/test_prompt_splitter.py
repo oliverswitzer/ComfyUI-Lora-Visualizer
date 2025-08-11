@@ -118,6 +118,120 @@ class TestPromptSplitterNode(unittest.TestCase):
             status_channel="prompt_splitter_status",
         )
 
+    def test_parse_lora_tags_standard_loras(self):
+        """parse_lora_tags should correctly extract standard LoRA tags."""
+        prompt = "woman in dress <lora:beautiful:0.8> running <lora:style-anime:1.0>"
+        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+        self.assertEqual(len(standard_loras), 2)
+        self.assertEqual(len(wanloras), 0)
+
+        # Check first LoRA
+        self.assertEqual(standard_loras[0]["name"], "beautiful")
+        self.assertEqual(standard_loras[0]["strength"], "0.8")
+        self.assertEqual(standard_loras[0]["type"], "lora")
+        self.assertEqual(standard_loras[0]["tag"], "<lora:beautiful:0.8>")
+
+        # Check second LoRA
+        self.assertEqual(standard_loras[1]["name"], "style-anime")
+        self.assertEqual(standard_loras[1]["strength"], "1.0")
+        self.assertEqual(standard_loras[1]["type"], "lora")
+        self.assertEqual(standard_loras[1]["tag"], "<lora:style-anime:1.0>")
+
+    def test_parse_lora_tags_wanloras(self):
+        """parse_lora_tags should correctly extract WanLoRA tags."""
+        prompt = "dancing <wanlora:motion-blur:0.5> smoothly <wanlora:cinematic:1.2>"
+        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+        self.assertEqual(len(standard_loras), 0)
+        self.assertEqual(len(wanloras), 2)
+
+        # Check first WanLoRA
+        self.assertEqual(wanloras[0]["name"], "motion-blur")
+        self.assertEqual(wanloras[0]["strength"], "0.5")
+        self.assertEqual(wanloras[0]["type"], "wanlora")
+        self.assertEqual(wanloras[0]["tag"], "<wanlora:motion-blur:0.5>")
+
+        # Check second WanLoRA
+        self.assertEqual(wanloras[1]["name"], "cinematic")
+        self.assertEqual(wanloras[1]["strength"], "1.2")
+        self.assertEqual(wanloras[1]["type"], "wanlora")
+        self.assertEqual(wanloras[1]["tag"], "<wanlora:cinematic:1.2>")
+
+    def test_parse_lora_tags_mixed(self):
+        """parse_lora_tags should correctly handle both standard and WanLoRA tags."""
+        prompt = "woman <lora:style:0.8> dancing <wanlora:motion:1.0> in garden"
+        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+        self.assertEqual(len(standard_loras), 1)
+        self.assertEqual(len(wanloras), 1)
+
+        self.assertEqual(standard_loras[0]["name"], "style")
+        self.assertEqual(wanloras[0]["name"], "motion")
+
+    def test_parse_lora_tags_complex_names(self):
+        """parse_lora_tags should handle LoRA names with spaces and special characters."""
+        prompt = "test <lora:My Complex Name v2.1:0.75> and <wanlora:Special-Character_Name:1.0>"
+        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+        self.assertEqual(len(standard_loras), 1)
+        self.assertEqual(len(wanloras), 1)
+
+        self.assertEqual(standard_loras[0]["name"], "My Complex Name v2.1")
+        self.assertEqual(standard_loras[0]["strength"], "0.75")
+
+        self.assertEqual(wanloras[0]["name"], "Special-Character_Name")
+        self.assertEqual(wanloras[0]["strength"], "1.0")
+
+    def test_remove_all_lora_tags(self):
+        """_remove_all_lora_tags should remove all LoRA and WanLoRA tags."""
+        prompt = "woman <lora:style:0.8> dancing <wanlora:motion:1.0> in garden"
+        clean_prompt = self.node._remove_all_lora_tags(prompt)
+
+        self.assertEqual(clean_prompt, "woman dancing in garden")
+        self.assertNotIn("<lora:", clean_prompt)
+        self.assertNotIn("<wanlora:", clean_prompt)
+
+    def test_split_prompt_with_lora_tags(self):
+        """split_prompt should parse LoRA tags and add them to appropriate outputs."""
+        input_prompt = "woman dancing <lora:style:0.8> gracefully <wanlora:motion:1.0>"
+
+        # Mock the _call_ollama to return clean responses
+        with patch.object(
+            self.node,
+            "_call_ollama",
+            return_value=("woman dancing gracefully", "woman dances"),
+        ):
+            with patch.object(self.node, "_ensure_model_available"):
+                image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+
+        # LoRA should be added to image prompt
+        self.assertIn("<lora:style:0.8>", image_prompt)
+        self.assertNotIn("<wanlora:motion:1.0>", image_prompt)
+
+        # WanLoRA should be added to video prompt
+        self.assertIn("<wanlora:motion:1.0>", wan_prompt)
+        self.assertNotIn("<lora:style:0.8>", wan_prompt)
+
+        # Base content should be preserved
+        self.assertIn("woman dancing gracefully", image_prompt)
+        self.assertIn("woman dances", wan_prompt)
+
+    def test_split_prompt_no_lora_tags(self):
+        """split_prompt should work normally when no LoRA tags are present."""
+        input_prompt = "woman dancing gracefully"
+
+        with patch.object(
+            self.node, "_call_ollama", return_value=("woman dancing", "woman dances")
+        ):
+            with patch.object(self.node, "_ensure_model_available"):
+                image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
+
+        self.assertEqual(image_prompt, "woman dancing")
+        self.assertEqual(wan_prompt, "woman dances")
+        self.assertNotIn("<lora:", image_prompt)
+        self.assertNotIn("<wanlora:", wan_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
