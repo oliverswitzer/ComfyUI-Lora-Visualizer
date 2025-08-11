@@ -93,6 +93,8 @@ General Rules:
 - Copy source words exactly, unless you must remove them because they are irrelevant to the specific output type.
 - If unsure which output a term belongs in, place it in the IMAGE_PROMPT.
 - IGNORE any LoRA tags like <lora:...> or <wanlora:...> - they will be handled separately.
+- For verbatim directives: content from (image: content) goes to IMAGE_PROMPT, content from (video: content) goes to WAN_PROMPT.
+- Include the verbatim content directly, the wrapper syntax has been removed from the input.
 - Return your final result in JSON with keys "image_prompt" and "wan_prompt".
 
 Output format: valid JSON with keys 'image_prompt' and 'wan_prompt'.
@@ -117,7 +119,7 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
   "wan_prompt": "he cracks his knuckles and steps toward the other person, ready to fight"
 }
 
-Input Prompt: "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
+Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 {
   "image_prompt": "woman dancing gracefully, overwatch, ana",
   "wan_prompt": "the woman dances, then jumps up and down several times"
@@ -294,9 +296,15 @@ Input Prompt: "woman dancing (image: overwatch, ana) gracefully (video: she jump
                 video_verbatim.append(content)
                 log(f"Prompt Splitter: Found video verbatim directive: '{content}'")
 
-        # Keep the original prompt with verbatim directives for LLM context
-        # We'll add the verbatim content back deterministically later
-        return prompt_text, image_verbatim, video_verbatim
+        # Remove the wrapper syntax but keep the content for LLM context
+        # Replace (image: content) with just content
+        prompt_without_wrappers = re.sub(image_pattern, r"\1", prompt_text)
+        prompt_without_wrappers = re.sub(video_pattern, r"\1", prompt_without_wrappers)
+
+        # Clean up extra whitespace
+        prompt_without_wrappers = re.sub(r"\s+", " ", prompt_without_wrappers).strip()
+
+        return prompt_without_wrappers, image_verbatim, video_verbatim
 
     def _remove_all_lora_tags(self, prompt_text: str) -> str:
         """Remove all LoRA and WanLoRA tags from prompt text."""
@@ -400,30 +408,30 @@ Input Prompt: "woman dancing (image: overwatch, ana) gracefully (video: she jump
             log("Prompt Splitter: Empty input prompt, returning empty results")
             return "", ""
 
-        # Extract verbatim directives (but keep them in the prompt for LLM context)
+        # Extract verbatim directives and remove wrapper syntax for LLM context
         log("Prompt Splitter: Extracting verbatim directives...")
-        _, image_verbatim, video_verbatim = self._extract_verbatim_directives(
-            prompt_text
+        prompt_without_wrappers, image_verbatim, video_verbatim = (
+            self._extract_verbatim_directives(prompt_text)
         )
         log(
             f"Prompt Splitter: Found {len(image_verbatim)} image and {len(video_verbatim)} video verbatim directives"
         )
 
-        # Parse LoRA tags from prompt
+        # Parse LoRA tags from original prompt (before wrapper removal)
         log("Prompt Splitter: Parsing LoRA tags...")
         standard_loras, wanloras = self.parse_lora_tags(prompt_text)
         log(
             f"Prompt Splitter: Found {len(standard_loras)} standard LoRAs and {len(wanloras)} WanLoRAs"
         )
 
-        # Extract and remove trigger words for all LoRAs
+        # Extract and remove trigger words for all LoRAs (use prompt without wrappers)
         all_loras = standard_loras + wanloras
         prompt_without_triggers, extracted_trigger_words = (
-            self._extract_and_remove_trigger_words(prompt_text, all_loras)
+            self._extract_and_remove_trigger_words(prompt_without_wrappers, all_loras)
         )
         log(f"Prompt Splitter: Extracted {len(extracted_trigger_words)} trigger words")
 
-        # Remove all LoRA tags from prompt before sending to LLM (keep verbatim directives)
+        # Remove all LoRA tags from prompt before sending to LLM
         clean_prompt = self._remove_all_lora_tags(prompt_without_triggers)
         log(f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters")
 
