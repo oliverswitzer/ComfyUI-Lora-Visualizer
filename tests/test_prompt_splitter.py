@@ -320,8 +320,11 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node._extract_verbatim_directives(prompt)
         )
 
-        # Prompt should be unchanged since we keep verbatim directives for LLM context
-        self.assertEqual(clean_prompt, prompt)
+        # Prompt should have wrapper syntax removed but content preserved
+        expected_prompt = (
+            "woman dancing overwatch, ana gracefully she jumps up and down"
+        )
+        self.assertEqual(clean_prompt, expected_prompt)
         self.assertEqual(len(image_verbatim), 1)
         self.assertEqual(len(video_verbatim), 1)
         self.assertEqual(image_verbatim[0], "overwatch, ana")
@@ -335,8 +338,9 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node._extract_verbatim_directives(prompt)
         )
 
-        # Prompt should be unchanged since we keep verbatim directives for LLM context
-        self.assertEqual(clean_prompt, prompt)
+        # Prompt should have wrapper syntax removed but content preserved
+        expected_prompt = "character1 dancing outfit: dress and motion1 then motion2"
+        self.assertEqual(clean_prompt, expected_prompt)
         self.assertEqual(len(image_verbatim), 2)
         self.assertEqual(len(video_verbatim), 2)
         self.assertIn("character1", image_verbatim)
@@ -352,8 +356,9 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node._extract_verbatim_directives(prompt)
         )
 
-        # Prompt should be unchanged since we keep verbatim directives for LLM context
-        self.assertEqual(clean_prompt, prompt)
+        # Empty directives should be removed entirely
+        expected_prompt = "woman dancing gracefully"
+        self.assertEqual(clean_prompt, expected_prompt)
         self.assertEqual(len(image_verbatim), 0)
         self.assertEqual(len(video_verbatim), 0)
 
@@ -365,7 +370,10 @@ class TestPromptSplitterNode(unittest.TestCase):
         with patch.object(
             self.node,
             "_call_ollama",
-            return_value=("woman dancing gracefully, overwatch, ana", "woman dances, she jumps up and down"),
+            return_value=(
+                "woman dancing gracefully, overwatch, ana",
+                "woman dances, she jumps up and down",
+            ),
         ):
             with patch.object(self.node, "_ensure_model_available"):
                 image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
@@ -392,7 +400,10 @@ class TestPromptSplitterNode(unittest.TestCase):
             with patch.object(
                 self.node,
                 "_call_ollama",
-                return_value=("woman dancing, overwatch, ana", "woman dances, she jumps"),
+                return_value=(
+                    "woman dancing, overwatch, ana",
+                    "woman dances, she jumps",
+                ),
             ):
                 with patch.object(self.node, "_ensure_model_available"):
                     image_prompt, wan_prompt = self.node.split_prompt(input_prompt)
