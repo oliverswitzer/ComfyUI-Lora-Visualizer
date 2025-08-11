@@ -347,8 +347,11 @@ def extract_lora_info(
                     pass
             info["example_images"] = examples
 
-            # New structured format using ExampleData
-            info["example_data"] = MetadataExtractor.extract_example_data(metadata)
+            # New structured format using ExampleData (convert to dicts for JSON serialization)
+            example_data = MetadataExtractor.extract_example_data(metadata)
+            info["example_data"] = [
+                {"prompt": ex.prompt, "url": ex.url} for ex in example_data
+            ]
         # additional meta fields
         if "model_name" in metadata:
             info["model_name"] = metadata["model_name"]
