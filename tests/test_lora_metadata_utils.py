@@ -14,6 +14,10 @@ from nodes.lora_metadata_utils import (
     load_lora_metadata,
     get_lora_trigger_words,
     is_video_lora,
+    extract_embeddable_content,
+    extract_example_prompts,
+    classify_lora_type,
+    extract_recommended_weight,
 )
 
 os.environ.setdefault("COMFYUI_SKIP_LORA_ANALYSIS", "1")
@@ -167,6 +171,147 @@ class TestConvenienceFunctions(unittest.TestCase):
         result = is_video_lora("test-lora")
 
         self.assertTrue(result)
+
+
+class TestNewMetadataFunctions(unittest.TestCase):
+    """Tests for the new metadata utility functions."""
+
+    def test_extract_embeddable_content_basic(self):
+        """extract_embeddable_content should combine various metadata fields."""
+        metadata = {
+            "model_name": "Test LoRA",
+            "modelDescription": "<p>A great <strong>style</strong> LoRA</p>",
+            "tags": ["anime", "portrait"],
+            "civitai": {
+                "model": {
+                    "name": "Civitai Model",
+                    "description": "<h1>Detailed</h1> description",
+                    "tags": ["character", "detailed"],
+                },
+                "trainedWords": ["trigger1", "trigger2"],
+            },
+        }
+
+        content = extract_embeddable_content(metadata)
+
+        self.assertIn("Test LoRA", content)
+        self.assertIn("A great style LoRA", content)  # HTML stripped
+        self.assertIn("Civitai Model", content)
+        self.assertIn("Detailed description", content)  # HTML stripped
+        self.assertIn("anime", content)
+        self.assertIn("portrait", content)
+        self.assertIn("character", content)
+        self.assertIn("detailed", content)
+        self.assertIn("trigger1", content)
+        self.assertIn("trigger2", content)
+
+    def test_extract_embeddable_content_empty(self):
+        """extract_embeddable_content should handle empty metadata gracefully."""
+        self.assertEqual(extract_embeddable_content({}), "")
+        self.assertEqual(extract_embeddable_content({"civitai": {}}), "")
+
+    def test_extract_example_prompts(self):
+        """extract_example_prompts should extract prompts from civitai images."""
+        metadata = {
+            "civitai": {
+                "images": [
+                    {"meta": {"prompt": "beautiful anime girl, detailed"}},
+                    {"meta": {"prompt": "cyberpunk scene, neon"}},
+                    {"meta": {"prompt": ""}},  # Empty prompt should be skipped
+                    {"meta": {}},  # No prompt field
+                    {"meta": {"prompt": "landscape, mountains"}},
+                ]
+            }
+        }
+
+        prompts = extract_example_prompts(metadata, limit=3)
+
+        self.assertEqual(len(prompts), 3)
+        self.assertIn("beautiful anime girl, detailed", prompts)
+        self.assertIn("cyberpunk scene, neon", prompts)
+        self.assertIn("landscape, mountains", prompts)
+
+    def test_extract_example_prompts_empty(self):
+        """extract_example_prompts should handle empty metadata gracefully."""
+        self.assertEqual(extract_example_prompts({}), [])
+        self.assertEqual(extract_example_prompts({"civitai": {}}), [])
+        self.assertEqual(extract_example_prompts({"civitai": {"images": []}}), [])
+
+    def test_classify_lora_type_video(self):
+        """classify_lora_type should identify video LoRAs correctly."""
+        metadata_variants = [
+            {"base_model": "Wan Video 14B i2v 480p"},
+            {"base_model": "Video Generation Model"},
+            {"civitai": {"baseModel": "Wan Video"}},
+            {"civitai": {"baseModel": "I2V Model"}},
+        ]
+
+        for metadata in metadata_variants:
+            with self.subTest(metadata=metadata):
+                self.assertEqual(classify_lora_type(metadata), "video")
+
+    def test_classify_lora_type_image(self):
+        """classify_lora_type should identify image LoRAs correctly."""
+        metadata_variants = [
+            {"base_model": "SDXL 1.0"},
+            {"base_model": "Illustrious"},
+            {"base_model": "NoobAI"},
+            {"civitai": {"baseModel": "FLUX.1"}},
+            {"civitai": {"baseModel": "SD1.5"}},
+        ]
+
+        for metadata in metadata_variants:
+            with self.subTest(metadata=metadata):
+                self.assertEqual(classify_lora_type(metadata), "image")
+
+    def test_classify_lora_type_unknown(self):
+        """classify_lora_type should return unknown for unrecognized models."""
+        self.assertEqual(classify_lora_type({}), "unknown")
+        self.assertEqual(classify_lora_type({"base_model": "Unknown Model"}), "unknown")
+
+    def test_extract_recommended_weight_from_description(self):
+        """extract_recommended_weight should parse weights from descriptions."""
+        test_cases = [
+            ("Best result with weight between : 0.3-0.7", 0.3),
+            ("Recommended strength: 0.8", 0.8),
+            ("Use 0.6 strength for best results", 0.6),
+            ("Weight 1.2 works well", 1.2),
+            ("Best at 0.9", 0.9),
+        ]
+
+        for description, expected_weight in test_cases:
+            with self.subTest(description=description):
+                metadata = {"modelDescription": description}
+                weight = extract_recommended_weight(metadata)
+                self.assertEqual(weight, expected_weight)
+
+    def test_extract_recommended_weight_defaults(self):
+        """extract_recommended_weight should use appropriate defaults."""
+        # Video LoRA default
+        video_metadata = {"base_model": "Wan Video"}
+        self.assertEqual(extract_recommended_weight(video_metadata), 0.6)
+
+        # Image LoRA default
+        image_metadata = {"base_model": "SDXL"}
+        self.assertEqual(extract_recommended_weight(image_metadata), 0.8)
+
+        # Unknown LoRA default
+        unknown_metadata = {}
+        self.assertEqual(extract_recommended_weight(unknown_metadata), 0.8)
+
+    def test_extract_recommended_weight_bounds_checking(self):
+        """extract_recommended_weight should reject unreasonable weights."""
+        # Too high
+        metadata = {"modelDescription": "Use weight 5.0"}
+        self.assertEqual(
+            extract_recommended_weight(metadata), 0.8
+        )  # Should use default
+
+        # Too low
+        metadata = {"modelDescription": "Use weight 0.05"}
+        self.assertEqual(
+            extract_recommended_weight(metadata), 0.8
+        )  # Should use default
 
 
 if __name__ == "__main__":

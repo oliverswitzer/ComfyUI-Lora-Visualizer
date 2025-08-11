@@ -8,6 +8,7 @@ from LoRA .metadata.json files, used by both the visualizer and prompt splitter 
 import os
 import json
 import re
+import glob
 from typing import Dict, List, Optional, Any, Tuple
 
 try:
@@ -231,3 +232,252 @@ def parse_lora_tags(prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
             )
 
     return standard_loras, wanloras
+
+
+def discover_all_loras() -> Dict[str, Dict[str, Any]]:
+    """
+    Discover all LoRAs in the ComfyUI LoRA directory and load their metadata.
+
+    Returns:
+        Dict mapping LoRA name to its metadata and info
+    """
+    loader = get_metadata_loader()
+    if not loader.loras_folder:
+        log_error("LoRA folder not available for discovery")
+        return {}
+
+    loras = {}
+
+    # Find all .safetensors files
+    pattern = os.path.join(loader.loras_folder, "*.safetensors")
+    for file_path in glob.glob(pattern):
+        lora_name = os.path.basename(file_path).replace(".safetensors", "")
+
+        # Get full info including metadata
+        lora_info = loader.get_lora_info(lora_name)
+        if lora_info["metadata"]:  # Only include LoRAs with metadata
+            loras[lora_name] = lora_info
+
+    log(f"Discovered {len(loras)} LoRAs with metadata")
+    return loras
+
+
+def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
+    """
+    Extract text content from LoRA metadata for embedding generation.
+    Title/filename words are repeated to increase their semantic weight.
+
+    Args:
+        metadata: LoRA metadata dictionary
+
+    Returns:
+        Combined text suitable for embedding
+    """
+    content_parts = []
+    lora_name = metadata.get("file_name", "unknown")
+
+    log(f"🔍 Extracting embeddable content for LoRA: {lora_name}")
+
+    # PRIORITY 1: File name (extract and repeat key words)
+    if "file_name" in metadata:
+        file_name = metadata["file_name"]
+        log(f"  📁 File name: '{file_name}'")
+
+        # Extract meaningful words from filename (remove version numbers, common prefixes)
+        title_words = re.findall(r"[a-zA-Z]{3,}", file_name.lower())
+        log(f"  🔤 Extracted title words: {title_words}")
+
+        # Filter out common non-descriptive words
+        filtered_words = [
+            w
+            for w in title_words
+            if w
+            not in [
+                "lora",
+                "wan",
+                "lownoise",
+                "highnoise",
+                "safetensors",
+                "i2v",
+                "t2v",
+                "version",
+            ]
+        ]
+        log(f"  ✨ Filtered title words: {filtered_words}")
+
+        # Repeat important title words 3x for higher semantic weight
+        for word in filtered_words:
+            content_parts.extend([word] * 3)
+            log(f"  🔁 Added '{word}' x3 for high priority")
+
+    # PRIORITY 2: Model name and description
+    if "model_name" in metadata:
+        model_name = metadata["model_name"]
+        log(f"  📝 Model name: '{model_name}'")
+        content_parts.append(model_name)
+
+        # Also extract and repeat key words from model name
+        model_words = re.findall(r"[a-zA-Z]{3,}", model_name.lower())
+        filtered_model_words = [
+            w for w in model_words if w not in ["lora", "for", "wan", "the"]
+        ]
+        log(f"  🎯 Model words added: {filtered_model_words}")
+        content_parts.extend(filtered_model_words)
+
+    if "modelDescription" in metadata:
+        # Clean HTML tags from description
+        description = re.sub(r"<[^>]+>", "", metadata["modelDescription"])
+        content_parts.append(description)
+
+    # Civitai model info
+    if "civitai" in metadata:
+        civitai = metadata["civitai"]
+
+        # Model name and description
+        if "model" in civitai and "name" in civitai["model"]:
+            content_parts.append(civitai["model"]["name"])
+
+        if "model" in civitai and "description" in civitai["model"]:
+            description = re.sub(r"<[^>]+>", "", civitai["model"]["description"])
+            content_parts.append(description)
+
+        # Tags
+        if "model" in civitai and "tags" in civitai["model"]:
+            content_parts.extend(civitai["model"]["tags"])
+
+        # Training words
+        if "trainedWords" in civitai:
+            content_parts.extend(civitai["trainedWords"])
+
+    # Tags from top level
+    if "tags" in metadata:
+        content_parts.extend(metadata["tags"])
+
+    # Combine and clean
+    combined = " ".join(str(part) for part in content_parts if part)
+    final_content = combined.strip()
+
+    preview = final_content[:100]
+    suffix = "..." if len(final_content) > 100 else ""
+    log(
+        f"  📊 Final embeddable content ({len(final_content)} chars): '{preview}{suffix}'"
+    )
+    log(f"  📈 Word count: {len(final_content.split())} words")
+
+    return final_content
+
+
+def extract_example_prompts(metadata: Dict[str, Any], limit: int = 5) -> List[str]:
+    """
+    Extract example prompts from LoRA metadata for style analysis.
+
+    Args:
+        metadata: LoRA metadata dictionary
+        limit: Maximum number of prompts to extract
+
+    Returns:
+        List of example prompt texts
+    """
+    prompts = []
+
+    if not metadata:
+        return prompts
+
+    if "civitai" in metadata and "images" in metadata["civitai"]:
+        for image in metadata["civitai"]["images"]:
+            if (
+                "meta" in image
+                and image["meta"] is not None
+                and "prompt" in image["meta"]
+            ):
+                prompt = image["meta"]["prompt"]
+                if isinstance(prompt, str) and prompt.strip():
+                    prompts.append(prompt.strip())
+                    if len(prompts) >= limit:
+                        break
+
+    return prompts
+
+
+def classify_lora_type(metadata: Dict[str, Any]) -> str:
+    """
+    Classify LoRA as image or video generation type.
+
+    Args:
+        metadata: LoRA metadata dictionary
+
+    Returns:
+        "image", "video", or "unknown"
+    """
+    base_model = metadata.get("base_model", "").lower()
+
+    # Check for video indicators
+    video_keywords = ["wan", "video", "i2v", "wan video"]
+    if any(keyword in base_model for keyword in video_keywords):
+        return "video"
+
+    # Check civitai base model
+    if "civitai" in metadata:
+        civitai_base = metadata.get("civitai", {}).get("baseModel", "").lower()
+        if any(keyword in civitai_base for keyword in video_keywords):
+            return "video"
+
+    # Check for image model indicators
+    image_keywords = ["sdxl", "sd1.5", "sd 1.5", "flux", "illustrious", "noobai"]
+    if any(keyword in base_model for keyword in image_keywords):
+        return "image"
+
+    if "civitai" in metadata:
+        civitai_base = metadata.get("civitai", {}).get("baseModel", "").lower()
+        if any(keyword in civitai_base for keyword in image_keywords):
+            return "image"
+
+    return "unknown"
+
+
+def extract_recommended_weight(metadata: Dict[str, Any]) -> float:
+    """
+    Extract recommended weight/strength for a LoRA from its metadata.
+
+    Args:
+        metadata: LoRA metadata dictionary
+
+    Returns:
+        Recommended weight (default 0.8 if not found)
+    """
+    # Look for weight recommendations in description
+    description_text = ""
+
+    if "modelDescription" in metadata:
+        description_text += metadata["modelDescription"]
+
+    if "civitai" in metadata and "model" in metadata["civitai"]:
+        if "description" in metadata["civitai"]["model"]:
+            description_text += " " + metadata["civitai"]["model"]["description"]
+
+    # Look for weight patterns like "0.7", "weight: 0.8", "strength 0.6-0.9"
+    weight_patterns = [
+        r"weight[:\s]+([0-9]*\.?[0-9]+)",
+        r"strength[:\s]+([0-9]*\.?[0-9]+)",
+        r"([0-9]*\.?[0-9]+)\s*strength",
+        r"use.*?([0-9]*\.?[0-9]+)",
+        r"best.*?([0-9]*\.?[0-9]+)",
+    ]
+
+    for pattern in weight_patterns:
+        matches = re.findall(pattern, description_text, re.IGNORECASE)
+        if matches:
+            try:
+                weight = float(matches[0])
+                # Sanity check - weights should be reasonable
+                if 0.1 <= weight <= 2.0:
+                    return weight
+            except ValueError:
+                continue
+
+    # Default weight based on LoRA type
+    lora_type = classify_lora_type(metadata)
+    if lora_type == "video":
+        return 0.6  # Video LoRAs often need lower weights
+    else:
+        return 0.8  # Standard default for image LoRAs

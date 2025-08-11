@@ -107,7 +107,7 @@ The node provides two outputs:
 
 - **Image Gallery**: Full implementation of hover-to-view example images
 - **Interactive Controls**: Click to copy trigger words, adjust strengths
-- **Filtering Options**: Filter by base model, NSFW level, etc.
+- **Filtering Options**: Filter by base model, content level, etc.
 - **Export Options**: Export LoRA information in various formats
 
 ## Testing

@@ -95,10 +95,13 @@ class TestPromptSplitterNode(unittest.TestCase):
             node._ensure_model_available("test-model", "http://localhost:11434")
 
         # Verify that the shared utility was called with correct parameters
+        # Note: requests_module should be the actual requests module now that it's installed
+        import requests
+
         mock_ensure.assert_called_once_with(
             "test-model",
             "http://localhost:11434",
-            requests_module=None,
+            requests_module=requests,
             status_channel="prompt_splitter_status",
         )
 
@@ -113,10 +116,13 @@ class TestPromptSplitterNode(unittest.TestCase):
             node._ensure_model_available("installed-model", "http://localhost:11434")
 
         # Verify that the shared utility was called (handles availability checking)
+        # Note: requests_module should be the actual requests module now that it's installed
+        import requests
+
         mock_ensure.assert_called_once_with(
             "installed-model",
             "http://localhost:11434",
-            requests_module=None,
+            requests_module=requests,
             status_channel="prompt_splitter_status",
         )
 

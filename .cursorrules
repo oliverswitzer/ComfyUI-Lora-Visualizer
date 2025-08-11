@@ -1,5 +1,74 @@
 # ComfyUI Custom Node Development Guidelines
 
+## Your workflow (important)
+
+Pleasee ensure you always add test coverage, are making *incremental* commits that are concicse
+Ensure you are running `pdm ci` very often after commits are made to ensure tests are passing and lint errors dont exist.
+--> `pdm ci` will also format your code.
+
+Use SOLID principles when coding: 
+
+Agile + SOLID Principles for Python
+
+Rule:
+When writing or refactoring Python code, follow Agile values (working, maintainable, adaptable code over excessive documentation) and the SOLID design principles below. Favor small, testable changes, frequent iteration, and code that can be easily extended without breaking existing functionality.
+
+⸻
+
+S — Single Responsibility Principle
+
+A class, function, or module should have one reason to change.
+	•	Keep classes and functions focused on a single concern.
+	•	Avoid “god objects” that do everything.
+	•	Use small, focused modules (user_service.py, logger.py).
+
+⸻
+
+O — Open/Closed Principle
+
+Code should be open for extension but closed for modification.
+	•	Use duck typing to pass in new objects that meet the expected interface.
+	•	Extend via composition, decorators, or plugins instead of modifying existing logic.
+
+class PaymentProcessor:
+    def __init__(self, payment_method):
+        self.payment_method = payment_method
+
+    def pay(self, amount):
+        self.payment_method.pay(amount)
+
+
+⸻
+
+L — Liskov Substitution Principle
+
+Subtypes must be usable wherever their base types are expected.
+	•	Python won’t enforce inheritance rules — ensure consistent behavior via tests.
+	•	Duck typing often replaces explicit inheritance, but don’t surprise the caller.
+
+⸻
+
+I — Interface Segregation Principle
+
+Prefer small, specific interfaces over large, general-purpose ones.
+	•	Use protocols (typing.Protocol) or ABCs (abc module) for expected behavior.
+	•	Avoid forcing classes to implement unused methods.
+
+from typing import Protocol
+
+class Notifier(Protocol):
+    def send(self, msg: str) -> None: ...
+
+
+⸻
+
+D — Dependency Inversion Principle
+
+Depend on abstractions, not concrete implementations.
+	•	Pass dependencies via constructors or parameters.
+	•	Use protocols or base classes to define abstractions.
+	•	Makes testing easy — inject mocks or fakes.
+
 ## 🏗️ Architecture Patterns
 
 ### Custom Node Structure
