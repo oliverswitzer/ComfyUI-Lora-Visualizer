@@ -79,23 +79,32 @@ class PromptSplitterNode:
     # newlines and spaces which the model will see.
     _SYSTEM_PROMPT = (
         "You are a creative prompt engineer for generative media systems.\n\n"
-        "You are given a single prompt describing a scene. Your job is to break this scene into two parts:\n\n"
-        "1. A Stable Diffusion XL (SDXL) image prompt: This should describe a single, detailed still moment.\n"
+        "You are given a single prompt describing a scene. "
+        "Your job is to break this scene into two parts:\n\n"
+        "1. A Stable Diffusion XL (SDXL) image prompt: "
+        "This should describe a single, detailed still moment.\n"
         'Avoid motion terms like "walking," "moving," "talking," "flies," etc.\n'
-        "Preserve any LoRA tags (<lora:name:strength>) and WanLoRA tags (<wanlora:name:strength>) exactly as given.\n"
+        "Preserve any LoRA tags (<lora:name:strength>) and "
+        "WanLoRA tags (<wanlora:name:strength>) exactly as given.\n"
         "Keep style details like composition, lighting, and subject appearance.\n\n"
-        "2. A WAN video prompt: This should describe the full short sequence of motion that logically starts from the still image.\n"
-        "Use natural language to describe the action. Preserve any LoRA and WanLoRA tags exactly as given.\n\n"
+        "2. A WAN video prompt: This should describe the full short sequence "
+        "of motion that logically starts from the still image.\n"
+        "Use natural language to describe the action. "
+        "Preserve any LoRA and WanLoRA tags exactly as given.\n\n"
         "Guidelines:\n"
         "- Do not duplicate the same sentence across both prompts.\n"
         "- Assume the image is the first frame of the video.\n"
         "- Always output both prompts even if there’s ambiguity.\n"
-        "- Maintain all special tags (<lora:...> and <wanlora:...>) exactly as given.\n"
+        "- Maintain all special tags (<lora:...> and <wanlora:...>) "
+        "exactly as given.\n"
         "- Output in JSON with keys 'sdxl_prompt' and 'wan_prompt'.\n\n"
         "Example:\n\n"
-        'Input Prompt: "A teenage boy in a leather jacket <lora:badboy:1.2> stands in an alley, about to start a fight. <wanlora:fightscene:0.8>"\n\n'
-        '{\n  "sdxl_prompt": "A teenage boy in a leather jacket <lora:badboy:1.2>, standing in a dark alley, intense expression, cinematic shadows",\n'
-        '  "wan_prompt": "The boy cracks his knuckles and steps forward aggressively, squaring up for a fight. <wanlora:fightscene:0.8>"\n}\n'
+        'Input Prompt: "A teenage boy in a leather jacket <lora:badboy:1.2> '
+        'stands in an alley, about to start a fight. <wanlora:fightscene:0.8>"\n\n'
+        '{\n  "sdxl_prompt": "A teenage boy in a leather jacket <lora:badboy:1.2>, '
+        'standing in a dark alley, intense expression, cinematic shadows",\n'
+        '  "wan_prompt": "The boy cracks his knuckles and steps forward '
+        'aggressively, squaring up for a fight. <wanlora:fightscene:0.8>"\n}\n'
     )
 
     @classmethod
@@ -108,10 +117,12 @@ class PromptSplitterNode:
                     {
                         "multiline": True,
                         "default": "",
-                        "placeholder": "Enter the full prompt describing your scene, including any LoRA tags...",
+                        "placeholder": "Enter the full prompt describing your scene, "
+                        "including any LoRA tags...",
                         "tooltip": (
                             "Combined prompt to be split into image and video prompts.\n"
-                            "Include <lora:...> or <wanlora:...> tags if needed; they will be preserved."
+                            "Include <lora:...> or <wanlora:...> tags if needed; "
+                            "they will be preserved."
                         ),
                     },
                 ),
@@ -121,7 +132,8 @@ class PromptSplitterNode:
                     "STRING",
                     {
                         "default": cls._DEFAULT_MODEL_NAME,
-                        "tooltip": "Name of the Ollama model to use (e.g. 'nous-hermes2', 'mythomax-mistral').",
+                        "tooltip": "Name of the Ollama model to use "
+                        "(e.g. 'nous-hermes2', 'mythomax-mistral').",
                     },
                 ),
                 "api_url": (
@@ -166,23 +178,20 @@ class PromptSplitterNode:
     ) -> Tuple[str, str]:
         """Call the Ollama chat API via shared helper and parse the response.
 
-        Uses the shared ``send_chat`` helper to obtain the assistant's
+        Uses the shared ``call_ollama_chat`` helper to obtain the assistant's
         content.  The content is then expected to be a JSON object
         containing ``sdxl_prompt`` and ``wan_prompt`` keys.  If any
         error occurs (including JSON parsing failure), empty strings are
         returned.
         """
-        if send_chat is None:
-            return "", ""
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ]
-        # Pass the imported ``requests`` module to ``send_chat`` so that
-        # unit tests patching ``nodes.prompt_splitter_node.requests`` will
-        # correctly intercept network calls.
-        content = send_chat(
-            model_name, api_url, messages, timeout=60, requests_module=requests
+        # Call the shared helper directly
+        content = _shared_call_ollama_chat(
+            system_prompt,
+            prompt,
+            model_name=model_name,
+            api_url=api_url,
+            timeout=60,
+            requests_module=requests,
         )
         if not content:
             return "", ""

@@ -3,12 +3,8 @@ LoRA Visualizer Node Implementation
 Parses prompts for LoRA tags and displays metadata, thumbnails, and example images.
 """
 
-import os
 import json
-import re
-import folder_paths
-from typing import Dict, List, Tuple, Optional, Any
-from server import PromptServer
+from typing import Dict, List, Tuple, Optional
 
 # Import shared LoRA utilities.  These functions centralize common
 # operations such as parsing tags and loading metadata so that all
@@ -44,6 +40,7 @@ class LoRAVisualizerNode:
 
     @classmethod
     def INPUT_TYPES(cls):
+        """Define the input types for this node."""
         return {
             "required": {
                 "prompt_text": (
@@ -52,7 +49,9 @@ class LoRAVisualizerNode:
                         "multiline": True,
                         "default": "",
                         "placeholder": "Enter your prompt with LoRA tags here...",
-                        "tooltip": "Input text containing LoRA tags like <lora:MyLora:0.8> or <wanlora:MyWanLora:1.0>. The node will automatically detect and visualize all LoRA references with their metadata.",
+                        "tooltip": "Input text containing LoRA tags like <lora:MyLora:0.8> "
+                        "or <wanlora:MyWanLora:1.0>. The node will automatically detect "
+                        "and visualize all LoRA references with their metadata.",
                     },
                 ),
             }
@@ -61,7 +60,8 @@ class LoRAVisualizerNode:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("raw_lora_info", "original_prompt")
     OUTPUT_TOOLTIPS = (
-        "Raw metadata information about detected LoRAs in a structured format for debugging and analysis.",
+        "Raw metadata information about detected LoRAs in a structured format "
+        "for debugging and analysis.",
         "The original prompt text passed through unchanged for downstream processing.",
     )
     FUNCTION = "visualize_loras"
@@ -72,6 +72,7 @@ class LoRAVisualizerNode:
         # ensures consistency with other nodes and encapsulates error
         # handling for folder_paths.
         self.loras_folder = get_loras_folder()
+        self.last_lora_data = None
 
     def parse_lora_tags(self, prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
         """Delegate tag parsing to the shared utility.
@@ -128,22 +129,22 @@ class LoRAVisualizerNode:
             if lora["trigger_words"]:
                 result += f"   Trigger words: {', '.join(lora['trigger_words'])}\n"
             else:
-                result += f"   Trigger words: Not available\n"
+                result += "   Trigger words: Not available\n"
 
             if lora["base_model"]:
                 result += f"   Base model: {lora['base_model']}\n"
 
             if lora["preview_url"]:
-                result += f"   Preview: Available\n"
+                result += "   Preview: Available\n"
             else:
-                result += f"   Preview: Not available\n"
+                result += "   Preview: Not available\n"
 
             if lora["example_images"]:
                 result += (
                     f"   Example images: {len(lora['example_images'])} available\n"
                 )
             else:
-                result += f"   Example images: Not available\n"
+                result += "   Example images: Not available\n"
 
             result += "\n"
 
@@ -239,8 +240,6 @@ class LoRAVisualizerNode:
         }
 
         # Convert to readable string format
-        import json
-
         raw_info_output = json.dumps(raw_metadata, indent=2, ensure_ascii=False)
 
         return (raw_info_output, prompt_text)

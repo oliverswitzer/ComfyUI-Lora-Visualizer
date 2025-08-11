@@ -23,7 +23,6 @@ from the ComfyUI server if available for sending messages.
 
 from __future__ import annotations
 
-import json
 from typing import Any, Dict, Optional, List
 
 try:
@@ -154,6 +153,39 @@ def call_ollama_chat(
         print("ollama_utils: 'requests' library not available; cannot contact Ollama.")
         return ""
 
+    # Construct chat messages
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
+
+    # Prepare the payload
+    payload = {
+        "model": model_name,
+        "messages": messages,
+        "stream": False,
+    }
+
+    try:
+        resp = req.post(api_url, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # Extract assistant content depending on API version
+        if isinstance(data, dict):
+            if "message" in data:
+                content = data["message"].get("content", "")
+            elif "choices" in data and data["choices"]:
+                content = data["choices"][0].get("message", {}).get("content", "")
+            else:
+                content = ""
+        else:
+            content = ""
+        return str(content).strip()
+    except Exception as e:
+        print(f"ollama_utils: error contacting Ollama: {e}")
+        return ""
+
 
 def send_chat(
     model_name: str,
@@ -213,30 +245,3 @@ def send_chat(
         timeout=timeout,
         requests_module=requests_module,
     )
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_content},
-    ]
-    payload = {
-        "model": model_name,
-        "messages": messages,
-        "stream": False,
-    }
-    try:
-        resp = req.post(api_url, json=payload, timeout=timeout)
-        resp.raise_for_status()
-        data = resp.json()
-        # Extract assistant content depending on API version
-        if isinstance(data, dict):
-            if "message" in data:
-                content = data["message"].get("content", "")
-            elif "choices" in data and data["choices"]:
-                content = data["choices"][0].get("message", {}).get("content", "")
-            else:
-                content = ""
-        else:
-            content = ""
-        return str(content).strip()
-    except Exception as e:
-        print(f"ollama_utils: error contacting Ollama: {e}")
-        return ""
