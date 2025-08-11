@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-lora-visualizer"
 description = "A ComfyUI custom node that parses prompt text for LoRA tags and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images."
-version = "1.3.0"
+version = "2.0.0"
 requires-python = "==3.10.*"
 dependencies = [ "pytest>=8.4.1", "black>=22.0.0", "pylint>=2.12.0",]
 readme = "README.md"
@@ -33,9 +33,8 @@ format-check = "black --check --diff ."
 lint = "pylint nodes/ tests/"
 test = "pytest tests"
 
+[tool.pdm.scripts.ci]
+composite = [ "format-check", "test", "lint",]
 
 [tool.setuptools.packages.find]
 include = [ "nodes*",]
-
-[tool.pdm.scripts.ci]
-composite = ["format-check", "test", "lint"]
