@@ -89,13 +89,13 @@ You are splitting a single combined scene description into two separate outputs:
 1. IMAGE_PROMPT — For SD image generation.
    - Keep only static, visual descriptors: characters, clothing, environment, props, positions, facial expressions (if static).
    - Do NOT add or remove descriptive terms unless they already appear in the source.
-   - Keep all or any explicit or sexual descriptors exactly as written, without euphemisms or softening.
+   - Keep all descriptors exactly as written, without euphemisms or softening.
    - Do NOT add adjectives, tone, style words, or any narrative text unless they are in the original.
 
 2. WAN_PROMPT — For WAN I2V video generation.
    - Keep only motion/action descriptors.
    - Do NOT add new actions or change their meaning.
-   - Use the exact same explicit terms from the source (do not reword).
+   - Use the exact same terms from the source (do not reword).
    - No narrative, story, emotional tone, or metaphor — only plain action description.
 
 General Rules:

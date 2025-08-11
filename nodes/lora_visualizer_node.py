@@ -243,8 +243,7 @@ class LoRAVisualizerNode:
         standard_loras, wanloras = self.parse_lora_tags(prompt_text)
 
         # Debug logging
-        print(f"DEBUG: Parsed {len(standard_loras)} standard LoRAs: {standard_loras}")
-        print(f"DEBUG: Parsed {len(wanloras)} WanLoRAs: {wanloras}")
+        # Note: Verbose debug logs removed to reduce noise
 
         if not standard_loras and not wanloras:
             return ("No LoRA tags found in prompt.", prompt_text)
@@ -275,7 +274,6 @@ class LoRAVisualizerNode:
             from server import PromptServer
 
             message_data = {"node_id": str(id(self)), "data": self.last_lora_data}
-            print(f"DEBUG: Sending LoRA data to frontend: {message_data}")
             PromptServer.instance.send_sync("lora_visualization_data", message_data)
         except Exception as e:
             print(f"Failed to send LoRA visualization data: {e}")
