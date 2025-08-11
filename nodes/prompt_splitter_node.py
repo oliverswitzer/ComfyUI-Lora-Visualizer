@@ -98,6 +98,7 @@ General Rules:
 - Copy source words exactly, unless you must remove them because they are irrelevant to the specific output type.
 - If unsure which output a term belongs in, place it in the IMAGE_PROMPT.
 - IGNORE any LoRA tags like <lora:...> or <wanlora:...> - they will be handled separately.
+- IGNORE any verbatim directives like (image: ...) or (video: ...) - they will be handled separately.
 - Return your final result in JSON with keys "image_prompt" and "wan_prompt".
 
 Output format: valid JSON with keys 'image_prompt' and 'wan_prompt'.
@@ -260,6 +261,46 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
         prompt_text = re.sub(r"\s+", " ", prompt_text).strip()
         return prompt_text, extracted_trigger_words
 
+    def _extract_verbatim_directives(
+        self, prompt_text: str
+    ) -> Tuple[str, List[str], List[str]]:
+        """
+        Extract verbatim text directives from prompt.
+
+        Args:
+            prompt_text: Input prompt text with potential (image: ...) and (video: ...) directives
+
+        Returns:
+            Tuple of (cleaned_prompt, image_verbatim_list, video_verbatim_list)
+        """
+        image_verbatim = []
+        video_verbatim = []
+
+        # Pattern for (image: content) - capture everything until the closing parenthesis
+        image_pattern = r"\(image:\s*([^)]+)\)"
+        for match in re.finditer(image_pattern, prompt_text):
+            content = match.group(1).strip()
+            if content:
+                image_verbatim.append(content)
+                log(f"Prompt Splitter: Found image verbatim directive: '{content}'")
+
+        # Pattern for (video: content) - capture everything until the closing parenthesis
+        video_pattern = r"\(video:\s*([^)]+)\)"
+        for match in re.finditer(video_pattern, prompt_text):
+            content = match.group(1).strip()
+            if content:
+                video_verbatim.append(content)
+                log(f"Prompt Splitter: Found video verbatim directive: '{content}'")
+
+        # Remove all verbatim directives from prompt
+        prompt_text = re.sub(image_pattern, "", prompt_text)
+        prompt_text = re.sub(video_pattern, "", prompt_text)
+
+        # Clean up extra whitespace
+        prompt_text = re.sub(r"\s+", " ", prompt_text).strip()
+
+        return prompt_text, image_verbatim, video_verbatim
+
     def _remove_all_lora_tags(self, prompt_text: str) -> str:
         """Remove all LoRA and WanLoRA tags from prompt text."""
         # Remove both types of tags
@@ -362,9 +403,18 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
             log("Prompt Splitter: Empty input prompt, returning empty results")
             return "", ""
 
-        # Parse LoRA tags first, before sending to LLM
+        # Extract verbatim directives first
+        log("Prompt Splitter: Extracting verbatim directives...")
+        prompt_without_verbatim, image_verbatim, video_verbatim = (
+            self._extract_verbatim_directives(prompt_text)
+        )
+        log(
+            f"Prompt Splitter: Found {len(image_verbatim)} image and {len(video_verbatim)} video verbatim directives"
+        )
+
+        # Parse LoRA tags from remaining prompt
         log("Prompt Splitter: Parsing LoRA tags...")
-        standard_loras, wanloras = self.parse_lora_tags(prompt_text)
+        standard_loras, wanloras = self.parse_lora_tags(prompt_without_verbatim)
         log(
             f"Prompt Splitter: Found {len(standard_loras)} standard LoRAs and {len(wanloras)} WanLoRAs"
         )
@@ -372,7 +422,7 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
         # Extract and remove trigger words for all LoRAs
         all_loras = standard_loras + wanloras
         prompt_without_triggers, extracted_trigger_words = (
-            self._extract_and_remove_trigger_words(prompt_text, all_loras)
+            self._extract_and_remove_trigger_words(prompt_without_verbatim, all_loras)
         )
         log(f"Prompt Splitter: Extracted {len(extracted_trigger_words)} trigger words")
 
@@ -437,6 +487,15 @@ Input Prompt: "teen boy in leather jacket in a narrow alley, moody backlight, gr
                         log(
                             f"Prompt Splitter: Added trigger word '{trigger_word}' to video prompt"
                         )
+
+            # Add verbatim directives to appropriate prompts
+            for verbatim in image_verbatim:
+                image_prompt = f"{image_prompt} {verbatim}"
+                log(f"Prompt Splitter: Added image verbatim: '{verbatim}'")
+
+            for verbatim in video_verbatim:
+                wan_prompt = f"{wan_prompt} {verbatim}"
+                log(f"Prompt Splitter: Added video verbatim: '{verbatim}'")
 
             log("Prompt Splitter: Successfully split prompt")
             log(
