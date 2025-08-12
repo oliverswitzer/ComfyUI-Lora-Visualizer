@@ -460,8 +460,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log_error(f"Prompt Splitter: Error calling Ollama: {e}")
             if "Connection" in str(e) or "refused" in str(e):
                 raise Exception(
-                    "Cannot connect to Ollama. Please ensure Ollama is installed and "
-                    "running. Visit https://ollama.ai for installation instructions."
+                    "Cannot connect to Ollama. Please ensure Ollama is installed and running. "
+                    "Run 'ollama serve' in a terminal and try again. "
+                    "Visit https://ollama.ai for installation instructions."
                 ) from e
             raise Exception(
                 f"Ollama API error: {e}. Check your Ollama configuration and try again."
@@ -532,12 +533,18 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 return image_prompt, wan_prompt
             else:
                 log_error("Prompt Splitter: Could not parse response in any format")
-                log_error(f"Prompt Splitter: Full response content: {content[:500]}...")
+                log_error(f"Prompt Splitter: Full response content: {content}")
                 raise Exception(
                     "Invalid response from AI model. The AI model returned malformed "
                     "data that could not be parsed as JSON or plain text. "
-                    f"Response preview: {content[:100]}... "
-                    "Try a different model or check your system prompt."
+                    f"Full response: {content[:200]}... \n\n"
+                    "This usually indicates the model doesn't understand the prompt format. "
+                    "The 'nollama/mythomax-l2-13b:Q4_K_M' model may not be compatible. "
+                    "Try these better options:\n"
+                    "• llama3.1:8b (recommended)\n"
+                    "• llama3.2:3b (faster)\n"
+                    "• qwen2.5:7b (good at instructions)\n\n"
+                    "Run: ollama pull llama3.1:8b"
                 ) from None
 
     def _parse_plain_text_response(self, content: str) -> tuple[str, str]:
@@ -601,6 +608,56 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             image_prompt = " ".join(current_content).strip()
         elif current_section == "WAN_PROMPT":
             wan_prompt = " ".join(current_content).strip()
+
+        # If that didn't work, try a more flexible approach
+        if not image_prompt and not wan_prompt:
+            log_debug("Prompt Splitter: Trying flexible parsing for non-standard format...")
+
+            # Look for any mention of "image" and "video/wan" in the response
+            content_lower = content.lower()
+
+            # Try to extract anything that looks like it could be prompts
+            # This is a fallback for models that don't follow the exact format
+            if "for the image" in content_lower or "image prompt" in content_lower:
+                # Try to extract text after "image" mentions
+                import re
+
+                image_patterns = [
+                    r"image[:\s]+([^\n]+)",
+                    r"for the image[:\s]+([^\n]+)",
+                    r"image prompt[:\s]+([^\n]+)",
+                ]
+                for pattern in image_patterns:
+                    match = re.search(pattern, content, re.IGNORECASE)
+                    if match:
+                        image_prompt = match.group(1).strip()
+                        break
+
+            if (
+                "for the video" in content_lower
+                or "wan prompt" in content_lower
+                or "video prompt" in content_lower
+            ):
+                # Try to extract text after "video/wan" mentions
+                video_patterns = [
+                    r"video[:\s]+([^\n]+)",
+                    r"for the video[:\s]+([^\n]+)",
+                    r"wan prompt[:\s]+([^\n]+)",
+                    r"video prompt[:\s]+([^\n]+)",
+                ]
+                for pattern in video_patterns:
+                    match = re.search(pattern, content, re.IGNORECASE)
+                    if match:
+                        wan_prompt = match.group(1).strip()
+                        break
+
+            # Last resort: if the response is relatively short and looks like a prompt,
+            # assume it's an image prompt
+            if not image_prompt and not wan_prompt and len(content.strip()) < 200:
+                # If it looks like a prompt (comma-separated, descriptive), use it as image prompt
+                if "," in content and not content.count("\n") > 3:
+                    image_prompt = content.strip()
+                    log_debug("Prompt Splitter: Using entire response as image prompt (fallback)")
 
         log_debug(
             f"Parsed plain text - Image: {len(image_prompt)} chars, WAN: {len(wan_prompt)} chars"
@@ -733,8 +790,12 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             log_error(f"Prompt Splitter: Error ensuring model availability: {e}")
             if "Connection" in str(e) or "refused" in str(e):
                 raise Exception(
-                    "Cannot connect to Ollama. Please ensure Ollama is installed and "
-                    "running. Visit https://ollama.ai for installation instructions."
+                    "Cannot connect to Ollama. Please ensure Ollama is installed and running. "
+                    "Try these steps:\n"
+                    "1. Install Ollama from https://ollama.ai\n"
+                    "2. Start Ollama: 'ollama serve'\n"
+                    "3. Pull your model: 'ollama pull nollama/mythomax-l2-13b:Q4_K_M'\n"
+                    "4. Verify it's running: 'ollama list'"
                 ) from e
             raise Exception(
                 f"Model availability error: {e}. Check that Ollama is properly "
