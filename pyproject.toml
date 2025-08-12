@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-lora-visualizer"
 description = "A ComfyUI custom node that parses prompt text for LoRA tags and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images."
-version = "2.1.0"
+version = "2.2.0"
 requires-python = ">=3.9"
 dependencies = [ "sentence-transformers>=2.2.0", "scikit-learn>=1.0.0",]
 readme = "README.md"
@@ -24,6 +24,10 @@ PublisherId = "switzerswish"
 DisplayName = "LoRA Visualizer"
 Icon = ""
 
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
 [tool.pdm.dev-dependencies]
 dev = [ "pytest>=8.4.1", "ruff>=0.1.0",]
 
@@ -33,32 +37,18 @@ format-check = "ruff format --check --diff ."
 lint = "ruff check nodes/ tests/"
 test = "pytest tests"
 
-[tool.pdm.scripts.ci]
-composite = [ "format-check", "test", "lint",]
-
-[tool.ruff]
-line-length = 100
-target-version = "py39"
-
 [tool.ruff.lint]
-select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-]
-ignore = [
-    "E501", # line too long, handled by formatter
-]
+select = [ "E", "W", "F", "I", "B", "C4", "UP",]
+ignore = [ "E501",]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.pdm.scripts.ci]
+composite = [ "format-check", "test", "lint",]
 
 [tool.setuptools.packages.find]
 include = [ "nodes*",]
