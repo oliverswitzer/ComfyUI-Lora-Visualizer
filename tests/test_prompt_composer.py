@@ -7,7 +7,7 @@ external dependencies like sentence-transformers.
 
 import os
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 # Set environment variable to skip initialization for testing
 os.environ.setdefault("COMFYUI_SKIP_LORA_ANALYSIS", "1")
@@ -43,9 +43,7 @@ class TestPromptComposerNode(unittest.TestCase):
 
     def test_return_types(self):
         """Return types should be properly defined."""
-        self.assertEqual(
-            PromptComposerNode.RETURN_TYPES, ("STRING", "STRING", "STRING")
-        )
+        self.assertEqual(PromptComposerNode.RETURN_TYPES, ("STRING", "STRING", "STRING"))
         self.assertEqual(
             PromptComposerNode.RETURN_NAMES,
             ("composed_prompt", "lora_analysis", "metadata_summary"),
@@ -93,9 +91,7 @@ class TestPromptComposerNode(unittest.TestCase):
 
     def test_is_content_lora_style_only(self):
         """_is_content_lora should not identify style-only LoRAs as content."""
-        metadata = {
-            "civitai": {"model": {"tags": ["style", "artistic"]}, "trainedWords": []}
-        }
+        metadata = {"civitai": {"model": {"tags": ["style", "artistic"]}, "trainedWords": []}}
 
         result = self.node._is_content_lora(metadata)
         self.assertFalse(result)
@@ -215,9 +211,7 @@ class TestPromptComposerNode(unittest.TestCase):
                 "sklearn.metrics.pairwise": MagicMock(),
             },
         ):
-            with patch(
-                "nodes.prompt_composer_node.extract_embeddable_content"
-            ) as mock_extract:
+            with patch("nodes.prompt_composer_node.extract_embeddable_content") as mock_extract:
                 mock_extract.return_value = "test lora description"
 
                 result = self.node._initialize_embeddings()

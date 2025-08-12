@@ -3,9 +3,9 @@ LoRA Visualizer Node Implementation
 Parses prompts for LoRA tags and displays metadata, thumbnails, and example images.
 """
 
-import os
 import json
-from typing import Dict, List, Tuple, Optional
+import os
+from typing import Optional
 
 import folder_paths
 
@@ -25,7 +25,7 @@ class LoRAVisualizerNode:
 
     CATEGORY = "conditioning"
     DESCRIPTION = """Analyzes prompt text to extract and visualize LoRA information with metadata.
-    
+
 • Parses standard LoRA tags: <lora:name:strength>
 • Parses custom WanLoRA tags: <wanlora:name:strength>
 • Displays thumbnails, trigger words, and base models
@@ -73,7 +73,7 @@ class LoRAVisualizerNode:
             else None
         )
 
-    def parse_lora_tags(self, prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
+    def parse_lora_tags(self, prompt_text: str) -> tuple[list[dict], list[dict]]:
         """
         Parse LoRA tags from prompt text using shared parsing logic.
 
@@ -83,7 +83,7 @@ class LoRAVisualizerNode:
         """
         return parse_lora_tags(prompt_text)
 
-    def load_metadata(self, lora_name: str) -> Optional[Dict]:
+    def load_metadata(self, lora_name: str) -> Optional[dict]:
         """
         Load metadata for a LoRA from its .metadata.json file.
 
@@ -108,13 +108,13 @@ class LoRAVisualizerNode:
             return None
 
         try:
-            with open(metadata_path, "r", encoding="utf-8") as f:
+            with open(metadata_path, encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             print(f"Error loading metadata for {lora_name}: {e}")
             return None
 
-    def extract_lora_info(self, lora_data: Dict, metadata: Optional[Dict]) -> Dict:
+    def extract_lora_info(self, lora_data: dict, metadata: Optional[dict]) -> dict:
         """
         Extract relevant information from LoRA data and metadata.
 
@@ -162,9 +162,7 @@ class LoRAVisualizerNode:
                         "height": img.get("height", 0),
                         "nsfw_level": img.get("nsfwLevel", 1),
                         "type": img.get("type", "image"),
-                        "meta": img.get(
-                            "meta", {}
-                        ),  # Include full metadata for prompts
+                        "meta": img.get("meta", {}),  # Include full metadata for prompts
                     }
                     for img in metadata["civitai"]["images"]
                 ]
@@ -181,7 +179,7 @@ class LoRAVisualizerNode:
 
         return info
 
-    def format_lora_info(self, loras_info: List[Dict], title: str) -> str:
+    def format_lora_info(self, loras_info: list[dict], title: str) -> str:
         """
         Format LoRA information for display.
 
@@ -216,9 +214,7 @@ class LoRAVisualizerNode:
                 result += "   Preview: Not available\n"
 
             if lora["example_images"]:
-                result += (
-                    f"   Example images: {len(lora['example_images'])} available\n"
-                )
+                result += f"   Example images: {len(lora['example_images'])} available\n"
             else:
                 result += "   Example images: Not available\n"
 
@@ -226,7 +222,7 @@ class LoRAVisualizerNode:
 
         return result
 
-    def visualize_loras(self, prompt_text: str) -> Tuple[str, str]:
+    def visualize_loras(self, prompt_text: str) -> tuple[str, str]:
         """
         Main function that processes the prompt and returns LoRA information.
 
@@ -291,9 +287,7 @@ class LoRAVisualizerNode:
                     "trigger_words": lora.get("trigger_words", []),
                     "base_model": lora.get("base_model", "Unknown"),
                     "civitai_url": lora.get("civitai_url"),
-                    "has_metadata": bool(
-                        lora.get("preview_url") or lora.get("trigger_words")
-                    ),
+                    "has_metadata": bool(lora.get("preview_url") or lora.get("trigger_words")),
                 }
                 for lora in standard_loras_info
             ],
@@ -305,9 +299,7 @@ class LoRAVisualizerNode:
                     "trigger_words": lora.get("trigger_words", []),
                     "base_model": lora.get("base_model", "Unknown"),
                     "civitai_url": lora.get("civitai_url"),
-                    "has_metadata": bool(
-                        lora.get("preview_url") or lora.get("trigger_words")
-                    ),
+                    "has_metadata": bool(lora.get("preview_url") or lora.get("trigger_words")),
                 }
                 for lora in wanloras_info
             ],

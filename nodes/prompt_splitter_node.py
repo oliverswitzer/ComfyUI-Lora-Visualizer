@@ -8,7 +8,7 @@ deterministically for precise control over prompt distribution.
 
 Features:
 - LoRA tag routing: <lora:name:strength> → image prompt
-- WanLoRA tag routing: <wanlora:name:strength> → video prompt  
+- WanLoRA tag routing: <wanlora:name:strength> → video prompt
 - Automatic trigger word extraction from LoRA metadata files
 - Verbatim directives: (image: text) and (video: text) for exact placement
 - Configurable Ollama model (default: nollama/mythomax-l2-13b:Q4_K_M)
@@ -21,7 +21,15 @@ Note: Requires Ollama running locally and ``requests`` library.
 
 import json
 import re
-from typing import Tuple, List, Dict
+
+from .logging_utils import log, log_debug, log_error
+from .lora_metadata_utils import (
+    extract_example_prompts,
+    extract_model_description,
+    get_metadata_loader,
+    parse_lora_tags,
+)
+from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
 
 # Import shared utilities for interacting with Ollama.  These helpers
 # centralize model download and chat requests to avoid duplicating
@@ -29,14 +37,6 @@ from typing import Tuple, List, Dict
 from .ollama_utils import (
     ensure_model_available as _shared_ensure_model_available,
 )  # noqa: E402
-from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat  # noqa: E402
-from .logging_utils import log, log_debug, log_error
-from .lora_metadata_utils import (
-    get_metadata_loader,
-    parse_lora_tags,
-    extract_example_prompts,
-    extract_model_description,
-)
 
 try:
     import requests  # type: ignore[import]
@@ -56,7 +56,7 @@ class PromptSplitterNode:
     (image prompt) and motion/action elements (video prompt). Features:
 
     • Handles LoRA tags: <lora:name:strength> → image prompt
-    • Handles WanLoRA tags: <wanlora:name:strength> → video prompt  
+    • Handles WanLoRA tags: <wanlora:name:strength> → video prompt
     • Extracts trigger words from LoRA metadata automatically
     • Verbatim directives: (image: text) → image prompt, (video: text) → video prompt
     • Configurable Ollama model, API URL, and system prompt
@@ -195,7 +195,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             },
         }
 
-    def parse_lora_tags(self, prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
+    def parse_lora_tags(self, prompt_text: str) -> tuple[list[dict], list[dict]]:
         """
         Parse LoRA tags from prompt text using shared parsing logic.
 
@@ -206,8 +206,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         return parse_lora_tags(prompt_text)
 
     def _extract_and_remove_trigger_words(
-        self, prompt_text: str, lora_list: List[Dict]
-    ) -> Tuple[str, List[str]]:
+        self, prompt_text: str, lora_list: list[dict]
+    ) -> tuple[str, list[str]]:
         """
         Extract trigger words for LoRAs from prompt and remove them.
 
@@ -233,17 +233,15 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                     # Remove trigger word from prompt (case-insensitive)
                     pattern = re.compile(re.escape(trigger_word), re.IGNORECASE)
                     prompt_text = pattern.sub("", prompt_text)
-                    log(
-                        f"Prompt Splitter: Extracted trigger word '{trigger_word}' for {lora_name}"
-                    )
+                    log(f"Prompt Splitter: Extracted trigger word '{trigger_word}' for {lora_name}")
 
         # Clean up extra whitespace after removals
         prompt_text = re.sub(r"\s+", " ", prompt_text).strip()
         return prompt_text, extracted_trigger_words
 
     def _extract_lora_examples(
-        self, loras: List[Dict[str, str]]
-    ) -> tuple[Dict[str, List[str]], Dict[str, str]]:
+        self, loras: list[dict[str, str]]
+    ) -> tuple[dict[str, list[str]], dict[str, str]]:
         """
         Extract example prompts and descriptions from LoRA metadata to ground LLM behavior.
 
@@ -270,16 +268,12 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 self._process_lora_description(metadata, lora_name, lora_descriptions)
 
             except Exception as e:
-                log_debug(
-                    f"Prompt Splitter: Could not extract data for LoRA '{lora_name}': {e}"
-                )
+                log_debug(f"Prompt Splitter: Could not extract data for LoRA '{lora_name}': {e}")
                 continue
 
         return lora_examples, lora_descriptions
 
-    def _process_lora_examples(
-        self, metadata: Dict, lora_name: str, lora_examples: Dict
-    ):
+    def _process_lora_examples(self, metadata: dict, lora_name: str, lora_examples: dict):
         """Process and extract examples for a LoRA."""
         examples = extract_example_prompts(metadata, limit=3)
         if not examples:
@@ -293,10 +287,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
         if cleaned_examples:
             lora_examples[lora_name] = cleaned_examples
-            log_debug(
-                f"Prompt Splitter: Found {len(cleaned_examples)} "
-                f"examples for '{lora_name}'"
-            )
+            log_debug(f"Prompt Splitter: Found {len(cleaned_examples)} examples for '{lora_name}'")
 
     def _clean_example(self, example: str) -> str:
         """Clean an example prompt by removing LoRA tags and truncating if needed."""
@@ -308,20 +299,17 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             cleaned = cleaned[:500].rstrip()
         return cleaned
 
-    def _process_lora_description(
-        self, metadata: Dict, lora_name: str, lora_descriptions: Dict
-    ):
+    def _process_lora_description(self, metadata: dict, lora_name: str, lora_descriptions: dict):
         """Process and extract description for a LoRA."""
         description = extract_model_description(metadata)
         if description:
             lora_descriptions[lora_name] = description
             log_debug(
-                f"Prompt Splitter: Found description for '{lora_name}': "
-                f"{len(description)} chars"
+                f"Prompt Splitter: Found description for '{lora_name}': {len(description)} chars"
             )
 
     def _create_contextualized_system_prompt(
-        self, lora_examples: Dict[str, List[str]], lora_descriptions: Dict[str, str]
+        self, lora_examples: dict[str, list[str]], lora_descriptions: dict[str, str]
     ) -> str:
         """
         Create a system prompt with LoRA examples and descriptions to ground the LLM.
@@ -349,9 +337,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         if lora_descriptions:
             for lora_name, description in lora_descriptions.items():
                 context_section += f"'{lora_name}' LoRA:\n"
-                truncated_desc = description[:300] + (
-                    "..." if len(description) > 300 else ""
-                )
+                truncated_desc = description[:300] + ("..." if len(description) > 300 else "")
                 context_section += f"  Purpose: {truncated_desc}\n\n"
 
         # Include examples
@@ -359,9 +345,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             context_section += "--- LoRA USAGE EXAMPLES ---\n"
             for lora_name, examples in lora_examples.items():
                 context_section += f"'{lora_name}' examples:\n"
-                for i, example in enumerate(
-                    examples[:2], 1
-                ):  # Limit to 2 examples per LoRA
+                for i, example in enumerate(examples[:2], 1):  # Limit to 2 examples per LoRA
                     context_section += f"  {i}. {example}\n"
                 context_section += "\n"
 
@@ -376,9 +360,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         insertion_point = base_prompt.find("Examples:")
         if insertion_point != -1:
             enhanced_prompt = (
-                base_prompt[:insertion_point]
-                + context_section
-                + base_prompt[insertion_point:]
+                base_prompt[:insertion_point] + context_section + base_prompt[insertion_point:]
             )
         else:
             # Fallback: append to end
@@ -386,9 +368,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
         return enhanced_prompt
 
-    def _extract_verbatim_directives(
-        self, prompt_text: str
-    ) -> Tuple[str, List[str], List[str]]:
+    def _extract_verbatim_directives(self, prompt_text: str) -> tuple[str, list[str], list[str]]:
         """
         Extract verbatim text directives from prompt.
 
@@ -407,9 +387,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             content = match.group(1).strip()
             if content:
                 image_verbatim.append(content)
-                log_debug(
-                    f"Prompt Splitter: Found image verbatim directive: '{content}'"
-                )
+                log_debug(f"Prompt Splitter: Found image verbatim directive: '{content}'")
 
         # Pattern for (video: content) - capture everything until the closing parenthesis
         video_pattern = r"\(video:\s*([^)]+)\)"
@@ -417,9 +395,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             content = match.group(1).strip()
             if content:
                 video_verbatim.append(content)
-                log_debug(
-                    f"Prompt Splitter: Found video verbatim directive: '{content}'"
-                )
+                log_debug(f"Prompt Splitter: Found video verbatim directive: '{content}'")
 
         # Remove the wrapper syntax but keep the content for LLM context
         # Replace (image: content) with just content
@@ -460,7 +436,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
     def _call_ollama(
         self, prompt: str, model_name: str, api_url: str, system_prompt: str
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """Call the Ollama chat API via shared helper and parse the response.
 
         Uses the shared ``call_ollama_chat`` helper to obtain the assistant's
@@ -486,10 +462,10 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 raise Exception(
                     "Cannot connect to Ollama. Please ensure Ollama is installed and "
                     "running. Visit https://ollama.ai for installation instructions."
-                )
+                ) from e
             raise Exception(
                 f"Ollama API error: {e}. Check your Ollama configuration and try again."
-            )
+            ) from e
 
         if not content:
             log_error("Prompt Splitter: Ollama returned empty response")
@@ -498,9 +474,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 "or experiencing issues."
             )
 
-        log(
-            f"Prompt Splitter: Received response from Ollama ({len(content)} characters)"
-        )
+        log(f"Prompt Splitter: Received response from Ollama ({len(content)} characters)")
         try:
             result = json.loads(content.strip())
             image_prompt = str(result.get("image_prompt", ""))
@@ -524,9 +498,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                     "Invalid response from AI model. The AI model returned malformed "
                     "data that could not be parsed as JSON or plain text. "
                     "Try a different model or check your system prompt."
-                )
+                ) from None
 
-    def _parse_plain_text_response(self, content: str) -> Tuple[str, str]:
+    def _parse_plain_text_response(self, content: str) -> tuple[str, str]:
         """
         Parse plain text response that contains IMAGE_PROMPT: and WAN_PROMPT: sections.
 
@@ -614,7 +588,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             # Don't fail the entire operation if progress update fails
             log_error(f"Failed to send progress update: {e}")
 
-    def _naive_split(self, prompt: str) -> Tuple[str, str]:
+    def _naive_split(self, prompt: str) -> tuple[str, str]:
         """Deprecated fallback splitting.
 
         Historically, this method provided a naive fallback when Ollama
@@ -631,7 +605,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         model_name: str = None,
         api_url: str = None,
         system_prompt: str = "",
-    ) -> Tuple[str, str, str]:
+    ) -> tuple[str, str, str]:
         """Public method invoked by ComfyUI to split prompts.
 
         Args:
@@ -655,8 +629,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
         # Extract verbatim directives and remove wrapper syntax for LLM context
         log("Prompt Splitter: Extracting verbatim directives...")
-        prompt_without_wrappers, image_verbatim, video_verbatim = (
-            self._extract_verbatim_directives(prompt_text)
+        prompt_without_wrappers, image_verbatim, video_verbatim = self._extract_verbatim_directives(
+            prompt_text
         )
         log(
             f"Prompt Splitter: Found {len(image_verbatim)} image and "
@@ -675,23 +649,17 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
         # Extract and remove trigger words for all LoRAs (use prompt without wrappers)
         all_loras = standard_loras + wanloras
-        prompt_without_triggers, extracted_trigger_words = (
-            self._extract_and_remove_trigger_words(prompt_without_wrappers, all_loras)
+        prompt_without_triggers, extracted_trigger_words = self._extract_and_remove_trigger_words(
+            prompt_without_wrappers, all_loras
         )
-        log_debug(
-            f"Prompt Splitter: Extracted {len(extracted_trigger_words)} trigger words"
-        )
+        log_debug(f"Prompt Splitter: Extracted {len(extracted_trigger_words)} trigger words")
 
         # Remove all LoRA tags from prompt before sending to LLM
         clean_prompt = self._remove_all_lora_tags(prompt_without_triggers)
-        log_debug(
-            f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters"
-        )
+        log_debug(f"Prompt Splitter: Cleaned prompt length: {len(clean_prompt)} characters")
 
         # Extract LoRA examples and descriptions to ground LLM behavior
-        log_debug(
-            "Prompt Splitter: Extracting LoRA examples and descriptions for context..."
-        )
+        log_debug("Prompt Splitter: Extracting LoRA examples and descriptions for context...")
         lora_examples, lora_descriptions = self._extract_lora_examples(all_loras)
 
         # Determine which model to use: the caller-supplied name or the default.
@@ -704,13 +672,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             sys_prompt = system_prompt
         else:
             # Use our enhanced system prompt with LoRA context
-            sys_prompt = self._create_contextualized_system_prompt(
-                lora_examples, lora_descriptions
-            )
+            sys_prompt = self._create_contextualized_system_prompt(lora_examples, lora_descriptions)
             if lora_examples or lora_descriptions:
-                total_examples = sum(
-                    len(examples) for examples in lora_examples.values()
-                )
+                total_examples = sum(len(examples) for examples in lora_examples.values())
                 total_descriptions = len(lora_descriptions)
                 log(
                     f"Prompt Splitter: Enhanced system prompt with {total_examples} examples "
@@ -731,19 +695,17 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 raise Exception(
                     "Cannot connect to Ollama. Please ensure Ollama is installed and "
                     "running. Visit https://ollama.ai for installation instructions."
-                )
+                ) from e
             raise Exception(
                 f"Model availability error: {e}. Check that Ollama is properly "
                 f"configured and the model name is correct."
-            )
+            ) from e
 
         self._send_progress_update(0.6, "Generating prompt splits with AI...")
 
         # Send clean prompt (without LoRA tags) to Ollama
         log("Prompt Splitter: Sending request to Ollama...")
-        image_prompt, wan_prompt = self._call_ollama(
-            clean_prompt, model, url, sys_prompt
-        )
+        image_prompt, wan_prompt = self._call_ollama(clean_prompt, model, url, sys_prompt)
 
         if image_prompt and wan_prompt:
             self._send_progress_update(0.8, "Reassembling prompts with LoRA tags...")
@@ -763,9 +725,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 for trigger_word in trigger_words:
                     if trigger_word in extracted_trigger_words:
                         image_prompt = f"{image_prompt} {trigger_word}"
-                        log(
-                            f"Prompt Splitter: Added trigger word '{trigger_word}' to image prompt"
-                        )
+                        log(f"Prompt Splitter: Added trigger word '{trigger_word}' to image prompt")
 
             # WanLoRAs go to video prompt
             for wanlora in wanloras:
@@ -779,9 +739,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 for trigger_word in trigger_words:
                     if trigger_word in extracted_trigger_words:
                         wan_prompt = f"{wan_prompt} {trigger_word}"
-                        log(
-                            f"Prompt Splitter: Added trigger word '{trigger_word}' to video prompt"
-                        )
+                        log(f"Prompt Splitter: Added trigger word '{trigger_word}' to video prompt")
 
             # Add verbatim directives back to appropriate prompts deterministically
             for verbatim in image_verbatim:
@@ -829,9 +787,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                         for lora in wanloras
                     ],
                 },
-                "total_examples_used": sum(
-                    len(examples) for examples in lora_examples.values()
-                ),
+                "total_examples_used": sum(len(examples) for examples in lora_examples.values()),
                 "verbatim_directives": {
                     "image_verbatim": image_verbatim,
                     "video_verbatim": video_verbatim,
@@ -843,22 +799,16 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             analysis_output = json.dumps(analysis_data, indent=2, ensure_ascii=False)
 
             log("Prompt Splitter: Successfully split prompt")
-            log(
-                f"Prompt Splitter: Final image prompt length: {len(image_prompt)} characters"
-            )
-            log(
-                f"Prompt Splitter: Final video prompt length: {len(wan_prompt)} characters"
-            )
+            log(f"Prompt Splitter: Final image prompt length: {len(image_prompt)} characters")
+            log(f"Prompt Splitter: Final video prompt length: {len(wan_prompt)} characters")
             return image_prompt.strip(), wan_prompt.strip(), analysis_output
 
         # If Ollama returned empty or invalid responses, do not attempt a
         # naive fallback.  Return empty strings to signal failure.
-        log_error(
-            "Prompt Splitter: Failed to split prompt - Ollama returned empty response"
-        )
+        log_error("Prompt Splitter: Failed to split prompt - Ollama returned empty response")
 
         # Create error analysis output
-        error_analysis = json.dumps(
+        json.dumps(
             {
                 "error": "AI model returned empty response",
                 "processing_successful": False,

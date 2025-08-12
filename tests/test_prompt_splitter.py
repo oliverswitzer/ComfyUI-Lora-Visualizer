@@ -26,9 +26,7 @@ class TestPromptSplitterNode(unittest.TestCase):
 
     def test_split_prompt_returns_ollama_response(self):
         """split_prompt should return whatever _call_ollama returns if non-empty."""
-        with patch.object(
-            self.node, "_call_ollama", return_value=("image", "video")
-        ) as mock_call:
+        with patch.object(self.node, "_call_ollama", return_value=("image", "video")) as mock_call:
             with patch.object(self.node, "_ensure_model_available") as mock_ensure:
                 image, wan, analysis = self.node.split_prompt("A test prompt")
         self.assertEqual(image, "image")
@@ -42,17 +40,13 @@ class TestPromptSplitterNode(unittest.TestCase):
             with patch.object(self.node, "_ensure_model_available"):
                 with self.assertRaises(Exception) as context:
                     self.node.split_prompt("A test prompt")
-                self.assertIn(
-                    "AI model returned empty response", str(context.exception)
-                )
+                self.assertIn("AI model returned empty response", str(context.exception))
 
     def test_default_model_is_used_when_none(self):
         """If model_name is None, the default model should be used."""
         used = {}
 
-        def fake_call(
-            prompt, model_name, api_url, system_prompt
-        ):  # pylint: disable=unused-argument
+        def fake_call(prompt, model_name, api_url, system_prompt):  # pylint: disable=unused-argument
             used["model"] = model_name
             return ("x", "y")
 
@@ -73,9 +67,7 @@ class TestPromptSplitterNode(unittest.TestCase):
         """Providing a model_name should override the default."""
         used = {}
 
-        def fake_call(
-            prompt, model_name, api_url, system_prompt
-        ):  # pylint: disable=unused-argument
+        def fake_call(prompt, model_name, api_url, system_prompt):  # pylint: disable=unused-argument
             used["model"] = model_name
             return ("image", "wan")
 
@@ -89,9 +81,7 @@ class TestPromptSplitterNode(unittest.TestCase):
         node = PromptSplitterNode()
 
         # Patch the shared utility function directly
-        with patch(
-            "nodes.prompt_splitter_node._shared_ensure_model_available"
-        ) as mock_ensure:
+        with patch("nodes.prompt_splitter_node._shared_ensure_model_available") as mock_ensure:
             node._ensure_model_available("test-model", "http://localhost:11434")
 
         # Verify that the shared utility was called with correct parameters
@@ -110,9 +100,7 @@ class TestPromptSplitterNode(unittest.TestCase):
         node = PromptSplitterNode()
 
         # Patch the shared utility function directly
-        with patch(
-            "nodes.prompt_splitter_node._shared_ensure_model_available"
-        ) as mock_ensure:
+        with patch("nodes.prompt_splitter_node._shared_ensure_model_available") as mock_ensure:
             node._ensure_model_available("installed-model", "http://localhost:11434")
 
         # Verify that the shared utility was called (handles availability checking)
@@ -211,9 +199,7 @@ class TestPromptSplitterNode(unittest.TestCase):
             return_value=("woman dancing gracefully", "woman dances"),
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt, analysis = self.node.split_prompt(
-                    input_prompt
-                )
+                image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
 
         # LoRA should be added to image prompt
         self.assertIn("<lora:style:0.8>", image_prompt)
@@ -235,9 +221,7 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node, "_call_ollama", return_value=("woman dancing", "woman dances")
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt, analysis = self.node.split_prompt(
-                    input_prompt
-                )
+                image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
 
         self.assertEqual(image_prompt, "woman dancing")
         self.assertEqual(wan_prompt, "woman dances")
@@ -278,8 +262,7 @@ class TestPromptSplitterNode(unittest.TestCase):
     def test_split_prompt_with_trigger_words(self):
         """split_prompt should handle trigger words correctly."""
         input_prompt = (
-            "beautiful woman <lora:style:0.8> dancing with motion-blur "
-            "<wanlora:motion:1.0>"
+            "beautiful woman <lora:style:0.8> dancing with motion-blur <wanlora:motion:1.0>"
         )
 
         # Mock metadata for LoRAs
@@ -313,9 +296,7 @@ class TestPromptSplitterNode(unittest.TestCase):
                 return_value=("woman dancing", "woman dances"),
             ):
                 with patch.object(self.node, "_ensure_model_available"):
-                    image_prompt, wan_prompt, analysis = self.node.split_prompt(
-                        input_prompt
-                    )
+                    image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
 
             # Should have LoRA tag and trigger word
             self.assertIn("<lora:style:0.8>", image_prompt)
@@ -333,14 +314,12 @@ class TestPromptSplitterNode(unittest.TestCase):
         """_extract_verbatim_directives should find and extract verbatim text."""
         prompt = "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
 
-        clean_prompt, image_verbatim, video_verbatim = (
-            self.node._extract_verbatim_directives(prompt)
+        clean_prompt, image_verbatim, video_verbatim = self.node._extract_verbatim_directives(
+            prompt
         )
 
         # Prompt should have wrapper syntax removed but content preserved
-        expected_prompt = (
-            "woman dancing overwatch, ana gracefully she jumps up and down"
-        )
+        expected_prompt = "woman dancing overwatch, ana gracefully she jumps up and down"
         self.assertEqual(clean_prompt, expected_prompt)
         self.assertEqual(len(image_verbatim), 1)
         self.assertEqual(len(video_verbatim), 1)
@@ -354,8 +333,8 @@ class TestPromptSplitterNode(unittest.TestCase):
             "(video: motion1) then (video: motion2)"
         )
 
-        clean_prompt, image_verbatim, video_verbatim = (
-            self.node._extract_verbatim_directives(prompt)
+        clean_prompt, image_verbatim, video_verbatim = self.node._extract_verbatim_directives(
+            prompt
         )
 
         # Prompt should have wrapper syntax removed but content preserved
@@ -372,8 +351,8 @@ class TestPromptSplitterNode(unittest.TestCase):
         """_extract_verbatim_directives should ignore empty directives."""
         prompt = "woman dancing (image: ) gracefully (video:   )"
 
-        clean_prompt, image_verbatim, video_verbatim = (
-            self.node._extract_verbatim_directives(prompt)
+        clean_prompt, image_verbatim, video_verbatim = self.node._extract_verbatim_directives(
+            prompt
         )
 
         # Empty directives should be removed entirely
@@ -385,8 +364,7 @@ class TestPromptSplitterNode(unittest.TestCase):
     def test_split_prompt_with_verbatim_directives(self):
         """split_prompt should handle verbatim directives correctly."""
         input_prompt = (
-            "woman dancing (image: overwatch, ana) gracefully "
-            "(video: she jumps up and down)"
+            "woman dancing (image: overwatch, ana) gracefully (video: she jumps up and down)"
         )
 
         # Mock _call_ollama to return clean responses (verbatim content added back separately)
@@ -396,9 +374,7 @@ class TestPromptSplitterNode(unittest.TestCase):
             return_value=("woman dancing gracefully", "woman dances"),
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt, analysis = self.node.split_prompt(
-                    input_prompt
-                )
+                image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
 
         # Should have verbatim content added back deterministically
         self.assertIn("overwatch, ana", image_prompt)
@@ -428,9 +404,7 @@ class TestPromptSplitterNode(unittest.TestCase):
                 return_value=("woman dancing", "woman dances"),
             ):
                 with patch.object(self.node, "_ensure_model_available"):
-                    image_prompt, wan_prompt, analysis = self.node.split_prompt(
-                        input_prompt
-                    )
+                    image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
 
         # Should have verbatim content added back deterministically
         self.assertIn("overwatch, ana", image_prompt)
@@ -455,11 +429,7 @@ class TestPromptSplitterNode(unittest.TestCase):
         mock_metadata = {
             "civitai": {
                 "images": [
-                    {
-                        "meta": {
-                            "prompt": "beautiful woman, detailed face, professional lighting"
-                        }
-                    },
+                    {"meta": {"prompt": "beautiful woman, detailed face, professional lighting"}},
                     {"meta": {"prompt": "stunning portrait, high quality, cinematic"}},
                 ]
             }
@@ -472,9 +442,7 @@ class TestPromptSplitterNode(unittest.TestCase):
                 mock_metadata if name == "test_lora" else None
             )
 
-            with patch(
-                "nodes.prompt_splitter_node.extract_example_prompts"
-            ) as mock_extract:
+            with patch("nodes.prompt_splitter_node.extract_example_prompts") as mock_extract:
                 mock_extract.return_value = [
                     "beautiful woman, detailed face, professional lighting",
                     "stunning portrait, high quality, cinematic",
@@ -503,9 +471,7 @@ class TestPromptSplitterNode(unittest.TestCase):
             mock_loader_instance = mock_loader.return_value
             mock_loader_instance.load_metadata.return_value = mock_metadata
 
-            with patch(
-                "nodes.prompt_splitter_node.extract_example_prompts"
-            ) as mock_extract:
+            with patch("nodes.prompt_splitter_node.extract_example_prompts") as mock_extract:
                 mock_extract.return_value = ["test prompt"]
 
                 examples, descriptions = self.node._extract_lora_examples(loras)
@@ -582,9 +548,7 @@ through the scene with fluid motion"""
         self.assertIn("MotionLoRA", enhanced_prompt)
         self.assertIn("artistic woman, oil painting style", enhanced_prompt)
         self.assertIn("dancing figure, fluid movement", enhanced_prompt)
-        self.assertIn(
-            "artistic oil painting styles", enhanced_prompt
-        )  # From description
+        self.assertIn("artistic oil painting styles", enhanced_prompt)  # From description
 
     def test_create_contextualized_system_prompt_no_examples(self):
         """_create_contextualized_system_prompt should return base prompt when no examples."""
@@ -596,8 +560,7 @@ through the scene with fluid motion"""
     def test_lora_analysis_output_contains_examples(self):
         """split_prompt should return analysis output with LoRA examples."""
         input_prompt = (
-            "woman dancing <lora:style:0.8> beautiful face "
-            "<wanlora:motion:1.0> graceful movement"
+            "woman dancing <lora:style:0.8> beautiful face <wanlora:motion:1.0> graceful movement"
         )
 
         # Mock metadata loader and examples
@@ -609,9 +572,7 @@ through the scene with fluid motion"""
                 "trigger2",
             ]
 
-            with patch(
-                "nodes.prompt_splitter_node.extract_example_prompts"
-            ) as mock_extract:
+            with patch("nodes.prompt_splitter_node.extract_example_prompts") as mock_extract:
                 mock_extract.return_value = [
                     "example prompt 1 for this lora",
                     "example prompt 2 showing usage",
@@ -623,9 +584,7 @@ through the scene with fluid motion"""
                     return_value=("woman dancing gracefully", "woman dances"),
                 ):
                     with patch.object(self.node, "_ensure_model_available"):
-                        image_prompt, wan_prompt, analysis = self.node.split_prompt(
-                            input_prompt
-                        )
+                        image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
 
         # Parse the JSON analysis
         import json

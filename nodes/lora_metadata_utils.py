@@ -5,11 +5,11 @@ This module provides common functionality for loading and extracting information
 from LoRA .metadata.json files, used by both the visualizer and prompt splitter nodes.
 """
 
-import os
-import json
-import re
 import glob
-from typing import Dict, List, Optional, Any, Tuple
+import json
+import os
+import re
+from typing import Any, Optional
 
 try:
     import folder_paths  # type: ignore[import]
@@ -31,7 +31,7 @@ class LoRAMetadataLoader:
             if lora_paths:
                 self.loras_folder = lora_paths[0]
 
-    def load_metadata(self, lora_name: str) -> Optional[Dict[str, Any]]:
+    def load_metadata(self, lora_name: str) -> Optional[dict[str, Any]]:
         """
         Load metadata for a LoRA from its .metadata.json file.
 
@@ -42,9 +42,7 @@ class LoRAMetadataLoader:
             Dict containing metadata or None if not found
         """
         if not self.loras_folder:
-            log_error(
-                f"LoRA folder not available, cannot load metadata for {lora_name}"
-            )
+            log_error(f"LoRA folder not available, cannot load metadata for {lora_name}")
             return None
 
         # Try different metadata file naming patterns
@@ -56,17 +54,17 @@ class LoRAMetadataLoader:
         for metadata_path in metadata_paths:
             if os.path.exists(metadata_path):
                 try:
-                    with open(metadata_path, "r", encoding="utf-8") as f:
+                    with open(metadata_path, encoding="utf-8") as f:
                         log(f"Loaded metadata for LoRA: {lora_name}")
                         return json.load(f)
-                except (json.JSONDecodeError, IOError) as e:
+                except (OSError, json.JSONDecodeError) as e:
                     log_error(f"Error loading metadata for {lora_name}: {e}")
                     return None
 
         log(f"No metadata file found for LoRA: {lora_name}")
         return None
 
-    def extract_trigger_words(self, metadata: Optional[Dict[str, Any]]) -> List[str]:
+    def extract_trigger_words(self, metadata: Optional[dict[str, Any]]) -> list[str]:
         """
         Extract trigger words from LoRA metadata.
 
@@ -84,15 +82,13 @@ class LoRAMetadataLoader:
             if "civitai" in metadata and "trainedWords" in metadata["civitai"]:
                 trained_words = metadata["civitai"]["trainedWords"]
                 if isinstance(trained_words, list):
-                    return [
-                        word.strip() for word in trained_words if word and word.strip()
-                    ]
+                    return [word.strip() for word in trained_words if word and word.strip()]
         except (KeyError, TypeError):
             pass
 
         return []
 
-    def is_video_lora(self, metadata: Optional[Dict[str, Any]]) -> bool:
+    def is_video_lora(self, metadata: Optional[dict[str, Any]]) -> bool:
         """
         Determine if a LoRA is for video generation based on base model.
 
@@ -113,18 +109,14 @@ class LoRAMetadataLoader:
         # Also check civitai.baseModel field
         try:
             civitai_base = metadata.get("civitai", {}).get("baseModel", "").lower()
-            if (
-                "wan" in civitai_base
-                or "video" in civitai_base
-                or "i2v" in civitai_base
-            ):
+            if "wan" in civitai_base or "video" in civitai_base or "i2v" in civitai_base:
                 return True
         except (AttributeError, TypeError):
             pass
 
         return False
 
-    def get_lora_info(self, lora_name: str) -> Dict[str, Any]:
+    def get_lora_info(self, lora_name: str) -> dict[str, Any]:
         """
         Get comprehensive information about a LoRA including trigger words and type.
 
@@ -157,12 +149,12 @@ def get_metadata_loader() -> LoRAMetadataLoader:
     return _metadata_loader
 
 
-def load_lora_metadata(lora_name: str) -> Optional[Dict[str, Any]]:
+def load_lora_metadata(lora_name: str) -> Optional[dict[str, Any]]:
     """Convenience function to load metadata for a LoRA."""
     return get_metadata_loader().load_metadata(lora_name)
 
 
-def get_lora_trigger_words(lora_name: str) -> List[str]:
+def get_lora_trigger_words(lora_name: str) -> list[str]:
     """Convenience function to get trigger words for a LoRA."""
     loader = get_metadata_loader()
     metadata = loader.load_metadata(lora_name)
@@ -176,7 +168,7 @@ def is_video_lora(lora_name: str) -> bool:
     return loader.is_video_lora(metadata)
 
 
-def parse_lora_tags(prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
+def parse_lora_tags(prompt_text: str) -> tuple[list[dict], list[dict]]:
     """
     Parse LoRA tags from prompt text.
 
@@ -234,7 +226,7 @@ def parse_lora_tags(prompt_text: str) -> Tuple[List[Dict], List[Dict]]:
     return standard_loras, wanloras
 
 
-def discover_all_loras() -> Dict[str, Dict[str, Any]]:
+def discover_all_loras() -> dict[str, dict[str, Any]]:
     """
     Discover all LoRAs in the ComfyUI LoRA directory and load their metadata.
 
@@ -262,7 +254,7 @@ def discover_all_loras() -> Dict[str, Dict[str, Any]]:
     return loras
 
 
-def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
+def extract_embeddable_content(metadata: dict[str, Any]) -> str:
     """
     Extract text content from LoRA metadata for embedding generation.
     Title/filename words are repeated to increase their semantic weight.
@@ -318,9 +310,7 @@ def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
 
         # Also extract and repeat key words from model name
         model_words = re.findall(r"[a-zA-Z]{3,}", model_name.lower())
-        filtered_model_words = [
-            w for w in model_words if w not in ["lora", "for", "wan", "the"]
-        ]
+        filtered_model_words = [w for w in model_words if w not in ["lora", "for", "wan", "the"]]
         log_debug(f"  🎯 Model words added: {filtered_model_words}")
         content_parts.extend(filtered_model_words)
 
@@ -359,15 +349,13 @@ def extract_embeddable_content(metadata: Dict[str, Any]) -> str:
 
     preview = final_content[:100]
     suffix = "..." if len(final_content) > 100 else ""
-    log_debug(
-        f"  📊 Final embeddable content ({len(final_content)} chars): '{preview}{suffix}'"
-    )
+    log_debug(f"  📊 Final embeddable content ({len(final_content)} chars): '{preview}{suffix}'")
     log_debug(f"  📈 Word count: {len(final_content.split())} words")
 
     return final_content
 
 
-def extract_model_description(metadata: Dict[str, Any]) -> str:
+def extract_model_description(metadata: dict[str, Any]) -> str:
     """
     Extract model description from LoRA metadata.
 
@@ -392,9 +380,7 @@ def extract_model_description(metadata: Dict[str, Any]) -> str:
             "description" in metadata["civitai"]["model"]
             and metadata["civitai"]["model"]["description"]
         ):
-            description_parts.append(
-                metadata["civitai"]["model"]["description"].strip()
-            )
+            description_parts.append(metadata["civitai"]["model"]["description"].strip())
 
     # Join all parts and limit length for context
     full_description = " ".join(description_parts)
@@ -406,7 +392,7 @@ def extract_model_description(metadata: Dict[str, Any]) -> str:
     return full_description
 
 
-def extract_example_prompts(metadata: Dict[str, Any], limit: int = 5) -> List[str]:
+def extract_example_prompts(metadata: dict[str, Any], limit: int = 5) -> list[str]:
     """
     Extract example prompts from LoRA metadata for style analysis.
 
@@ -424,11 +410,7 @@ def extract_example_prompts(metadata: Dict[str, Any], limit: int = 5) -> List[st
 
     if "civitai" in metadata and "images" in metadata["civitai"]:
         for image in metadata["civitai"]["images"]:
-            if (
-                "meta" in image
-                and image["meta"] is not None
-                and "prompt" in image["meta"]
-            ):
+            if "meta" in image and image["meta"] is not None and "prompt" in image["meta"]:
                 prompt = image["meta"]["prompt"]
                 if isinstance(prompt, str) and prompt.strip():
                     prompts.append(prompt.strip())
@@ -438,7 +420,7 @@ def extract_example_prompts(metadata: Dict[str, Any], limit: int = 5) -> List[st
     return prompts
 
 
-def classify_lora_type(metadata: Dict[str, Any]) -> str:
+def classify_lora_type(metadata: dict[str, Any]) -> str:
     """
     Classify LoRA as image or video generation type.
 
@@ -474,7 +456,7 @@ def classify_lora_type(metadata: Dict[str, Any]) -> str:
     return "unknown"
 
 
-def extract_recommended_weight(metadata: Dict[str, Any]) -> float:
+def extract_recommended_weight(metadata: dict[str, Any]) -> float:
     """
     Extract recommended weight/strength for a LoRA from its metadata.
 

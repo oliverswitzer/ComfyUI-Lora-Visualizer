@@ -7,17 +7,17 @@ works correctly with mock data and different metadata file formats.
 
 import os
 import unittest
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
 
 from nodes.lora_metadata_utils import (
     LoRAMetadataLoader,
-    load_lora_metadata,
-    get_lora_trigger_words,
-    is_video_lora,
+    classify_lora_type,
     extract_embeddable_content,
     extract_example_prompts,
-    classify_lora_type,
     extract_recommended_weight,
+    get_lora_trigger_words,
+    is_video_lora,
+    load_lora_metadata,
 )
 
 os.environ.setdefault("COMFYUI_SKIP_LORA_ANALYSIS", "1")
@@ -31,9 +31,7 @@ class TestLoRAMetadataLoader(unittest.TestCase):
 
     def test_extract_trigger_words_from_civitai(self):
         """extract_trigger_words should extract from civitai.trainedWords."""
-        metadata = {
-            "civitai": {"trainedWords": ["beautiful", "anime-style", "portrait"]}
-        }
+        metadata = {"civitai": {"trainedWords": ["beautiful", "anime-style", "portrait"]}}
 
         trigger_words = self.loader.extract_trigger_words(metadata)
 
@@ -50,9 +48,7 @@ class TestLoRAMetadataLoader(unittest.TestCase):
 
     def test_extract_trigger_words_filters_empty_strings(self):
         """extract_trigger_words should filter out empty or whitespace-only strings."""
-        metadata = {
-            "civitai": {"trainedWords": ["beautiful", "", "  ", "anime-style", None]}
-        }
+        metadata = {"civitai": {"trainedWords": ["beautiful", "", "  ", "anime-style", None]}}
 
         trigger_words = self.loader.extract_trigger_words(metadata)
 
@@ -98,10 +94,6 @@ class TestLoRAMetadataLoader(unittest.TestCase):
         mock_exists.return_value = True
 
         # Mock file content
-        mock_metadata = {
-            "model_name": "Test LoRA",
-            "civitai": {"trainedWords": ["test"]},
-        }
         mock_file.return_value.read.return_value = (
             '{"model_name": "Test LoRA", "civitai": {"trainedWords": ["test"]}}'
         )
@@ -303,15 +295,11 @@ class TestNewMetadataFunctions(unittest.TestCase):
         """extract_recommended_weight should reject unreasonable weights."""
         # Too high
         metadata = {"modelDescription": "Use weight 5.0"}
-        self.assertEqual(
-            extract_recommended_weight(metadata), 0.8
-        )  # Should use default
+        self.assertEqual(extract_recommended_weight(metadata), 0.8)  # Should use default
 
         # Too low
         metadata = {"modelDescription": "Use weight 0.05"}
-        self.assertEqual(
-            extract_recommended_weight(metadata), 0.8
-        )  # Should use default
+        self.assertEqual(extract_recommended_weight(metadata), 0.8)  # Should use default
 
 
 if __name__ == "__main__":

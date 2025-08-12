@@ -2,10 +2,10 @@
 Tests for LoRA Visualizer Node functionality
 """
 
-import unittest
-import sys
-import os
 import json
+import os
+import sys
+import unittest
 from unittest.mock import Mock, patch
 
 # Mock ComfyUI dependencies before importing
@@ -17,7 +17,7 @@ sys.modules["aiohttp"] = Mock()
 current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, current_dir)
 
-from nodes.lora_visualizer_node import LoRAVisualizerNode
+from nodes.lora_visualizer_node import LoRAVisualizerNode  # noqa: E402
 
 
 class TestLoRAVisualizerNode(unittest.TestCase):
@@ -53,9 +53,7 @@ class TestLoRAVisualizerNode(unittest.TestCase):
 
     def test_parse_mixed_lora_tags(self):
         """Test parsing of both standard and wanlora tags."""
-        prompt = (
-            "Portrait <lora:style_v1:0.5> of woman <wanlora:Woman877.v2:0.8> in park"
-        )
+        prompt = "Portrait <lora:style_v1:0.5> of woman <wanlora:Woman877.v2:0.8> in park"
         standard_loras, wanloras = self.node.parse_lora_tags(prompt)
 
         self.assertEqual(len(standard_loras), 1)
@@ -89,9 +87,7 @@ class TestLoRAVisualizerNode(unittest.TestCase):
         self.assertEqual(wanlora["name"], "Model Name: v2.0: Enhanced Edition")
         self.assertEqual(wanlora["strength"], "0.5")
         self.assertEqual(wanlora["type"], "wanlora")
-        self.assertEqual(
-            wanlora["tag"], "<wanlora:Model Name: v2.0: Enhanced Edition:0.5>"
-        )
+        self.assertEqual(wanlora["tag"], "<wanlora:Model Name: v2.0: Enhanced Edition:0.5>")
 
     def test_parse_lora_with_spaces(self):
         """Test parsing of standard LoRA tags with spaces and special characters."""
@@ -105,9 +101,7 @@ class TestLoRAVisualizerNode(unittest.TestCase):
         self.assertEqual(lora["name"], "Detail Enhancer v2.0: Professional Edition")
         self.assertEqual(lora["strength"], "0.8")
         self.assertEqual(lora["type"], "lora")
-        self.assertEqual(
-            lora["tag"], "<lora:Detail Enhancer v2.0: Professional Edition:0.8>"
-        )
+        self.assertEqual(lora["tag"], "<lora:Detail Enhancer v2.0: Professional Edition:0.8>")
 
     def test_parse_consistent_handling(self):
         """Test that both LoRA types handle complex names consistently."""
@@ -131,9 +125,7 @@ class TestLoRAVisualizerNode(unittest.TestCase):
 
     def test_parse_multiple_loras(self):
         """Test parsing multiple LoRA tags of the same type."""
-        prompt = (
-            "A scene <lora:style1:0.5> with <lora:style2:0.3> and <lora:style3:1.0>"
-        )
+        prompt = "A scene <lora:style1:0.5> with <lora:style2:0.3> and <lora:style3:1.0>"
         standard_loras, wanloras = self.node.parse_lora_tags(prompt)
 
         self.assertEqual(len(standard_loras), 3)
@@ -368,9 +360,7 @@ class TestVisualizeLoras(unittest.TestCase):
             # Check that civitai_url is present in the output
             self.assertEqual(len(metadata["standard_loras"]), 1)
             lora_info = metadata["standard_loras"][0]
-            self.assertEqual(
-                lora_info["civitai_url"], "https://civitai.com/models/971952"
-            )
+            self.assertEqual(lora_info["civitai_url"], "https://civitai.com/models/971952")
             self.assertEqual(lora_info["name"], "test_stabilizer")
             self.assertEqual(lora_info["trigger_words"], ["stabilizer"])
 
@@ -401,7 +391,7 @@ class TestVisualizeLoras(unittest.TestCase):
                 self.skipTest(f"Fixture file not found: {fixture_path}")
 
             # Load the actual fixture file
-            with open(fixture_path, "r", encoding="utf-8") as f:
+            with open(fixture_path, encoding="utf-8") as f:
                 metadata = json.load(f)
 
             # Create test LoRA data
@@ -409,16 +399,14 @@ class TestVisualizeLoras(unittest.TestCase):
                 "name": test_case["lora_name"],
                 "strength": "1.0",
                 "type": "lora",
-                "tag": f'<lora:{test_case["lora_name"]}:1.0>',
+                "tag": f"<lora:{test_case['lora_name']}:1.0>",
             }
 
             # Extract info using our method
             info = self.node.extract_lora_info(lora_data, metadata)
 
             # Verify the Civitai URL is correctly extracted
-            expected_url = (
-                f"https://civitai.com/models/{test_case['expected_model_id']}"
-            )
+            expected_url = f"https://civitai.com/models/{test_case['expected_model_id']}"
             self.assertEqual(
                 info["civitai_url"],
                 expected_url,
@@ -430,9 +418,7 @@ class TestVisualizeLoras(unittest.TestCase):
             self.assertIsNotNone(info["base_model"])
 
             # Check that model ID exists in the metadata
-            self.assertEqual(
-                metadata["civitai"]["modelId"], test_case["expected_model_id"]
-            )
+            self.assertEqual(metadata["civitai"]["modelId"], test_case["expected_model_id"])
 
     def test_example_images_contain_prompts(self):
         """Test that example images contain prompt metadata for copy functionality"""
@@ -459,7 +445,7 @@ class TestVisualizeLoras(unittest.TestCase):
                 if not os.path.exists(metadata_path):
                     self.skipTest(f"Fixture file not found: {metadata_path}")
 
-                with open(metadata_path, "r", encoding="utf-8") as f:
+                with open(metadata_path, encoding="utf-8") as f:
                     metadata = json.load(f)
 
                 # Create test LoRA data from the fixture filename

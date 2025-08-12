@@ -23,7 +23,7 @@ from the ComfyUI server if available for sending messages.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, List
+from typing import Any
 
 try:
     import requests  # type: ignore[import]
@@ -47,7 +47,7 @@ def ensure_model_available(
     api_url: str,
     *,
     requests_module: Any = None,
-    status_channel: Optional[str] = None,
+    status_channel: str | None = None,
 ) -> None:
     """Ensure a model is available locally by checking and optionally pulling.
 
@@ -90,7 +90,7 @@ def ensure_model_available(
         resp = req.get(tags_url, timeout=10)
         resp.raise_for_status()
         data = resp.json()
-        installed: List[str] = [m.get("name") for m in data.get("models", [])]
+        installed: list[str] = [m.get("name") for m in data.get("models", [])]
         if model_name in installed:
             return
     except Exception as e:
@@ -196,7 +196,7 @@ def call_ollama_chat(
 def send_chat(
     model_name: str,
     api_url: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     timeout: int = 60,
     *,
     requests_module: Any = None,
