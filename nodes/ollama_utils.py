@@ -110,9 +110,27 @@ def ensure_model_available(
         payload = {"model": model_name, "stream": False}
         resp = req.post(pull_url, json=payload, timeout=300)
         resp.raise_for_status()
+
+        # Check the response for any error messages
+        try:
+            response_data = resp.json()
+            if "error" in response_data:
+                raise Exception(f"Ollama pull error: {response_data['error']}")
+        except Exception:
+            # If response isn't JSON, that's fine - the HTTP status check above is sufficient
+            pass
+
     except Exception as e:
-        log_error(f"Failed to download model '{model_name}': {e}")
-        return
+        error_msg = f"Failed to download model '{model_name}': {e}"
+        log_error(error_msg)
+        if status_channel and PromptServer is not None:
+            try:
+                PromptServer.instance.send_sync(status_channel, {"status": f"Error: {error_msg}"})
+            except Exception:
+                pass
+        # Re-raise the exception instead of silently returning
+        raise Exception(error_msg) from e
+
     done_msg = f"Model '{model_name}' downloaded successfully."
     if status_channel and PromptServer is not None:
         try:
@@ -121,6 +139,11 @@ def ensure_model_available(
             pass
     else:
         log(done_msg)
+
+    # Give Ollama a moment to load the model after download
+    import time
+
+    time.sleep(2)
 
 
 def call_ollama_chat(
@@ -172,25 +195,70 @@ def call_ollama_chat(
         "stream": False,
     }
 
-    try:
-        resp = req.post(api_url, json=payload, timeout=timeout)
-        resp.raise_for_status()
-        data = resp.json()
+    # Retry mechanism for cases where model is still loading after download
+    max_retries = 3
+    retry_delay = 2  # seconds
 
-        # Extract assistant content depending on API version
-        if isinstance(data, dict):
-            if "message" in data:
-                content = data["message"].get("content", "")
-            elif "choices" in data and data["choices"]:
-                content = data["choices"][0].get("message", {}).get("content", "")
+    for attempt in range(max_retries):
+        try:
+            resp = req.post(api_url, json=payload, timeout=timeout)
+            resp.raise_for_status()
+            data = resp.json()
+
+            # Check for Ollama-specific error responses
+            if isinstance(data, dict) and "error" in data:
+                error_msg = data["error"]
+                if attempt < max_retries - 1 and (
+                    "loading" in error_msg.lower() or "not found" in error_msg.lower()
+                ):
+                    log_warning(
+                        f"Model still loading (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s..."
+                    )
+                    import time
+
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    log_error(f"Ollama API error: {error_msg}")
+                    return ""
+
+            # Extract assistant content depending on API version
+            if isinstance(data, dict):
+                if "message" in data:
+                    content = data["message"].get("content", "")
+                elif "choices" in data and data["choices"]:
+                    content = data["choices"][0].get("message", {}).get("content", "")
+                else:
+                    content = ""
             else:
                 content = ""
-        else:
-            content = ""
-        return str(content).strip()
-    except Exception as e:
-        log_error(f"Error contacting Ollama: {e}")
-        return ""
+
+            result = str(content).strip()
+            if not result and attempt < max_retries - 1:
+                log_warning(
+                    f"Empty response from Ollama (attempt {attempt + 1}/{max_retries}), retrying..."
+                )
+                import time
+
+                time.sleep(retry_delay)
+                continue
+
+            return result
+
+        except Exception as e:
+            if attempt < max_retries - 1:
+                log_warning(
+                    f"Error contacting Ollama (attempt {attempt + 1}/{max_retries}): {e}, retrying in {retry_delay}s..."
+                )
+                import time
+
+                time.sleep(retry_delay)
+                continue
+            else:
+                log_error(f"Error contacting Ollama after {max_retries} attempts: {e}")
+                return ""
+
+    return ""
 
 
 def send_chat(

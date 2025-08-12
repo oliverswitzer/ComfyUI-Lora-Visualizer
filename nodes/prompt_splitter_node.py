@@ -475,6 +475,44 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             )
 
         log(f"Prompt Splitter: Received response from Ollama ({len(content)} characters)")
+
+        # Check for common Ollama error patterns before attempting to parse
+        content_lower = content.lower()
+        if any(
+            error_pattern in content_lower
+            for error_pattern in [
+                "error",
+                "failed",
+                "downloading",
+                "pulling",
+                "not found",
+                "invalid",
+                "connection refused",
+                "timeout",
+                "404",
+                "500",
+                "502",
+                "503",
+                "manifest unknown",
+            ]
+        ):
+            log_error(f"Prompt Splitter: Ollama returned error response: {content[:300]}...")
+            if "downloading" in content_lower or "pulling" in content_lower:
+                raise Exception(
+                    "Model is being downloaded by Ollama. Please wait for the download to complete "
+                    "and try again. This may take several minutes depending on model size."
+                ) from None
+            elif "not found" in content_lower or "manifest unknown" in content_lower:
+                raise Exception(
+                    "Model not found in Ollama. Please ensure the model is available or "
+                    "use a different model name. You may need to run: ollama pull <model-name>"
+                ) from None
+            else:
+                raise Exception(
+                    f"Ollama API error: {content[:200]}... "
+                    f"Check your Ollama configuration and model availability."
+                ) from None
+
         try:
             result = json.loads(content.strip())
             image_prompt = str(result.get("image_prompt", ""))
@@ -494,9 +532,11 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 return image_prompt, wan_prompt
             else:
                 log_error("Prompt Splitter: Could not parse response in any format")
+                log_error(f"Prompt Splitter: Full response content: {content[:500]}...")
                 raise Exception(
                     "Invalid response from AI model. The AI model returned malformed "
                     "data that could not be parsed as JSON or plain text. "
+                    f"Response preview: {content[:100]}... "
                     "Try a different model or check your system prompt."
                 ) from None
 
