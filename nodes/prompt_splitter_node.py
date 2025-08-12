@@ -261,36 +261,13 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             lora_name = lora["name"]
             try:
                 metadata = metadata_loader.load_metadata(lora_name)
-                if metadata:
-                    # Extract examples
-                    examples = extract_example_prompts(metadata, limit=3)
-                    if examples:
-                        # Clean examples: remove any existing LoRA tags and limit length
-                        cleaned_examples = []
-                        for example in examples:
-                            # Remove LoRA tags from examples
-                            cleaned = re.sub(r"<(?:lora|wanlora):[^>]+>", "", example)
-                            cleaned = " ".join(
-                                cleaned.split()
-                            )  # Remove extra whitespace
-                            # Truncate length to keep prompt manageable
-                            if len(cleaned) > 500:
-                                cleaned = cleaned[:500].rstrip()
-                            cleaned_examples.append(cleaned)
+                if not metadata:
+                    continue
 
-                        if cleaned_examples:
-                            lora_examples[lora_name] = cleaned_examples
-                            log_debug(
-                                f"Prompt Splitter: Found {len(cleaned_examples)} examples for '{lora_name}'"
-                            )
-
-                    # Extract model description
-                    description = extract_model_description(metadata)
-                    if description:
-                        lora_descriptions[lora_name] = description
-                        log_debug(
-                            f"Prompt Splitter: Found description for '{lora_name}': {len(description)} chars"
-                        )
+                # Extract and process examples
+                self._process_lora_examples(metadata, lora_name, lora_examples)
+                # Extract model description
+                self._process_lora_description(metadata, lora_name, lora_descriptions)
 
             except Exception as e:
                 log_debug(
@@ -299,6 +276,49 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 continue
 
         return lora_examples, lora_descriptions
+
+    def _process_lora_examples(
+        self, metadata: Dict, lora_name: str, lora_examples: Dict
+    ):
+        """Process and extract examples for a LoRA."""
+        examples = extract_example_prompts(metadata, limit=3)
+        if not examples:
+            return
+
+        # Clean examples: remove any existing LoRA tags and limit length
+        cleaned_examples = []
+        for example in examples:
+            cleaned = self._clean_example(example)
+            cleaned_examples.append(cleaned)
+
+        if cleaned_examples:
+            lora_examples[lora_name] = cleaned_examples
+            log_debug(
+                f"Prompt Splitter: Found {len(cleaned_examples)} "
+                f"examples for '{lora_name}'"
+            )
+
+    def _clean_example(self, example: str) -> str:
+        """Clean an example prompt by removing LoRA tags and truncating if needed."""
+        # Remove LoRA tags from examples
+        cleaned = re.sub(r"<(?:lora|wanlora):[^>]+>", "", example)
+        cleaned = " ".join(cleaned.split())  # Remove extra whitespace
+        # Truncate length to keep prompt manageable
+        if len(cleaned) > 500:
+            cleaned = cleaned[:500].rstrip()
+        return cleaned
+
+    def _process_lora_description(
+        self, metadata: Dict, lora_name: str, lora_descriptions: Dict
+    ):
+        """Process and extract description for a LoRA."""
+        description = extract_model_description(metadata)
+        if description:
+            lora_descriptions[lora_name] = description
+            log_debug(
+                f"Prompt Splitter: Found description for '{lora_name}': "
+                f"{len(description)} chars"
+            )
 
     def _create_contextualized_system_prompt(
         self, lora_examples: Dict[str, List[str]], lora_descriptions: Dict[str, str]
@@ -346,9 +366,10 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 context_section += "\n"
 
         context_section += (
-            "IMPORTANT: When splitting prompts, maintain the same style, terminology, and content patterns "
-            "shown in these examples and descriptions. Avoid adding creative flourishes or story elements "
-            "not present in the original input or this context.\n"
+            "IMPORTANT: When splitting prompts, maintain the same style, terminology, "
+            "and content patterns shown in these examples and descriptions. "
+            "Avoid adding creative flourishes or story elements not present in the "
+            "original input or this context.\n"
         )
 
         # Insert context section before the final examples in the base prompt

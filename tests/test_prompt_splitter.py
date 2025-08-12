@@ -595,7 +595,10 @@ through the scene with fluid motion"""
 
     def test_lora_analysis_output_contains_examples(self):
         """split_prompt should return analysis output with LoRA examples."""
-        input_prompt = "woman dancing <lora:style:0.8> beautiful face <wanlora:motion:1.0> graceful movement"
+        input_prompt = (
+            "woman dancing <lora:style:0.8> beautiful face "
+            "<wanlora:motion:1.0> graceful movement"
+        )
 
         # Mock metadata loader and examples
         with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_loader:
