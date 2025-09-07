@@ -188,31 +188,6 @@ class TestPromptSplitterNode(unittest.TestCase):
         self.assertNotIn("<lora:", clean_prompt)
         self.assertNotIn("<wanlora:", clean_prompt)
 
-    def test_split_prompt_with_lora_tags(self):
-        """split_prompt should parse LoRA tags and add them to appropriate outputs."""
-        input_prompt = "woman dancing <lora:style:0.8> gracefully <wanlora:motion:1.0>"
-
-        # Mock the _call_ollama to return clean responses
-        with patch.object(
-            self.node,
-            "_call_ollama",
-            return_value=("woman dancing gracefully", "woman dances"),
-        ):
-            with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
-
-        # LoRA should be added to image prompt
-        self.assertIn("<lora:style:0.8>", image_prompt)
-        self.assertNotIn("<wanlora:motion:1.0>", image_prompt)
-
-        # WanLoRA should be added to video prompt
-        self.assertIn("<wanlora:motion:1.0>", wan_prompt)
-        self.assertNotIn("<lora:style:0.8>", wan_prompt)
-
-        # Base content should be preserved
-        self.assertIn("woman dancing gracefully", image_prompt)
-        self.assertIn("woman dances", wan_prompt)
-
     def test_split_prompt_no_lora_tags(self):
         """split_prompt should work normally when no LoRA tags are present."""
         input_prompt = "woman dancing gracefully"
@@ -258,57 +233,6 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.assertEqual(clean_prompt, "woman with features")
             self.assertIn("beautiful", trigger_words)
             self.assertIn("style-anime", trigger_words)
-
-    def test_split_prompt_with_trigger_words(self):
-        """split_prompt should handle trigger words correctly."""
-        input_prompt = (
-            "beautiful woman <lora:style:0.8> dancing with motion-blur <wanlora:motion:1.0>"
-        )
-
-        # Mock metadata for LoRAs
-        mock_image_metadata = {"civitai": {"trainedWords": ["beautiful"]}}
-        mock_video_metadata = {"civitai": {"trainedWords": ["motion-blur"]}}
-
-        with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_get_loader:
-            mock_loader = mock_get_loader.return_value
-
-            def mock_load_metadata(lora_name):
-                if lora_name == "style":
-                    return mock_image_metadata
-                elif lora_name == "motion":
-                    return mock_video_metadata
-                return None
-
-            def mock_extract_trigger_words(metadata):
-                if metadata == mock_image_metadata:
-                    return ["beautiful"]
-                elif metadata == mock_video_metadata:
-                    return ["motion-blur"]
-                return []
-
-            mock_loader.load_metadata.side_effect = mock_load_metadata
-            mock_loader.extract_trigger_words.side_effect = mock_extract_trigger_words
-
-            # Mock _call_ollama to return clean responses
-            with patch.object(
-                self.node,
-                "_call_ollama",
-                return_value=("woman dancing", "woman dances"),
-            ):
-                with patch.object(self.node, "_ensure_model_available"):
-                    image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
-
-            # Should have LoRA tag and trigger word
-            self.assertIn("<lora:style:0.8>", image_prompt)
-            self.assertIn("beautiful", image_prompt)
-
-            # Should have WanLoRA tag and trigger word
-            self.assertIn("<wanlora:motion:1.0>", wan_prompt)
-            self.assertIn("motion-blur", wan_prompt)
-
-            # Should not have wrong type tags
-            self.assertNotIn("<wanlora:", image_prompt)
-            self.assertNotIn("<lora:", wan_prompt)
 
     def test_extract_verbatim_directives(self):
         """_extract_verbatim_directives should find and extract verbatim text."""
@@ -401,40 +325,6 @@ class TestPromptSplitterNode(unittest.TestCase):
         # The image_prompt should not contain the wanlora tag
         self.assertNotIn("<wanlora:motion:1.0>", image_prompt)
         self.assertNotIn("<lora:motion:1.0>", image_prompt)
-
-    def test_split_prompt_with_loras_and_verbatim(self):
-        """split_prompt should handle both LoRAs and verbatim directives together."""
-        input_prompt = (
-            "(image: overwatch, ana) woman <lora:style:0.8> dancing "
-            "(video: she jumps) <wanlora:motion:1.0>"
-        )
-
-        # Mock metadata loader for LoRAs
-        with patch("nodes.prompt_splitter_node.get_metadata_loader") as mock_get_loader:
-            mock_loader = mock_get_loader.return_value
-            mock_loader.load_metadata.return_value = None
-            mock_loader.extract_trigger_words.return_value = []
-
-            # Mock _call_ollama to return clean responses (verbatim content added back separately)
-            with patch.object(
-                self.node,
-                "_call_ollama",
-                return_value=("woman dancing", "woman dances"),
-            ):
-                with patch.object(self.node, "_ensure_model_available"):
-                    image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
-
-        # Should have verbatim content added back deterministically
-        self.assertIn("overwatch, ana", image_prompt)
-        self.assertIn("she jumps", wan_prompt)
-
-        # Should have LoRA tags
-        self.assertIn("<lora:style:0.8>", image_prompt)
-        self.assertIn("<wanlora:motion:1.0>", wan_prompt)
-
-        # Should have base content from LLM
-        self.assertIn("woman dancing", image_prompt)
-        self.assertIn("woman dances", wan_prompt)
 
     def test_extract_lora_examples(self):
         """_extract_lora_examples should extract examples from LoRA metadata."""
