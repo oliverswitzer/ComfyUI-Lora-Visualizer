@@ -384,6 +384,24 @@ class TestPromptSplitterNode(unittest.TestCase):
         self.assertIn("woman dancing gracefully", image_prompt)
         self.assertIn("woman dances", wan_prompt)
 
+    def test_wanlora_tags_are_translated_to_lora_in_wan_prompt(self):
+        """WanLoRA tags should be translated to <lora:...:...> in the wan_prompt output."""
+        input_prompt = "subject <wanlora:motion:1.0> action"
+        # Patch _call_ollama to return a base wan_prompt
+        with patch.object(
+            self.node,
+            "_call_ollama",
+            return_value=("image content", "video content"),
+        ):
+            with patch.object(self.node, "_ensure_model_available"):
+                image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
+        # The wan_prompt should contain <lora:motion:1.0> and NOT <wanlora:motion:1.0>
+        self.assertIn("<lora:motion:1.0>", wan_prompt)
+        self.assertNotIn("<wanlora:motion:1.0>", wan_prompt)
+        # The image_prompt should not contain the wanlora tag
+        self.assertNotIn("<wanlora:motion:1.0>", image_prompt)
+        self.assertNotIn("<lora:motion:1.0>", image_prompt)
+
     def test_split_prompt_with_loras_and_verbatim(self):
         """split_prompt should handle both LoRAs and verbatim directives together."""
         input_prompt = (

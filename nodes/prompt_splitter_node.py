@@ -830,8 +830,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
             # WanLoRAs go to video prompt
             for wanlora in wanloras:
-                wan_prompt = f"{wan_prompt} {wanlora['tag']}"
-                log_debug(f"Prompt Splitter: Added {wanlora['tag']} to video prompt")
+                lora_tag = re.sub(r"<wanlora:([^>]+)>", r"<lora:\1>", wanlora['tag'])
+                wan_prompt = f"{wan_prompt} {lora_tag}"
+                log_debug(f"Prompt Splitter: Added {lora_tag} to video prompt (converted from WanLoRA tag back to LoRA tag)")
 
                 # Add trigger words for this WanLoRA to video prompt
                 trigger_words = metadata_loader.extract_trigger_words(

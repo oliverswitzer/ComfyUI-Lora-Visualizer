@@ -24,7 +24,7 @@ def log_debug(message: str) -> None:
     Args:
         message: The debug message to log
     """
-    if os.getenv("COMFYUI_LORA_DEBUG"):
+    if True:
         print(f"[ComfyUI-Lora-Visualizer] DEBUG: {message}")
 
 
