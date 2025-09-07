@@ -150,12 +150,27 @@ This node
 
             # Generate embeddings for all LoRAs
             for lora_name, lora_info in self._lora_database.items():
+                log_debug(f"Processing LoRA: {lora_name}")
+                log_debug(f"  lora_info: {lora_info}")
                 metadata = lora_info["metadata"]
+                log_debug(f"  metadata: {metadata}")
                 if metadata:
                     embeddable_text = extract_embeddable_content(metadata)
-                    if embeddable_text:
-                        embedding = self._embedding_model.encode(embeddable_text)
-                        self._lora_embeddings[lora_name] = embedding
+                    log_debug(
+                        f"  embeddable_text: '{embeddable_text}' (type: {type(embeddable_text)})"
+                    )
+                    if embeddable_text and embeddable_text.strip():
+                        try:
+                            embedding = self._embedding_model.encode(embeddable_text)
+                            self._lora_embeddings[lora_name] = embedding
+                        except Exception as encode_err:
+                            log_error(
+                                f"  Error encoding embeddable_text for {lora_name}: {encode_err}"
+                            )
+                    else:
+                        log_debug(f"  No embeddable text for {lora_name}, skipping embedding.")
+                else:
+                    log_debug(f"  No metadata for {lora_name}")
 
             self._embeddings_initialized = True
             log(f"Embeddings initialized for {len(self._lora_embeddings)} LoRAs")
@@ -262,7 +277,10 @@ This node
             return relevant_loras[:max_count]
 
         except Exception as e:
-            log_error(f"Error finding relevant LoRAs: {e}")
+            import traceback
+
+            tb = traceback.format_exc()
+            log_error(f"Error finding relevant LoRAs: {e}\nTraceback:\n{tb}")
             return []
 
     def _is_content_lora(self, metadata: dict[str, Any]) -> bool:
@@ -275,7 +293,6 @@ This node
         Returns:
             True if this is a content-specific LoRA
         """
-        # Check tags for content indicators
         content_tags = {
             "character",
             "pose",
@@ -294,19 +311,26 @@ This node
         }
 
         # Check civitai tags
-        if "civitai" in metadata and "model" in metadata["civitai"]:
-            model_tags = metadata["civitai"]["model"].get("tags", [])
-            if any(tag.lower() in content_tags for tag in model_tags):
+        civitai = metadata.get("civitai")
+        if isinstance(civitai, dict):
+            model = civitai.get("model")
+            if isinstance(model, dict):
+                model_tags = model.get("tags", [])
+                if isinstance(model_tags, list):
+                    if any(
+                        isinstance(tag, str) and tag.lower() in content_tags for tag in model_tags
+                    ):
+                        return True
+            # Check if it has trigger words (often indicates character LoRAs)
+            trained_words = civitai.get("trainedWords")
+            if isinstance(trained_words, list) and any(trained_words):
                 return True
 
         # Check top-level tags
-        if "tags" in metadata:
-            if any(tag.lower() in content_tags for tag in metadata["tags"]):
+        tags = metadata.get("tags")
+        if isinstance(tags, list):
+            if any(isinstance(tag, str) and tag.lower() in content_tags for tag in tags):
                 return True
-
-        # Check if it has trigger words (often indicates character LoRAs)
-        if "civitai" in metadata and metadata["civitai"].get("trainedWords"):
-            return True
 
         return False
 
@@ -325,7 +349,6 @@ This node
             Boost multiplier (1.0 = no boost, >1.0 = boost)
         """
         # Clean the scene description to remove any existing LoRA tags
-
         clean_scene = re.sub(r"<(?:lora|wanlora):[^>]+>", "", scene_description)
         clean_scene = " ".join(clean_scene.split())  # Remove extra whitespace
         scene_lower = clean_scene.lower()
@@ -353,10 +376,19 @@ This node
 
         lora_name_lower = lora_name.lower()
         lora_tags = metadata.get("tags", [])
-        lora_tags_lower = [tag.lower() for tag in lora_tags] if lora_tags else []
+        lora_tags_lower = (
+            [tag.lower() for tag in lora_tags if isinstance(tag, str)]
+            if isinstance(lora_tags, list)
+            else []
+        )
         civitai_tags = []
-        if "civitai" in metadata and "model" in metadata["civitai"]:
-            civitai_tags = [tag.lower() for tag in metadata["civitai"]["model"].get("tags", [])]
+        civitai = metadata.get("civitai")
+        if isinstance(civitai, dict):
+            model = civitai.get("model")
+            if isinstance(model, dict):
+                civitai_tags = [
+                    tag.lower() for tag in model.get("tags", []) if isinstance(tag, str)
+                ]
 
         log_debug(f"    📋 LoRA tags: {lora_tags_lower}")
         log_debug(f"    🌐 Civitai tags: {civitai_tags}")

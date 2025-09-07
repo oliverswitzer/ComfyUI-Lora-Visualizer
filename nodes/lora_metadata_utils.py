@@ -108,7 +108,11 @@ class LoRAMetadataLoader:
 
         # Also check civitai.baseModel field
         try:
-            civitai_base = metadata.get("civitai", {}).get("baseModel", "").lower()
+            civitai = metadata.get("civitai")
+            if isinstance(civitai, dict):
+                civitai_base = civitai.get("baseModel", "").lower()
+            else:
+                civitai_base = ""
             if "wan" in civitai_base or "video" in civitai_base or "i2v" in civitai_base:
                 return True
         except (AttributeError, TypeError):
@@ -271,77 +275,68 @@ def extract_embeddable_content(metadata: dict[str, Any]) -> str:
     log_debug(f"🔍 Extracting embeddable content for LoRA: {lora_name}")
 
     # PRIORITY 1: File name (extract and repeat key words)
-    if "file_name" in metadata:
-        file_name = metadata["file_name"]
+    file_name = metadata.get("file_name")
+    if isinstance(file_name, str) and file_name.strip():
         log_debug(f"  📁 File name: '{file_name}'")
-
         # Extract meaningful words from filename (remove version numbers, common prefixes)
         title_words = re.findall(r"[a-zA-Z]{3,}", file_name.lower())
         log_debug(f"  🔤 Extracted title words: {title_words}")
-
         # Filter out common non-descriptive words
         filtered_words = [
             w
             for w in title_words
             if w
-            not in [
-                "lora",
-                "wan",
-                "lownoise",
-                "highnoise",
-                "safetensors",
-                "i2v",
-                "t2v",
-                "version",
-            ]
+            not in ["lora", "wan", "lownoise", "highnoise", "safetensors", "i2v", "t2v", "version"]
         ]
         log_debug(f"  ✨ Filtered title words: {filtered_words}")
-
         # Repeat important title words 3x for higher semantic weight
         for word in filtered_words:
             content_parts.extend([word] * 3)
             log_debug(f"  🔁 Added '{word}' x3 for high priority")
 
     # PRIORITY 2: Model name and description
-    if "model_name" in metadata:
-        model_name = metadata["model_name"]
+    model_name = metadata.get("model_name")
+    if isinstance(model_name, str) and model_name.strip():
         log_debug(f"  📝 Model name: '{model_name}'")
         content_parts.append(model_name)
-
         # Also extract and repeat key words from model name
         model_words = re.findall(r"[a-zA-Z]{3,}", model_name.lower())
         filtered_model_words = [w for w in model_words if w not in ["lora", "for", "wan", "the"]]
         log_debug(f"  🎯 Model words added: {filtered_model_words}")
         content_parts.extend(filtered_model_words)
 
-    if "modelDescription" in metadata:
+    model_description = metadata.get("modelDescription")
+    if isinstance(model_description, str) and model_description.strip():
         # Clean HTML tags from description
-        description = re.sub(r"<[^>]+>", "", metadata["modelDescription"])
+        description = re.sub(r"<[^>]+>", "", model_description)
         content_parts.append(description)
 
     # Civitai model info
-    if "civitai" in metadata:
-        civitai = metadata["civitai"]
-
+    civitai = metadata.get("civitai")
+    if isinstance(civitai, dict):
         # Model name and description
-        if "model" in civitai and "name" in civitai["model"]:
-            content_parts.append(civitai["model"]["name"])
-
-        if "model" in civitai and "description" in civitai["model"]:
-            description = re.sub(r"<[^>]+>", "", civitai["model"]["description"])
-            content_parts.append(description)
-
-        # Tags
-        if "model" in civitai and "tags" in civitai["model"]:
-            content_parts.extend(civitai["model"]["tags"])
-
+        model = civitai.get("model")
+        if isinstance(model, dict):
+            model_name = model.get("name")
+            if isinstance(model_name, str) and model_name.strip():
+                content_parts.append(model_name)
+            model_desc = model.get("description")
+            if isinstance(model_desc, str) and model_desc.strip():
+                description = re.sub(r"<[^>]+>", "", model_desc)
+                content_parts.append(description)
+            tags = model.get("tags")
+            if isinstance(tags, list):
+                content_parts.extend([str(tag) for tag in tags if tag])
         # Training words
-        if "trainedWords" in civitai:
-            content_parts.extend(civitai["trainedWords"])
+        trained_words = civitai.get("trainedWords")
+        if isinstance(trained_words, list):
+            content_parts.extend([str(word) for word in trained_words if word])
+    # If civitai is not a dict, skip safely
 
     # Tags from top level
-    if "tags" in metadata:
-        content_parts.extend(metadata["tags"])
+    tags = metadata.get("tags")
+    if isinstance(tags, list):
+        content_parts.extend([str(tag) for tag in tags if tag])
 
     # Combine and clean
     combined = " ".join(str(part) for part in content_parts if part)
@@ -439,7 +434,11 @@ def classify_lora_type(metadata: dict[str, Any]) -> str:
 
     # Check civitai base model
     if "civitai" in metadata:
-        civitai_base = metadata.get("civitai", {}).get("baseModel", "").lower()
+        civitai = metadata.get("civitai")
+        if isinstance(civitai, dict):
+            civitai_base = civitai.get("baseModel", "").lower()
+        else:
+            civitai_base = ""
         if any(keyword in civitai_base for keyword in video_keywords):
             return "video"
 
@@ -449,7 +448,11 @@ def classify_lora_type(metadata: dict[str, Any]) -> str:
         return "image"
 
     if "civitai" in metadata:
-        civitai_base = metadata.get("civitai", {}).get("baseModel", "").lower()
+        civitai = metadata.get("civitai")
+        if isinstance(civitai, dict):
+            civitai_base = civitai.get("baseModel", "").lower()
+        else:
+            civitai_base = ""
         if any(keyword in civitai_base for keyword in image_keywords):
             return "image"
 

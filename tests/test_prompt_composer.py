@@ -75,6 +75,16 @@ class TestPromptComposerNode(unittest.TestCase):
         self.assertEqual(len(result), 3)
         self.assertIn("Error: Could not initialize embeddings system", result[0])
 
+    def test_is_content_lora_with_none_civitai(self):
+        """_is_content_lora should not crash if civitai is None."""
+        metadata = {"file_name": "ana", "model_name": "ana", "civitai": None, "tags": []}
+        # Should not raise, should return False (after fix)
+        try:
+            result = self.node._is_content_lora(metadata)
+            self.assertFalse(result)
+        except AttributeError as e:
+            self.fail(f"_is_content_lora raised AttributeError: {e}")
+
     def test_is_content_lora_with_character_tags(self):
         """_is_content_lora should identify character LoRAs correctly."""
         metadata = {"civitai": {"model": {"tags": ["character", "anime"]}}}

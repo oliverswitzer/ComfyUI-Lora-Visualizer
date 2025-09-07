@@ -5,8 +5,6 @@ This module provides a consistent logging interface for all components
 of the LoRA Visualizer custom node.
 """
 
-import os
-
 
 def log(message: str) -> None:
     """
