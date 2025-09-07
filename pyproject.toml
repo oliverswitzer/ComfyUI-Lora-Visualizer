@@ -1,9 +1,9 @@
 [project]
 name = "comfyui-lora-visualizer"
 description = "A ComfyUI custom node that parses prompt text for LoRA tags and visualizes their metadata, including trigger words, strength values, thumbnail previews, and example images."
-version = "2.3.0"
+version = "2.3.1"
 requires-python = ">=3.9"
-dependencies = [ "sentence-transformers>=2.2.0", "scikit-learn>=1.0.0", "scipy>=1.13.1"]
+dependencies = [ "sentence-transformers>=2.2.0", "scikit-learn>=1.0.0", "scipy>=1.13.1",]
 readme = "README.md"
 [[project.authors]]
 name = "Oliver Switzer"
