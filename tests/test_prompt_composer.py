@@ -151,13 +151,19 @@ class TestPromptComposerNode(unittest.TestCase):
         for lora in image_loras + video_loras:
             lora["metadata"] = {"civitai": {"images": []}}
 
+        # Test with default weights (1.0) and LOW offset (0.2)
         result = self.node._compose_final_prompt(
-            scene_description, image_loras, video_loras, "natural"
+            scene_description,
+            image_loras,
+            video_loras,
+            "natural",
+            default_lora_weight=1.0,
+            low_lora_weight_offset=0.2,
         )
 
-        # Should contain LoRA tags
-        self.assertIn("<lora:character_lora:0.8>", result)
-        self.assertIn("<wanlora:video_lora:0.6>", result)
+        # Should contain LoRA tags with default weights (not metadata weights)
+        self.assertIn("<lora:character_lora:1.0>", result)
+        self.assertIn("<wanlora:video_lora:1.0>", result)  # Not LOW, so no offset
 
         # Should contain trigger words
         self.assertIn("woman877", result)
@@ -165,6 +171,39 @@ class TestPromptComposerNode(unittest.TestCase):
 
         # Should contain scene description
         self.assertIn("cyberpunk woman in alley", result)
+
+    def test_compose_final_prompt_low_lora_offset(self):
+        """_compose_final_prompt should apply LOW LoRA weight offset."""
+        scene_description = "test scene"
+
+        video_loras = [
+            {
+                "name": "character_high",
+                "recommended_weight": 0.8,
+                "trigger_words": ["test"],
+                "metadata": {"civitai": {"images": []}},
+            },
+            {
+                "name": "character_low",
+                "recommended_weight": 0.8,
+                "trigger_words": ["test2"],
+                "metadata": {"civitai": {"images": []}},
+            },
+        ]
+
+        result = self.node._compose_final_prompt(
+            scene_description,
+            [],
+            video_loras,
+            "natural",
+            default_lora_weight=1.0,
+            low_lora_weight_offset=0.2,
+        )
+
+        # HIGH LoRA should use default weight
+        self.assertIn("<wanlora:character_high:1.0>", result)
+        # LOW LoRA should have offset applied (1.0 - 0.2 = 0.8)
+        self.assertIn("<wanlora:character_low:0.8>", result)
 
     def test_compose_final_prompt_no_duplicates(self):
         """_compose_final_prompt should remove duplicate trigger words."""

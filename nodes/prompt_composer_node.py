@@ -127,6 +127,29 @@ This node
                         ),
                     },
                 ),
+                "default_lora_weight": (
+                    "FLOAT",
+                    {
+                        "default": 1.0,
+                        "min": 0.1,
+                        "max": 2.0,
+                        "step": 0.1,
+                        "tooltip": "Default weight for all LoRAs (overrides metadata recommendations)",
+                    },
+                ),
+                "low_lora_weight_offset": (
+                    "FLOAT",
+                    {
+                        "default": 0.2,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.1,
+                        "tooltip": (
+                            "Amount to reduce LOW LoRA weights by (e.g., 0.2 means HIGH=1.0, LOW=0.8). "
+                            "Only applies to WAN 2.2 LOW LoRAs."
+                        ),
+                    },
+                ),
             },
         }
 
@@ -677,6 +700,8 @@ This node
         image_loras: list[dict[str, Any]],
         video_loras: list[dict[str, Any]],
         style_preference: str,
+        default_lora_weight: float = 1.0,
+        low_lora_weight_offset: float = 0.2,
     ) -> str:
         """
         Compose the final prompt with LoRA tags and styling.
@@ -686,6 +711,8 @@ This node
             image_loras: Selected image LoRAs
             video_loras: Selected video LoRAs
             style_preference: Style preference setting
+            default_lora_weight: Default weight for all LoRAs
+            low_lora_weight_offset: Amount to reduce LOW LoRA weights by
 
         Returns:
             Composed prompt string
@@ -697,13 +724,19 @@ This node
             # Add LoRA tags at the beginning
             log_debug("_compose_final_prompt: Adding image LoRA tags")
             for _i, lora in enumerate(image_loras):
-                weight = lora["recommended_weight"]
+                weight = default_lora_weight
                 tag = f"<lora:{lora['name']}:{weight}>"
                 prompt_parts.append(tag)
 
             log_debug("_compose_final_prompt: Adding video LoRA tags")
             for _i, lora in enumerate(video_loras):
-                weight = lora["recommended_weight"]
+                # Apply LOW LoRA offset for WAN 2.2 LOW LoRAs
+                weight = default_lora_weight
+                lora_name_lower = lora["name"].lower()
+                if "low" in lora_name_lower:
+                    weight = max(0.1, weight - low_lora_weight_offset)
+                    log_debug(f"Applied LOW offset to {lora['name']}: {weight}")
+
                 tag = f"<wanlora:{lora['name']}:{weight}>"
                 prompt_parts.append(tag)
         except Exception as e:
@@ -838,6 +871,8 @@ This node
         style_preference: str = "natural",
         image_lora_dir_path: str = "",
         wan_lora_dir_path: str = "",
+        default_lora_weight: float = 1.0,
+        low_lora_weight_offset: float = 0.2,
     ) -> tuple[str, str, str]:
         """
         Main function that composes prompts from scene descriptions.
@@ -850,6 +885,8 @@ This node
             style_preference: Style preference ("technical", "artistic", "natural")
             image_lora_dir_path: Optional subdirectory to filter image LoRAs
             wan_lora_dir_path: Optional subdirectory to filter video LoRAs
+            default_lora_weight: Default weight for all LoRAs (overrides metadata)
+            low_lora_weight_offset: Amount to reduce LOW LoRA weights by
 
         Returns:
             Tuple of (composed_prompt, lora_analysis, metadata_summary)
@@ -930,18 +967,31 @@ This node
             # Compose the final prompt
             log_debug("Starting prompt composition...")
             composed_prompt = self._compose_final_prompt(
-                scene_description, image_loras, video_loras, style_preference
+                scene_description,
+                image_loras,
+                video_loras,
+                style_preference,
+                default_lora_weight,
+                low_lora_weight_offset,
             )
             log_debug("Prompt composition completed successfully")
 
-            # Create analysis output
+            # Create analysis output with actual weights used
+            def get_actual_weight(lora_name: str, is_video: bool) -> float:
+                """Calculate the actual weight used for a LoRA."""
+                weight = default_lora_weight
+                if is_video and "low" in lora_name.lower():
+                    weight = max(0.1, weight - low_lora_weight_offset)
+                return weight
+
             analysis_data = {
                 "scene_description": scene_description,
                 "image_loras": [
                     {
                         "name": lora["name"],
                         "relevance_score": lora["relevance_score"],
-                        "weight": lora["recommended_weight"],
+                        "weight": get_actual_weight(lora["name"], False),
+                        "recommended_weight": lora["recommended_weight"],
                         "trigger_words": lora["trigger_words"],
                     }
                     for lora in image_loras
@@ -950,7 +1000,8 @@ This node
                     {
                         "name": lora["name"],
                         "relevance_score": lora["relevance_score"],
-                        "weight": lora["recommended_weight"],
+                        "weight": get_actual_weight(lora["name"], True),
+                        "recommended_weight": lora["recommended_weight"],
                         "trigger_words": lora["trigger_words"],
                     }
                     for lora in video_loras
@@ -958,6 +1009,8 @@ This node
                 "style_preference": style_preference,
                 "settings": {
                     "content_boost": content_boost,
+                    "default_lora_weight": default_lora_weight,
+                    "low_lora_weight_offset": low_lora_weight_offset,
                 },
                 "video_lora_selection_basis": video_lora_selection_basis,
             }
