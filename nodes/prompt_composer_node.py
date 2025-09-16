@@ -594,6 +594,48 @@ This node
 
         return final_prompt
 
+    def _gather_image_lora_context(self, image_loras: list[dict[str, Any]]) -> str:
+        """
+        Gather all embeddable content, tags, and metadata from selected image LoRAs
+        and concatenate them into a single string for use as a query.
+        """
+        context_parts = []
+        for lora in image_loras:
+            metadata = lora.get("metadata", {})
+            # Embeddable content
+            try:
+                embeddable = extract_embeddable_content(metadata)
+                if embeddable:
+                    context_parts.append(str(embeddable))
+            except Exception:
+                pass
+            # Tags
+            tags = metadata.get("tags", [])
+            if isinstance(tags, list):
+                context_parts.extend([str(tag) for tag in tags if tag])
+            # Civitai tags
+            civitai = metadata.get("civitai")
+            if isinstance(civitai, dict):
+                model = civitai.get("model")
+                if isinstance(model, dict):
+                    civitai_tags = model.get("tags", [])
+                    if isinstance(civitai_tags, list):
+                        context_parts.extend([str(tag) for tag in civitai_tags if tag])
+                trained_words = civitai.get("trainedWords")
+                if isinstance(trained_words, list):
+                    context_parts.extend([str(word) for word in trained_words if word])
+            # Name
+            if lora.get("name"):
+                context_parts.append(str(lora["name"]))
+        # Remove duplicates, preserve order
+        seen = set()
+        context = []
+        for part in context_parts:
+            if part and part not in seen:
+                context.append(part)
+                seen.add(part)
+        return " ".join(context)
+
     def compose_prompt(
         self,
         scene_description: str,
@@ -629,7 +671,7 @@ This node
         try:
             log(f"Composing prompt for: {scene_description}")
 
-            # Find relevant LoRAs
+            # Find relevant image LoRAs
             log("Finding relevant image LoRAs...")
             image_loras = self._find_relevant_loras(
                 scene_description,
@@ -640,9 +682,30 @@ This node
             image_names = [lora.get("name", "unknown") for lora in image_loras]
             log(f"Found {len(image_loras)} image LoRAs: {image_names}")
 
+            # Build context for video LoRA selection
+            if image_loras:
+                video_query_context = self._gather_image_lora_context(image_loras)
+                video_lora_selection_basis = {
+                    "basis": "image_loras",
+                    "image_loras_used": image_names,
+                    "context_string": video_query_context,
+                }
+                log(
+                    f"Using image LoRA context for video LoRA selection: {video_query_context[:100]}..."
+                )
+            else:
+                video_query_context = scene_description
+                video_lora_selection_basis = {
+                    "basis": "scene_description",
+                    "image_loras_used": [],
+                    "context_string": scene_description,
+                }
+                log("No image LoRAs found, using scene description for video LoRA selection.")
+
+            # Find relevant video LoRAs using the new context
             log("Finding relevant video LoRAs...")
             video_loras = self._find_relevant_loras(
-                scene_description,
+                video_query_context,
                 "video",
                 max_video_loras,
                 content_boost,
@@ -684,6 +747,7 @@ This node
                 "settings": {
                     "content_boost": content_boost,
                 },
+                "video_lora_selection_basis": video_lora_selection_basis,
             }
 
             analysis_output = json.dumps(analysis_data, indent=2, ensure_ascii=False)
@@ -696,6 +760,7 @@ This node
                 "video_loras_found": len(video_loras),
                 "embeddings_model": "sentence-transformers/all-MiniLM-L6-v2",
                 "processing_successful": True,
+                "video_lora_selection_basis": video_lora_selection_basis,
             }
 
             summary_output = json.dumps(metadata_summary, indent=2)
