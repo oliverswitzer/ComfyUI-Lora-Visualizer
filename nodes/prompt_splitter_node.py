@@ -459,7 +459,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 timeout=60,
                 requests_module=requests,
             )
-            log_debug(f"Prompt Splitter: Received raw response from Ollama ({len(content)} characters)")
+            log_debug(
+                f"Prompt Splitter: Received raw response from Ollama ({len(content)} characters)"
+            )
         except Exception as e:
             log_error(f"Prompt Splitter: Error calling Ollama: {e}")
             if "Connection" in str(e) or "refused" in str(e):
@@ -524,7 +526,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             if content_clean.startswith("```json"):
                 content_clean = content_clean[7:]  # Remove ```json
             if content_clean.startswith("```"):
-                content_clean = content_clean[3:]   # Remove ```
+                content_clean = content_clean[3:]  # Remove ```
             if content_clean.endswith("```"):
                 content_clean = content_clean[:-3]  # Remove closing ```
             content_clean = content_clean.strip()
@@ -795,7 +797,9 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
         # Append additional instructions if provided
         if additional_instructions and additional_instructions.strip():
-            sys_prompt = f"{sys_prompt}\n\nAdditional Instructions:\n{additional_instructions.strip()}"
+            sys_prompt = (
+                f"{sys_prompt}\n\nAdditional Instructions:\n{additional_instructions.strip()}"
+            )
             log("Prompt Splitter: Appended additional instructions to system prompt")
 
         log(f"Prompt Splitter: Starting split using model '{model}'")

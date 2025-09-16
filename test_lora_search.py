@@ -19,6 +19,7 @@ from pathlib import Path
 script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
 
+
 def find_comfyui_lora_folder():
     """Try to automatically find ComfyUI's LoRA folder."""
     possible_paths = [
@@ -36,15 +37,19 @@ def find_comfyui_lora_folder():
             return os.path.abspath(path)
     return None
 
+
 def mock_folder_paths(lora_folder: str):
     """Mock ComfyUI's folder_paths for testing."""
+
     class MockFolderPaths:
         @staticmethod
         def get_folder_paths(folder_type):
             if folder_type == "loras":
                 return [lora_folder]
             return []
+
     return MockFolderPaths()
+
 
 def setup_prompt_composer(lora_folder: str):
     """Initialize the prompt composer with mocked ComfyUI context."""
@@ -54,10 +59,10 @@ def setup_prompt_composer(lora_folder: str):
     # Mock folder_paths
     mock_fp = mock_folder_paths(lora_folder)
     original_folder_paths_1 = lora_metadata_utils.folder_paths
-    original_folder_paths_2 = getattr(prompt_composer_node, 'folder_paths', None)
+    original_folder_paths_2 = getattr(prompt_composer_node, "folder_paths", None)
 
     lora_metadata_utils.folder_paths = mock_fp
-    if hasattr(prompt_composer_node, 'folder_paths'):
+    if hasattr(prompt_composer_node, "folder_paths"):
         prompt_composer_node.folder_paths = mock_fp
 
     try:
@@ -79,6 +84,7 @@ def setup_prompt_composer(lora_folder: str):
 
         for name, info in composer._lora_database.items():
             from nodes.lora_metadata_utils import classify_lora_type
+
             lora_type = classify_lora_type(info["metadata"])
             if lora_type == "image":
                 image_count += 1
@@ -102,8 +108,10 @@ def setup_prompt_composer(lora_folder: str):
     except Exception as e:
         print(f"❌ Error setting up composer: {e}")
         import traceback
+
         traceback.print_exc()
         return None, None, None
+
 
 def search_loras(composer, query: str, lora_type: str = "both", max_results: int = 5):
     """Search for LoRAs matching the query."""
@@ -139,6 +147,7 @@ def search_loras(composer, query: str, lora_type: str = "both", max_results: int
 
     return results
 
+
 def print_results(query: str, results: dict):
     """Print search results in a nice format."""
     print(f"\n🔍 Results for: '{query}'")
@@ -164,6 +173,7 @@ def print_results(query: str, results: dict):
             if directory:
                 print(f"      📁 SubDir: {directory}")
             print(f"      ⚖️  Weight: {weight}")
+
 
 def main():
     print("🎯 Interactive LoRA Search Tester")
@@ -224,7 +234,9 @@ def main():
                 # Quick stats
                 total_found = len(results.get("image", [])) + len(results.get("video", []))
                 if total_found == 0:
-                    print("\n💡 Tip: Try different keywords like 'dance', 'motion', 'woman', 'character', etc.")
+                    print(
+                        "\n💡 Tip: Try different keywords like 'dance', 'motion', 'woman', 'character', etc."
+                    )
 
             except KeyboardInterrupt:
                 print("\n👋 Goodbye!")
@@ -237,10 +249,13 @@ def main():
         # Restore original folder_paths
         if orig1 is not None:
             from nodes import lora_metadata_utils
+
             lora_metadata_utils.folder_paths = orig1
         if orig2 is not None:
             from nodes import prompt_composer_node
+
             prompt_composer_node.folder_paths = orig2
+
 
 if __name__ == "__main__":
     main()

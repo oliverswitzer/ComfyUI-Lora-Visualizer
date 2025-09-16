@@ -147,7 +147,6 @@ This node
         self._embedding_model = None
         self._lora_embeddings = {}
 
-
     def _initialize_embeddings(self) -> bool:
         """
         Initialize the embeddings system if not already done.
@@ -166,11 +165,11 @@ This node
 
             # Create TF-IDF vectorizer
             self._embedding_model = TfidfVectorizer(
-                stop_words='english',
+                stop_words="english",
                 max_features=1000,  # Limit vocabulary size
                 ngram_range=(1, 2),  # Use unigrams and bigrams
                 lowercase=True,
-                strip_accents='unicode'
+                strip_accents="unicode",
             )
 
             # Discover all LoRAs and prepare embeddings
@@ -274,12 +273,18 @@ This node
                     # Normalize path separators for cross-platform compatibility
                     normalized_lora_dir = lora_dir.replace("\\", "/")
                     normalized_filter = directory_filter.replace("\\", "/")
-                    log_debug(f"  🔍 Checking directory filter: '{normalized_filter}' vs '{normalized_lora_dir}'")
+                    log_debug(
+                        f"  🔍 Checking directory filter: '{normalized_filter}' vs '{normalized_lora_dir}'"
+                    )
                     if not normalized_lora_dir.startswith(normalized_filter):
-                        log_debug(f"  📁 Skipping {lora_name}: not in directory '{directory_filter}' (found in '{lora_dir}')")
+                        log_debug(
+                            f"  📁 Skipping {lora_name}: not in directory '{directory_filter}' (found in '{lora_dir}')"
+                        )
                         continue
                     else:
-                        log_debug(f"  ✅ {lora_name}: matches directory filter '{directory_filter}'")
+                        log_debug(
+                            f"  ✅ {lora_name}: matches directory filter '{directory_filter}'"
+                        )
 
                 # Calculate relevance score
                 if lora_name in self._lora_embeddings:
