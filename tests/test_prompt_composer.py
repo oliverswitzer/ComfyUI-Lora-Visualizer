@@ -221,6 +221,88 @@ class TestPromptComposerNode(unittest.TestCase):
         self.assertTrue(result)
         self.assertTrue(self.node._embeddings_initialized)
 
+    def test_find_wan_lora_pair_high_to_low(self):
+        """_find_wan_lora_pair should find matching low pair for high LoRA."""
+        # Setup mock database with pairs
+        self.node._lora_database = {
+            "character_high": {"metadata": {}},
+            "character_low": {"metadata": {}},
+            "motion_highnoise": {"metadata": {}},
+            "motion_lownoise": {"metadata": {}},
+        }
+
+        # Test various high->low patterns
+        self.assertEqual(self.node._find_wan_lora_pair("character_high"), "character_low")
+        self.assertEqual(self.node._find_wan_lora_pair("motion_highnoise"), "motion_lownoise")
+
+    def test_find_wan_lora_pair_dash_patterns(self):
+        """_find_wan_lora_pair should handle dash-separated HIGH/LOW patterns."""
+        # Setup mock database with dash patterns
+        self.node._lora_database = {
+            "Wan22-I2V-HIGH-Dancing_Robot": {"metadata": {}},
+            "Wan22-I2V-LOW-Dancing_Robot": {"metadata": {}},
+        }
+
+        # Test dash-separated HIGH/LOW pattern
+        result = self.node._find_wan_lora_pair("Wan22-I2V-HIGH-Dancing_Robot")
+        self.assertEqual(result, "Wan22-I2V-LOW-Dancing_Robot")
+
+    def test_find_wan_lora_pair_low_to_high(self):
+        """_find_wan_lora_pair should find matching high pair for low LoRA."""
+        # Setup mock database with pairs
+        self.node._lora_database = {
+            "anime-girl-high": {"metadata": {}},
+            "anime-girl-low": {"metadata": {}},
+            "dancer_high": {"metadata": {}},
+            "dancer_low": {"metadata": {}},
+        }
+
+        # Test various low->high patterns
+        self.assertEqual(self.node._find_wan_lora_pair("anime-girl-low"), "anime-girl-high")
+        self.assertEqual(self.node._find_wan_lora_pair("dancer_low"), "dancer_high")
+
+    def test_find_wan_lora_pair_no_pair(self):
+        """_find_wan_lora_pair should return None when no pair exists."""
+        # Setup mock database with single LoRA
+        self.node._lora_database = {
+            "character_high": {"metadata": {}},
+            "standalone_lora": {"metadata": {}},
+        }
+
+        # Test missing pair
+        self.assertIsNone(self.node._find_wan_lora_pair("character_high"))  # No "character_low"
+        self.assertIsNone(self.node._find_wan_lora_pair("standalone_lora"))  # Not high/low variant
+
+    def test_apply_wan_2_2_pairing(self):
+        """_apply_wan_2_2_pairing should add pairs for WAN 2.2 LoRAs."""
+        # Setup mock database and video LoRAs
+        self.node._lora_database = {
+            "wan22_dancer_high": {
+                "metadata": {"base_model": "WAN2.2"},
+                "trigger_words": ["dance"],
+            },
+            "wan22_dancer_low": {
+                "metadata": {"base_model": "WAN2.2"},
+                "trigger_words": ["dance"],
+            },
+        }
+
+        video_loras = [
+            {
+                "name": "wan22_dancer_high",
+                "metadata": {"base_model": "WAN2.2"},
+                "relevance_score": 0.85,
+            }
+        ]
+
+        result = self.node._apply_wan_2_2_pairing(video_loras, max_count=3)
+
+        # Should have original + pair
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["name"], "wan22_dancer_high")
+        self.assertEqual(result[1]["name"], "wan22_dancer_low")
+        self.assertEqual(result[1]["relevance_score"], 0.85)  # Same score as original
+
 
 if __name__ == "__main__":
     unittest.main()

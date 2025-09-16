@@ -465,6 +465,48 @@ def classify_lora_type(metadata: dict[str, Any]) -> str:
     return "unknown"
 
 
+def is_wan_2_2_lora(metadata: dict[str, Any]) -> bool:
+    """
+    Determine if a LoRA is specifically for WAN 2.2 (requires high/low pairing).
+
+    Args:
+        metadata: LoRA metadata dictionary
+
+    Returns:
+        True if this is a WAN 2.2 LoRA that needs high/low pairing
+    """
+    if not metadata:
+        return False
+
+    # Check base_model field for WAN 2.2 indicators
+    base_model = metadata.get("base_model", "").lower()
+    wan_2_2_indicators = ["wan2.2", "wan 2.2", "wanv2.2", "wan v2.2", "wan_2.2"]
+    if any(indicator in base_model for indicator in wan_2_2_indicators):
+        return True
+
+    # Check civitai base model
+    civitai = metadata.get("civitai")
+    if isinstance(civitai, dict):
+        civitai_base = civitai.get("baseModel", "").lower()
+        if any(indicator in civitai_base for indicator in wan_2_2_indicators):
+            return True
+
+    # Check model name and description for WAN 2.2 mentions
+    model_name = metadata.get("model_name", "").lower()
+    if any(indicator in model_name for indicator in wan_2_2_indicators):
+        return True
+
+    # Check civitai model name
+    if isinstance(civitai, dict):
+        model = civitai.get("model")
+        if isinstance(model, dict):
+            civitai_model_name = model.get("name", "").lower()
+            if any(indicator in civitai_model_name for indicator in wan_2_2_indicators):
+                return True
+
+    return False
+
+
 def extract_recommended_weight(metadata: dict[str, Any]) -> float:
     """
     Extract recommended weight/strength for a LoRA from its metadata.

@@ -17,6 +17,7 @@ from nodes.lora_metadata_utils import (
     extract_recommended_weight,
     get_lora_trigger_words,
     is_video_lora,
+    is_wan_2_2_lora,
     load_lora_metadata,
 )
 
@@ -300,6 +301,53 @@ class TestNewMetadataFunctions(unittest.TestCase):
         # Too low
         metadata = {"modelDescription": "Use weight 0.05"}
         self.assertEqual(extract_recommended_weight(metadata), 0.8)  # Should use default
+
+    def test_is_wan_2_2_lora_base_model(self):
+        """is_wan_2_2_lora should detect WAN 2.2 from base_model field."""
+        # Test various WAN 2.2 indicators in base_model
+        metadata = {"base_model": "WAN2.2"}
+        self.assertTrue(is_wan_2_2_lora(metadata))
+
+        metadata = {"base_model": "wan 2.2 video model"}
+        self.assertTrue(is_wan_2_2_lora(metadata))
+
+        metadata = {"base_model": "WAN v2.2"}
+        self.assertTrue(is_wan_2_2_lora(metadata))
+
+        # Test non-WAN 2.2 models
+        metadata = {"base_model": "WAN2.1"}
+        self.assertFalse(is_wan_2_2_lora(metadata))
+
+        metadata = {"base_model": "SDXL"}
+        self.assertFalse(is_wan_2_2_lora(metadata))
+
+    def test_is_wan_2_2_lora_civitai_model(self):
+        """is_wan_2_2_lora should detect WAN 2.2 from civitai fields."""
+        # Test civitai baseModel
+        metadata = {"civitai": {"baseModel": "WAN2.2"}}
+        self.assertTrue(is_wan_2_2_lora(metadata))
+
+        # Test civitai model name
+        metadata = {"civitai": {"model": {"name": "Character WAN2.2 LoRA"}}}
+        self.assertTrue(is_wan_2_2_lora(metadata))
+
+        # Test non-WAN 2.2
+        metadata = {"civitai": {"baseModel": "WAN"}}
+        self.assertFalse(is_wan_2_2_lora(metadata))
+
+    def test_is_wan_2_2_lora_model_name(self):
+        """is_wan_2_2_lora should detect WAN 2.2 from model_name field."""
+        metadata = {"model_name": "Dancing Girl WAN2.2"}
+        self.assertTrue(is_wan_2_2_lora(metadata))
+
+        metadata = {"model_name": "Regular LoRA"}
+        self.assertFalse(is_wan_2_2_lora(metadata))
+
+    def test_is_wan_2_2_lora_empty_metadata(self):
+        """is_wan_2_2_lora should handle empty or None metadata."""
+        self.assertFalse(is_wan_2_2_lora(None))
+        self.assertFalse(is_wan_2_2_lora({}))
+        self.assertFalse(is_wan_2_2_lora({"unrelated_field": "value"}))
 
 
 if __name__ == "__main__":
