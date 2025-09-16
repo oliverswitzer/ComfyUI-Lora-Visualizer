@@ -729,15 +729,21 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
     def _split_wan_prompt_by_high_low(self, wan_prompt: str) -> tuple[str, str]:
         """
         Split a WAN prompt into HIGH and LOW specific versions for WAN 2.2 support.
-        Only processes <wanlora:...> tags, leaving <lora:...> tags unchanged in both outputs.
+
+        - wan_prompt_high: Contains ONLY HIGH lora tags + base prompt text
+        - wan_prompt_low: Contains ONLY LOW lora tags + base prompt text
+        - Base prompt text excludes all LoRA tags (those are distributed separately)
+        - LoRA tags without HIGH/LOW in name are excluded from both outputs
 
         Args:
-            wan_prompt: Video prompt with WAN LoRA tags
+            wan_prompt: Video prompt with LoRA tags (converted from wanlora tags)
 
         Returns:
             Tuple of (wan_prompt_high, wan_prompt_low)
         """
         import re
+
+        log_debug(f"Input wan_prompt: '{wan_prompt}'")
 
         # Extract the base prompt (without wanlora tags) and wanlora tags separately
         base_prompt_parts = []
@@ -745,43 +751,50 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         low_wanlora_tags = []
         single_wanlora_tags = []
 
-        # Split the prompt by wanlora tags and regular content (including regular <lora:> tags)
-        parts = re.split(r"(<wanlora:[^>]+>)", wan_prompt)
+        # Split the prompt by lora tags and regular content
+        # Note: wanlora tags have been converted to lora tags at this point
+        parts = re.split(r"(<lora:[^>]+>)", wan_prompt)
 
         for part in parts:
             part = part.strip()
             if not part:
                 continue
 
-            if part.startswith("<wanlora:") and part.endswith(">"):
-                # This is a wanlora tag - classify it
-                tag_content = part[9:-1]  # Remove <wanlora: and >
+            if part.startswith("<lora:") and part.endswith(">"):
+                # This is a lora tag - classify it by name
+                tag_content = part[6:-1]  # Remove <lora: and >
                 tag_name = tag_content.split(":")[0]  # Get name before first colon
 
-                if "high" in tag_name.lower():
+                tag_name_lower = tag_name.lower()
+                log_debug(f"Checking tag name: '{tag_name}' (lowercase: '{tag_name_lower}')")
+
+                if "high" in tag_name_lower:
                     high_wanlora_tags.append(part)
-                    log_debug(f"Classified as HIGH wanlora: {part}")
-                elif "low" in tag_name.lower():
+                    log_debug(f"Classified as HIGH lora: {part}")
+                elif "low" in tag_name_lower:
                     low_wanlora_tags.append(part)
-                    log_debug(f"Classified as LOW wanlora: {part}")
+                    log_debug(f"Classified as LOW lora: {part}")
                 else:
-                    # Single wanlora (not part of HIGH/LOW pair) - goes in both
+                    # Single lora (not part of HIGH/LOW pair) - include in both outputs
                     single_wanlora_tags.append(part)
-                    log_debug(f"Classified as single wanlora: {part}")
+                    log_debug(f"Classified as single lora: {part}")
             else:
-                # This is regular prompt content (including <lora:> tags)
+                # This is regular prompt content (text, not LoRA tags)
                 base_prompt_parts.append(part)
 
-        # Build the base prompt (includes <lora:> tags but excludes <wanlora:> tags)
+        # Build the base prompt (text content only, no LoRA tags)
         base_prompt = " ".join(base_prompt_parts).strip()
 
-        # Build HIGH prompt: base + HIGH wanlora tags + single wanlora tags
+        # Build HIGH prompt: base + HIGH lora tags + single lora tags
         wan_prompt_high_parts = [base_prompt] + high_wanlora_tags + single_wanlora_tags
         wan_prompt_high = " ".join(part for part in wan_prompt_high_parts if part.strip())
 
-        # Build LOW prompt: base + LOW wanlora tags + single wanlora tags
+        # Build LOW prompt: base + LOW lora tags + single lora tags
         wan_prompt_low_parts = [base_prompt] + low_wanlora_tags + single_wanlora_tags
         wan_prompt_low = " ".join(part for part in wan_prompt_low_parts if part.strip())
+
+        log_debug(f"HIGH output: '{wan_prompt_high}'")
+        log_debug(f"LOW output: '{wan_prompt_low}'")
 
         log_debug(
             f"WAN 2.2 split - HIGH wanlora tags: {len(high_wanlora_tags)}, LOW wanlora tags: {len(low_wanlora_tags)}, Single wanlora tags: {len(single_wanlora_tags)}"
