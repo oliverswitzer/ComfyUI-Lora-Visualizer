@@ -244,14 +244,18 @@ def discover_all_loras() -> dict[str, dict[str, Any]]:
 
     loras = {}
 
-    # Find all .safetensors files
-    pattern = os.path.join(loader.loras_folder, "*.safetensors")
-    for file_path in glob.glob(pattern):
+    # Find all .safetensors files recursively
+    pattern = os.path.join(loader.loras_folder, "**", "*.safetensors")
+    for file_path in glob.glob(pattern, recursive=True):
         lora_name = os.path.basename(file_path).replace(".safetensors", "")
 
         # Get full info including metadata
         lora_info = loader.get_lora_info(lora_name)
         if lora_info["metadata"]:  # Only include LoRAs with metadata
+            # Add directory and full path info
+            rel_path = os.path.relpath(os.path.dirname(file_path), loader.loras_folder)
+            lora_info["directory"] = rel_path if rel_path != "." else ""
+            lora_info["full_path"] = file_path
             loras[lora_name] = lora_info
 
     log(f"Discovered {len(loras)} LoRAs with metadata")
