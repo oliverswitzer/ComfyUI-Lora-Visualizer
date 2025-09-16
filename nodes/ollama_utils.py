@@ -37,6 +37,7 @@ except Exception:
 
 from .logging_utils import (
     log,
+    log_debug,
     log_error,
     log_warning,
 )  # PromptServer may not be available during tests
@@ -202,9 +203,12 @@ def call_ollama_chat(
 
     for attempt in range(max_retries):
         try:
+            # Log the raw request for debugging
+            log_debug(f"Ollama API request to {api_url}: {payload}")
             resp = req.post(api_url, json=payload, timeout=timeout)
             resp.raise_for_status()
             data = resp.json()
+            log_debug(f"Ollama API response: {data}")
 
             # Check for Ollama-specific error responses
             if isinstance(data, dict) and "error" in data:
