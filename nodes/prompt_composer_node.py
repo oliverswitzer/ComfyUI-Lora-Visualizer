@@ -136,41 +136,54 @@ This node
             return True
 
         try:
-            # Try to import sentence-transformers
-            from sentence_transformers import SentenceTransformer
+            # Use TF-IDF from scikit-learn (much simpler, no extra dependencies)
+            from sklearn.feature_extraction.text import TfidfVectorizer
 
-            log("Initializing sentence-transformers embeddings model...")
+            log("Initializing TF-IDF embeddings model...")
 
-            # Load a small, efficient model for content analysis
-            self._embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+            # Create TF-IDF vectorizer
+            self._embedding_model = TfidfVectorizer(
+                stop_words='english',
+                max_features=1000,  # Limit vocabulary size
+                ngram_range=(1, 2),  # Use unigrams and bigrams
+                lowercase=True,
+                strip_accents='unicode'
+            )
 
             # Discover all LoRAs and prepare embeddings
             log("Discovering LoRAs and generating embeddings...")
             self._lora_database = discover_all_loras()
 
-            # Generate embeddings for all LoRAs
+            # Collect all LoRA text content for TF-IDF fitting
+            lora_documents = []
+            lora_names = []
+
             for lora_name, lora_info in self._lora_database.items():
                 log_debug(f"Processing LoRA: {lora_name}")
-                log_debug(f"  lora_info: {lora_info}")
                 metadata = lora_info["metadata"]
-                log_debug(f"  metadata: {metadata}")
                 if metadata:
                     embeddable_text = extract_embeddable_content(metadata)
-                    log_debug(
-                        f"  embeddable_text: '{embeddable_text}' (type: {type(embeddable_text)})"
-                    )
                     if embeddable_text and embeddable_text.strip():
-                        try:
-                            embedding = self._embedding_model.encode(embeddable_text)
-                            self._lora_embeddings[lora_name] = embedding
-                        except Exception as encode_err:
-                            log_error(
-                                f"  Error encoding embeddable_text for {lora_name}: {encode_err}"
-                            )
+                        lora_documents.append(embeddable_text)
+                        lora_names.append(lora_name)
+                        log_debug(f"  Added text for {lora_name}: '{embeddable_text[:50]}...'")
                     else:
-                        log_debug(f"  No embeddable text for {lora_name}, skipping embedding.")
+                        log_debug(f"  No embeddable text for {lora_name}")
                 else:
                     log_debug(f"  No metadata for {lora_name}")
+
+            if lora_documents:
+                log(f"Fitting TF-IDF on {len(lora_documents)} LoRA documents...")
+                # Fit TF-IDF on all documents at once
+                tfidf_matrix = self._embedding_model.fit_transform(lora_documents)
+
+                # Store embeddings as sparse vectors (much more memory efficient)
+                for i, lora_name in enumerate(lora_names):
+                    self._lora_embeddings[lora_name] = tfidf_matrix[i]
+
+                log(f"Generated TF-IDF embeddings for {len(lora_names)} LoRAs")
+            else:
+                log_error("No LoRA documents found for TF-IDF fitting")
 
             self._embeddings_initialized = True
             log(f"Embeddings initialized for {len(self._lora_embeddings)} LoRAs")
@@ -216,8 +229,8 @@ This node
             preview = clean_scene[:50] + ("..." if len(clean_scene) > 50 else "")
             log_debug(f"  🧹 Cleaned scene for embedding: '{preview}'")
 
-            # Generate embedding for cleaned scene description
-            scene_embedding = self._embedding_model.encode(clean_scene)
+            # Generate TF-IDF embedding for cleaned scene description
+            scene_embedding = self._embedding_model.transform([clean_scene])
 
             relevant_loras = []
 
@@ -235,8 +248,8 @@ This node
                 if lora_name in self._lora_embeddings:
                     lora_embedding = self._lora_embeddings[lora_name]
 
-                    # Calculate cosine similarity
-                    similarity = cosine_similarity([scene_embedding], [lora_embedding])[0][0]
+                    # Calculate cosine similarity between sparse matrices
+                    similarity = cosine_similarity(scene_embedding, lora_embedding)[0][0]
                     log_debug(f"  📊 {lora_name} base similarity: {similarity:.4f}")
 
                     # Apply content boost for character/pose LoRAs
