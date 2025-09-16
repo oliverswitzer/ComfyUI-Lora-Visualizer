@@ -105,6 +105,28 @@ This node
                         "tooltip": "Prompt writing style preference",
                     },
                 ),
+                "image_lora_dir_path": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "placeholder": "e.g., characters, styles",
+                        "tooltip": (
+                            "Optional subdirectory path within models/loras to limit image LoRA search. "
+                            "Leave empty to search all directories."
+                        ),
+                    },
+                ),
+                "wan_lora_dir_path": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "placeholder": "e.g., motion, video",
+                        "tooltip": (
+                            "Optional subdirectory path within models/loras to limit video LoRA search. "
+                            "Leave empty to search all directories."
+                        ),
+                    },
+                ),
             },
         }
 
@@ -124,6 +146,7 @@ This node
         self._lora_database = {}
         self._embedding_model = None
         self._lora_embeddings = {}
+
 
     def _initialize_embeddings(self) -> bool:
         """
@@ -203,6 +226,7 @@ This node
         lora_type: str,
         max_count: int,
         content_boost: float,
+        directory_filter: str = "",
     ) -> list[dict[str, Any]]:
         """
         Find relevant LoRAs for the scene description.
@@ -243,6 +267,19 @@ This node
                 actual_type = classify_lora_type(metadata)
                 if actual_type != lora_type:
                     continue
+
+                # Filter by directory if specified
+                if directory_filter:
+                    lora_dir = lora_info.get("directory", "")
+                    # Normalize path separators for cross-platform compatibility
+                    normalized_lora_dir = lora_dir.replace("\\", "/")
+                    normalized_filter = directory_filter.replace("\\", "/")
+                    log_debug(f"  🔍 Checking directory filter: '{normalized_filter}' vs '{normalized_lora_dir}'")
+                    if not normalized_lora_dir.startswith(normalized_filter):
+                        log_debug(f"  📁 Skipping {lora_name}: not in directory '{directory_filter}' (found in '{lora_dir}')")
+                        continue
+                    else:
+                        log_debug(f"  ✅ {lora_name}: matches directory filter '{directory_filter}'")
 
                 # Calculate relevance score
                 if lora_name in self._lora_embeddings:
@@ -656,6 +693,8 @@ This node
         max_video_loras: int = 2,
         content_boost: float = 1.2,
         style_preference: str = "natural",
+        image_lora_dir_path: str = "",
+        wan_lora_dir_path: str = "",
     ) -> tuple[str, str, str]:
         """
         Main function that composes prompts from scene descriptions.
@@ -666,6 +705,8 @@ This node
             max_video_loras: Maximum number of video LoRAs to include
             content_boost: Boost factor for content-specific LoRAs
             style_preference: Style preference ("technical", "artistic", "natural")
+            image_lora_dir_path: Optional subdirectory to filter image LoRAs
+            wan_lora_dir_path: Optional subdirectory to filter video LoRAs
 
         Returns:
             Tuple of (composed_prompt, lora_analysis, metadata_summary)
@@ -686,11 +727,14 @@ This node
 
             # Find relevant image LoRAs
             log("Finding relevant image LoRAs...")
+            if image_lora_dir_path:
+                log(f"Filtering image LoRAs to directory: {image_lora_dir_path}")
             image_loras = self._find_relevant_loras(
                 scene_description,
                 "image",
                 max_image_loras,
                 content_boost,
+                image_lora_dir_path,
             )
             image_names = [lora.get("name", "unknown") for lora in image_loras]
             log(f"Found {len(image_loras)} image LoRAs: {image_names}")
@@ -717,11 +761,14 @@ This node
 
             # Find relevant video LoRAs using the new context
             log("Finding relevant video LoRAs...")
+            if wan_lora_dir_path:
+                log(f"Filtering video LoRAs to directory: {wan_lora_dir_path}")
             video_loras = self._find_relevant_loras(
                 video_query_context,
                 "video",
                 max_video_loras,
                 content_boost,
+                wan_lora_dir_path,
             )
             video_names = [lora.get("name", "unknown") for lora in video_loras]
             log(f"Found {len(video_loras)} video LoRAs: {video_names}")
