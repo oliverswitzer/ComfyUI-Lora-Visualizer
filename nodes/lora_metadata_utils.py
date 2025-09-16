@@ -34,6 +34,7 @@ class LoRAMetadataLoader:
     def load_metadata(self, lora_name: str) -> Optional[dict[str, Any]]:
         """
         Load metadata for a LoRA from its .metadata.json file.
+        Searches recursively through subdirectories.
 
         Args:
             lora_name: Name of the LoRA (without extension)
@@ -45,21 +46,21 @@ class LoRAMetadataLoader:
             log_error(f"LoRA folder not available, cannot load metadata for {lora_name}")
             return None
 
-        # Try different metadata file naming patterns
-        metadata_paths = [
-            os.path.join(self.loras_folder, f"{lora_name}.metadata.json"),
-            os.path.join(self.loras_folder, f"{lora_name}.safetensors.metadata.json"),
+        # Search recursively for metadata files with different naming patterns
+        patterns = [
+            os.path.join(self.loras_folder, "**", f"{lora_name}.metadata.json"),
+            os.path.join(self.loras_folder, "**", f"{lora_name}.safetensors.metadata.json"),
         ]
 
-        for metadata_path in metadata_paths:
-            if os.path.exists(metadata_path):
+        for pattern in patterns:
+            for metadata_path in glob.glob(pattern, recursive=True):
                 try:
                     with open(metadata_path, encoding="utf-8") as f:
-                        log(f"Loaded metadata for LoRA: {lora_name}")
+                        log_debug(f"Loaded metadata for LoRA: {lora_name}")
                         return json.load(f)
                 except (OSError, json.JSONDecodeError) as e:
                     log_error(f"Error loading metadata for {lora_name}: {e}")
-                    return None
+                    continue
 
         log(f"No metadata file found for LoRA: {lora_name}")
         return None
@@ -233,6 +234,7 @@ def parse_lora_tags(prompt_text: str) -> tuple[list[dict], list[dict]]:
 def discover_all_loras() -> dict[str, dict[str, Any]]:
     """
     Discover all LoRAs in the ComfyUI LoRA directory and load their metadata.
+    Recursively scans all subdirectories for LoRA files.
 
     Returns:
         Dict mapping LoRA name to its metadata and info
@@ -258,7 +260,7 @@ def discover_all_loras() -> dict[str, dict[str, Any]]:
             lora_info["full_path"] = file_path
             loras[lora_name] = lora_info
 
-    log(f"Discovered {len(loras)} LoRAs with metadata")
+    log(f"Discovered {len(loras)} LoRAs with metadata (including nested directories)")
     return loras
 
 

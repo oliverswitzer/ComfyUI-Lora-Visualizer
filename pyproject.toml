@@ -32,7 +32,12 @@ line-length = 100
 target-version = "py39"
 
 [tool.pdm.dev-dependencies]
-dev = [ "pytest>=8.4.1", "ruff>=0.1.0",]
+dev = [
+    "pytest>=8.4.1",
+    "ruff>=0.1.0",
+    "black>=22.0.0",
+    "pylint>=2.12.0",
+]
 
 [tool.pdm.scripts]
 format = "ruff format ."
