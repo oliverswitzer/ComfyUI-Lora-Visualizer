@@ -62,11 +62,19 @@ class PromptSplitterNode:
     • Configurable Ollama model, API URL, and system prompt
     """
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("image_prompt", "wan_prompt", "lora_analysis")
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = (
+        "image_prompt",
+        "wan_prompt",
+        "wan_prompt_high",
+        "wan_prompt_low",
+        "lora_analysis",
+    )
     OUTPUT_TOOLTIPS = (
         "Image prompt with LoRA tags, trigger words, and static visual elements",
-        "Video prompt with WanLoRA tags, trigger words, and motion/action elements",
+        "Video prompt with WanLoRA tags, trigger words, and motion/action elements (WAN 2.1 compatible)",
+        "Video prompt with HIGH LoRA tags only (for WAN 2.2 high noise)",
+        "Video prompt with LOW LoRA tags only (for WAN 2.2 low noise)",
         "JSON analysis of LoRAs used and their examples that were fed to the LLM",
     )
     OUTPUT_NODE = True
@@ -718,13 +726,76 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         """
         return prompt, prompt
 
+    def _split_wan_prompt_by_high_low(self, wan_prompt: str) -> tuple[str, str]:
+        """
+        Split a WAN prompt into HIGH and LOW specific versions for WAN 2.2 support.
+        Only processes <wanlora:...> tags, leaving <lora:...> tags unchanged in both outputs.
+
+        Args:
+            wan_prompt: Video prompt with WAN LoRA tags
+
+        Returns:
+            Tuple of (wan_prompt_high, wan_prompt_low)
+        """
+        import re
+
+        # Extract the base prompt (without wanlora tags) and wanlora tags separately
+        base_prompt_parts = []
+        high_wanlora_tags = []
+        low_wanlora_tags = []
+        single_wanlora_tags = []
+
+        # Split the prompt by wanlora tags and regular content (including regular <lora:> tags)
+        parts = re.split(r"(<wanlora:[^>]+>)", wan_prompt)
+
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+
+            if part.startswith("<wanlora:") and part.endswith(">"):
+                # This is a wanlora tag - classify it
+                tag_content = part[9:-1]  # Remove <wanlora: and >
+                tag_name = tag_content.split(":")[0]  # Get name before first colon
+
+                if "high" in tag_name.lower():
+                    high_wanlora_tags.append(part)
+                    log_debug(f"Classified as HIGH wanlora: {part}")
+                elif "low" in tag_name.lower():
+                    low_wanlora_tags.append(part)
+                    log_debug(f"Classified as LOW wanlora: {part}")
+                else:
+                    # Single wanlora (not part of HIGH/LOW pair) - goes in both
+                    single_wanlora_tags.append(part)
+                    log_debug(f"Classified as single wanlora: {part}")
+            else:
+                # This is regular prompt content (including <lora:> tags)
+                base_prompt_parts.append(part)
+
+        # Build the base prompt (includes <lora:> tags but excludes <wanlora:> tags)
+        base_prompt = " ".join(base_prompt_parts).strip()
+
+        # Build HIGH prompt: base + HIGH wanlora tags + single wanlora tags
+        wan_prompt_high_parts = [base_prompt] + high_wanlora_tags + single_wanlora_tags
+        wan_prompt_high = " ".join(part for part in wan_prompt_high_parts if part.strip())
+
+        # Build LOW prompt: base + LOW wanlora tags + single wanlora tags
+        wan_prompt_low_parts = [base_prompt] + low_wanlora_tags + single_wanlora_tags
+        wan_prompt_low = " ".join(part for part in wan_prompt_low_parts if part.strip())
+
+        log_debug(
+            f"WAN 2.2 split - HIGH wanlora tags: {len(high_wanlora_tags)}, LOW wanlora tags: {len(low_wanlora_tags)}, Single wanlora tags: {len(single_wanlora_tags)}"
+        )
+
+        return wan_prompt_high, wan_prompt_low
+
     def split_prompt(
         self,
         prompt_text: str,
         model_name: str = None,
         api_url: str = None,
         additional_instructions: str = "",
-    ) -> tuple[str, str, str]:
+    ) -> tuple[str, str, str, str, str]:
         """Public method invoked by ComfyUI to split prompts.
 
         Args:
@@ -741,7 +812,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         """
         if not prompt_text or not prompt_text.strip():
             log("Prompt Splitter: Empty input prompt, returning empty results")
-            return "", "", "{}"
+            return "", "", "", "", "{}"
 
         # Send initial progress update
         self._send_progress_update(0.1, "Starting prompt analysis...")
@@ -926,10 +997,21 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
 
             analysis_output = json.dumps(analysis_data, indent=2, ensure_ascii=False)
 
+            # Generate HIGH/LOW specific prompts for WAN 2.2
+            wan_prompt_high, wan_prompt_low = self._split_wan_prompt_by_high_low(wan_prompt)
+
             log("Prompt Splitter: Successfully split prompt")
             log(f"Prompt Splitter: Final image prompt length: {len(image_prompt)} characters")
             log(f"Prompt Splitter: Final video prompt length: {len(wan_prompt)} characters")
-            return image_prompt.strip(), wan_prompt.strip(), analysis_output
+            log(f"Prompt Splitter: HIGH prompt length: {len(wan_prompt_high)} characters")
+            log(f"Prompt Splitter: LOW prompt length: {len(wan_prompt_low)} characters")
+            return (
+                image_prompt.strip(),
+                wan_prompt.strip(),
+                wan_prompt_high.strip(),
+                wan_prompt_low.strip(),
+                analysis_output,
+            )
 
         # If Ollama returned empty or invalid responses, do not attempt a
         # naive fallback.  Return empty strings to signal failure.

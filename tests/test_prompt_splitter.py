@@ -28,7 +28,7 @@ class TestPromptSplitterNode(unittest.TestCase):
         """split_prompt should return whatever _call_ollama returns if non-empty."""
         with patch.object(self.node, "_call_ollama", return_value=("image", "video")) as mock_call:
             with patch.object(self.node, "_ensure_model_available") as mock_ensure:
-                image, wan, analysis = self.node.split_prompt("A test prompt")
+                image, wan, wan_high, wan_low, analysis = self.node.split_prompt("A test prompt")
         self.assertEqual(image, "image")
         self.assertEqual(wan, "video")
         mock_call.assert_called_once()
@@ -52,7 +52,7 @@ class TestPromptSplitterNode(unittest.TestCase):
 
         with patch.object(self.node, "_call_ollama", side_effect=fake_call):
             with patch.object(self.node, "_ensure_model_available"):
-                self.node.split_prompt("Prompt without model", model_name=None)
+                _, _, _, _, _ = self.node.split_prompt("Prompt without model", model_name=None)
         # Expect the default model name defined in the node to be used
         self.assertEqual(used["model"], "nollama/mythomax-l2-13b:Q4_K_M")
 
@@ -60,7 +60,7 @@ class TestPromptSplitterNode(unittest.TestCase):
         """_ensure_model_available should be called exactly once per split call."""
         with patch.object(self.node, "_call_ollama", return_value=("a", "b")):
             with patch.object(self.node, "_ensure_model_available") as mock_ensure:
-                self.node.split_prompt("Another test prompt")
+                _, _, _, _, _ = self.node.split_prompt("Another test prompt")
         mock_ensure.assert_called_once()
 
     def test_override_model_name(self):
@@ -73,7 +73,7 @@ class TestPromptSplitterNode(unittest.TestCase):
 
         with patch.object(self.node, "_call_ollama", side_effect=fake_call):
             with patch.object(self.node, "_ensure_model_available"):
-                self.node.split_prompt("Test override", model_name="custom-model")
+                _, _, _, _, _ = self.node.split_prompt("Test override", model_name="custom-model")
         self.assertEqual(used["model"], "custom-model")
 
     def test_ensure_model_download_called_when_missing(self):
@@ -196,7 +196,9 @@ class TestPromptSplitterNode(unittest.TestCase):
             self.node, "_call_ollama", return_value=("woman dancing", "woman dances")
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
+                image_prompt, wan_prompt, wan_prompt_high, wan_prompt_low, analysis = (
+                    self.node.split_prompt(input_prompt)
+                )
 
         self.assertEqual(image_prompt, "woman dancing")
         self.assertEqual(wan_prompt, "woman dances")
@@ -298,7 +300,9 @@ class TestPromptSplitterNode(unittest.TestCase):
             return_value=("woman dancing gracefully", "woman dances"),
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
+                image_prompt, wan_prompt, wan_prompt_high, wan_prompt_low, analysis = (
+                    self.node.split_prompt(input_prompt)
+                )
 
         # Should have verbatim content added back deterministically
         self.assertIn("overwatch, ana", image_prompt)
@@ -318,7 +322,9 @@ class TestPromptSplitterNode(unittest.TestCase):
             return_value=("image content", "video content"),
         ):
             with patch.object(self.node, "_ensure_model_available"):
-                image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
+                image_prompt, wan_prompt, wan_prompt_high, wan_prompt_low, analysis = (
+                    self.node.split_prompt(input_prompt)
+                )
         # The wan_prompt should contain <lora:motion:1.0> and NOT <wanlora:motion:1.0>
         self.assertIn("<lora:motion:1.0>", wan_prompt)
         self.assertNotIn("<wanlora:motion:1.0>", wan_prompt)
@@ -492,7 +498,9 @@ through the scene with fluid motion"""
                     return_value=("woman dancing gracefully", "woman dances"),
                 ):
                     with patch.object(self.node, "_ensure_model_available"):
-                        image_prompt, wan_prompt, analysis = self.node.split_prompt(input_prompt)
+                        image_prompt, wan_prompt, wan_prompt_high, wan_prompt_low, analysis = (
+                            self.node.split_prompt(input_prompt)
+                        )
 
         # Parse the JSON analysis
         import json
@@ -521,6 +529,59 @@ through the scene with fluid motion"""
         # Should contain metadata about processing
         self.assertIn("total_examples_used", analysis_data)
         self.assertIn("model_used", analysis_data)
+
+    def test_split_wan_prompt_by_high_low_with_mixed_tags(self):
+        """_split_wan_prompt_by_high_low should separate HIGH/LOW wanlora tags correctly."""
+        # Test prompt with mixed HIGH/LOW wanlora tags, single wanlora tags, and regular lora tags
+        wan_prompt = "dancing robot in the city <wanlora:character_high:0.8> <wanlora:character_low:0.6> <wanlora:single_style:0.5> <lora:regular_style:0.7>"
+
+        wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+
+        # HIGH prompt should have base + HIGH wanlora tag + single wanlora tag + regular lora tag
+        self.assertIn("dancing robot in the city", wan_high)
+        self.assertIn("<wanlora:character_high:0.8>", wan_high)
+        self.assertIn("<wanlora:single_style:0.5>", wan_high)
+        self.assertIn("<lora:regular_style:0.7>", wan_high)  # Regular lora tags should be preserved
+        self.assertNotIn("<wanlora:character_low:0.6>", wan_high)
+
+        # LOW prompt should have base + LOW wanlora tag + single wanlora tag + regular lora tag
+        self.assertIn("dancing robot in the city", wan_low)
+        self.assertIn("<wanlora:character_low:0.6>", wan_low)
+        self.assertIn("<wanlora:single_style:0.5>", wan_low)
+        self.assertIn("<lora:regular_style:0.7>", wan_low)  # Regular lora tags should be preserved
+        self.assertNotIn("<wanlora:character_high:0.8>", wan_low)
+
+    def test_split_wan_prompt_by_high_low_with_dash_patterns(self):
+        """_split_wan_prompt_by_high_low should handle dash-separated HIGH/LOW wanlora patterns."""
+        wan_prompt = (
+            "futuristic scene <wanlora:Wan22-I2V-HIGH-Robot:0.7> <wanlora:Wan22-I2V-LOW-Robot:0.7>"
+        )
+
+        wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+
+        # HIGH prompt should contain only HIGH wanlora tag
+        self.assertIn("<wanlora:Wan22-I2V-HIGH-Robot:0.7>", wan_high)
+        self.assertNotIn("<wanlora:Wan22-I2V-LOW-Robot:0.7>", wan_high)
+
+        # LOW prompt should contain only LOW wanlora tag
+        self.assertIn("<wanlora:Wan22-I2V-LOW-Robot:0.7>", wan_low)
+        self.assertNotIn("<wanlora:Wan22-I2V-HIGH-Robot:0.7>", wan_low)
+
+        # Both should contain base prompt
+        self.assertIn("futuristic scene", wan_high)
+        self.assertIn("futuristic scene", wan_low)
+
+    def test_split_wan_prompt_by_high_low_with_no_pairs(self):
+        """_split_wan_prompt_by_high_low should handle prompts with no HIGH/LOW wanlora tags."""
+        wan_prompt = "simple scene <lora:style1:0.8> <wanlora:character:0.6>"
+
+        wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+
+        # Both outputs should be identical (base + all single wanlora tags + regular lora tags)
+        self.assertEqual(wan_high, wan_low)
+        self.assertIn("simple scene", wan_high)
+        self.assertIn("<lora:style1:0.8>", wan_high)  # Regular lora tag preserved
+        self.assertIn("<wanlora:character:0.6>", wan_high)  # Single wanlora tag in both
 
 
 if __name__ == "__main__":
