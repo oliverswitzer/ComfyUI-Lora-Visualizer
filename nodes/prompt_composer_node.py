@@ -212,8 +212,8 @@ This node
             return True
 
         except ImportError as e:
-            log_error(f"Failed to import sentence-transformers: {e}")
-            log_error("Please install with: pip install sentence-transformers")
+            log_error(f"Failed to import required dependencies: {e}")
+            log_error("Please install with: pip install scikit-learn")
             return False
         except Exception as e:
             log_error(f"Failed to initialize embeddings: {e}")
@@ -723,7 +723,7 @@ This node
         if not self._initialize_embeddings():
             return (
                 "Error: Could not initialize embeddings system.",
-                "Embeddings initialization failed. Please install sentence-transformers.",
+                "Embeddings initialization failed. Please install scikit-learn.",
                 "Error: Missing dependencies",
             )
 

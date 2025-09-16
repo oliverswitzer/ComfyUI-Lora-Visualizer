@@ -84,14 +84,14 @@ class TestLoRAMetadataLoader(unittest.TestCase):
 
     @patch("nodes.lora_metadata_utils.folder_paths")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.path.exists")
-    def test_load_metadata_success(self, mock_exists, mock_file, mock_folder_paths):
+    @patch("nodes.lora_metadata_utils.glob.glob")
+    def test_load_metadata_success(self, mock_glob, mock_file, mock_folder_paths):
         """load_metadata should successfully load JSON from metadata file."""
         # Mock folder_paths
         mock_folder_paths.get_folder_paths.return_value = ["/fake/loras"]
 
-        # Mock file existence
-        mock_exists.return_value = True
+        # Mock glob.glob to return a file path
+        mock_glob.return_value = ["/fake/loras/subfolder/test-lora.metadata.json"]
 
         # Mock file content
         mock_file.return_value.read.return_value = (

@@ -68,8 +68,8 @@ class TestPromptComposerNode(unittest.TestCase):
         """Should handle embeddings initialization failure gracefully."""
         mock_discover.return_value = {}
 
-        # Mock the import to fail
-        with patch.dict("sys.modules", {"sentence_transformers": None}):
+        # Mock scikit-learn import to fail
+        with patch.dict("sys.modules", {"sklearn.feature_extraction.text": None}):
             result = self.node.compose_prompt("test scene")
 
         self.assertEqual(len(result), 3)
@@ -207,20 +207,12 @@ class TestPromptComposerNode(unittest.TestCase):
             }
         }
 
-        # Mock sentence-transformers import and functionality
-        mock_model = MagicMock()
-        mock_model.encode.return_value = [0.1, 0.2, 0.3]  # Mock embedding
+        # Mock TF-IDF vectorizer
+        mock_vectorizer = MagicMock()
+        mock_matrix = MagicMock()
+        mock_vectorizer.fit_transform.return_value = mock_matrix
 
-        with patch.dict(
-            "sys.modules",
-            {
-                "sentence_transformers": MagicMock(
-                    SentenceTransformer=MagicMock(return_value=mock_model)
-                ),
-                "numpy": MagicMock(),
-                "sklearn.metrics.pairwise": MagicMock(),
-            },
-        ):
+        with patch("sklearn.feature_extraction.text.TfidfVectorizer", return_value=mock_vectorizer):
             with patch("nodes.prompt_composer_node.extract_embeddable_content") as mock_extract:
                 mock_extract.return_value = "test lora description"
 
