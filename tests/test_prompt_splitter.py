@@ -531,57 +531,60 @@ through the scene with fluid motion"""
         self.assertIn("model_used", analysis_data)
 
     def test_split_wan_prompt_by_high_low_with_mixed_tags(self):
-        """_split_wan_prompt_by_high_low should separate HIGH/LOW wanlora tags correctly."""
-        # Test prompt with mixed HIGH/LOW wanlora tags, single wanlora tags, and regular lora tags
-        wan_prompt = "dancing robot in the city <wanlora:character_high:0.8> <wanlora:character_low:0.6> <wanlora:single_style:0.5> <lora:regular_style:0.7>"
+        """_split_wan_prompt_by_high_low should separate HIGH/LOW lora tags correctly."""
+        # Test prompt with mixed HIGH/LOW lora tags, single lora tags, and regular lora tags
+        # Note: wanlora tags have been converted to lora tags at this point in the real flow
+        wan_prompt = "dancing robot in the city <lora:character_high:0.8> <lora:character_low:0.6> <lora:single_style:0.5> <lora:regular_style:0.7>"
 
         wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
 
-        # HIGH prompt should have base + HIGH wanlora tag + single wanlora tag + regular lora tag
+        # HIGH prompt should have base + HIGH lora tag + single lora tag + regular lora tag
         self.assertIn("dancing robot in the city", wan_high)
-        self.assertIn("<wanlora:character_high:0.8>", wan_high)
-        self.assertIn("<wanlora:single_style:0.5>", wan_high)
+        self.assertIn("<lora:character_high:0.8>", wan_high)
+        self.assertIn("<lora:single_style:0.5>", wan_high)
         self.assertIn("<lora:regular_style:0.7>", wan_high)  # Regular lora tags should be preserved
-        self.assertNotIn("<wanlora:character_low:0.6>", wan_high)
+        self.assertNotIn("<lora:character_low:0.6>", wan_high)
 
-        # LOW prompt should have base + LOW wanlora tag + single wanlora tag + regular lora tag
+        # LOW prompt should have base + LOW lora tag + single lora tag + regular lora tag
         self.assertIn("dancing robot in the city", wan_low)
-        self.assertIn("<wanlora:character_low:0.6>", wan_low)
-        self.assertIn("<wanlora:single_style:0.5>", wan_low)
+        self.assertIn("<lora:character_low:0.6>", wan_low)
+        self.assertIn("<lora:single_style:0.5>", wan_low)
         self.assertIn("<lora:regular_style:0.7>", wan_low)  # Regular lora tags should be preserved
-        self.assertNotIn("<wanlora:character_high:0.8>", wan_low)
+        self.assertNotIn("<lora:character_high:0.8>", wan_low)
 
     def test_split_wan_prompt_by_high_low_with_dash_patterns(self):
-        """_split_wan_prompt_by_high_low should handle dash-separated HIGH/LOW wanlora patterns."""
+        """_split_wan_prompt_by_high_low should handle dash-separated HIGH/LOW lora patterns."""
+        # Note: wanlora tags have been converted to lora tags at this point in the real flow
         wan_prompt = (
-            "futuristic scene <wanlora:Wan22-I2V-HIGH-Robot:0.7> <wanlora:Wan22-I2V-LOW-Robot:0.7>"
+            "futuristic scene <lora:Wan22-I2V-HIGH-Robot:0.7> <lora:Wan22-I2V-LOW-Robot:0.7>"
         )
 
         wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
 
-        # HIGH prompt should contain only HIGH wanlora tag
-        self.assertIn("<wanlora:Wan22-I2V-HIGH-Robot:0.7>", wan_high)
-        self.assertNotIn("<wanlora:Wan22-I2V-LOW-Robot:0.7>", wan_high)
+        # HIGH prompt should contain only HIGH lora tag
+        self.assertIn("<lora:Wan22-I2V-HIGH-Robot:0.7>", wan_high)
+        self.assertNotIn("<lora:Wan22-I2V-LOW-Robot:0.7>", wan_high)
 
-        # LOW prompt should contain only LOW wanlora tag
-        self.assertIn("<wanlora:Wan22-I2V-LOW-Robot:0.7>", wan_low)
-        self.assertNotIn("<wanlora:Wan22-I2V-HIGH-Robot:0.7>", wan_low)
+        # LOW prompt should contain only LOW lora tag
+        self.assertIn("<lora:Wan22-I2V-LOW-Robot:0.7>", wan_low)
+        self.assertNotIn("<lora:Wan22-I2V-HIGH-Robot:0.7>", wan_low)
 
         # Both should contain base prompt
         self.assertIn("futuristic scene", wan_high)
         self.assertIn("futuristic scene", wan_low)
 
     def test_split_wan_prompt_by_high_low_with_no_pairs(self):
-        """_split_wan_prompt_by_high_low should handle prompts with no HIGH/LOW wanlora tags."""
-        wan_prompt = "simple scene <lora:style1:0.8> <wanlora:character:0.6>"
+        """_split_wan_prompt_by_high_low should handle prompts with no HIGH/LOW lora tags."""
+        # Note: wanlora tags have been converted to lora tags at this point in the real flow
+        wan_prompt = "simple scene <lora:style1:0.8> <lora:character:0.6>"
 
         wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
 
-        # Both outputs should be identical (base + all single wanlora tags + regular lora tags)
+        # Both outputs should be identical (base + all single lora tags)
         self.assertEqual(wan_high, wan_low)
         self.assertIn("simple scene", wan_high)
         self.assertIn("<lora:style1:0.8>", wan_high)  # Regular lora tag preserved
-        self.assertIn("<wanlora:character:0.6>", wan_high)  # Single wanlora tag in both
+        self.assertIn("<lora:character:0.6>", wan_high)  # Single lora tag in both
 
 
 if __name__ == "__main__":

@@ -479,10 +479,14 @@ def is_wan_2_2_lora(metadata: dict[str, Any]) -> bool:
         return False
 
     wan_2_2_indicators = [
-        "wan2.2", "wan 2.2", "wanv2.2", "wan v2.2", "wan_2.2",
+        "wan2.2",
+        "wan 2.2",
+        "wanv2.2",
+        "wan v2.2",
+        "wan_2.2",
         "wan video 2.2",  # Matches "Wan Video 2.2 I2V-A14B"
-        "i2v-a14b",       # Matches the specific model architecture
-        "video 2.2"       # Matches "Video 2.2" part
+        "i2v-a14b",  # Matches the specific model architecture
+        "video 2.2",  # Matches "Video 2.2" part
     ]
 
     # Check base_model field for WAN 2.2 indicators

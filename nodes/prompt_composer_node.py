@@ -242,7 +242,7 @@ This node
         log_debug(f"  has_high: {has_high}, has_low: {has_low}")
 
         if not (has_high or has_low):
-            log_debug(f"  Not a high/low variant, skipping")
+            log_debug("  Not a high/low variant, skipping")
             return None  # Not a high/low variant
 
         # Simple replacement: swap "high" with "low" and vice versa (preserve case)
@@ -284,14 +284,20 @@ This node
             log_debug(f"  Pair not found. Database has {len(self._lora_database)} LoRAs")
 
             # Show all LoRAs containing "high" or "low" for debugging
-            high_low_loras = [name for name in self._lora_database.keys()
-                            if "high" in name.lower() or "low" in name.lower()]
+            high_low_loras = [
+                name
+                for name in self._lora_database.keys()
+                if "high" in name.lower() or "low" in name.lower()
+            ]
             if high_low_loras:
                 log_debug(f"  HIGH/LOW LoRAs in database: {high_low_loras[:10]}")  # Show first 10
 
             # Log some similar names for debugging
-            similar_names = [name for name in self._lora_database.keys()
-                           if any(word in name.lower() for word in pair_name.lower().split()[:3])][:5]
+            similar_names = [
+                name
+                for name in self._lora_database.keys()
+                if any(word in name.lower() for word in pair_name.lower().split()[:3])
+            ][:5]
             if similar_names:
                 log_debug(f"  Similar names in database: {similar_names}")
             return None
