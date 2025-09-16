@@ -183,13 +183,16 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                         "tooltip": "URL of the Ollama chat API endpoint.",
                     },
                 ),
-                "system_prompt": (
+                "additional_instructions": (
                     "STRING",
                     {
                         "multiline": True,
                         "default": "",
-                        "placeholder": "Custom system prompt (leave blank to use default).",
-                        "tooltip": "Override the default instructions sent to the Ollama model.",
+                        "placeholder": "Additional instructions to append to system prompt...",
+                        "tooltip": (
+                            "Additional instructions to append to the default system prompt. "
+                            "Use this to customize AI behavior without replacing the entire prompt."
+                        ),
                     },
                 ),
             },
@@ -718,7 +721,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         prompt_text: str,
         model_name: str = None,
         api_url: str = None,
-        system_prompt: str = "",
+        additional_instructions: str = "",
     ) -> tuple[str, str, str]:
         """Public method invoked by ComfyUI to split prompts.
 
@@ -728,8 +731,8 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 ``self._DEFAULT_MODEL_NAME`` if ``None``.
             api_url: Optional Ollama API URL; defaults to
                 ``self._DEFAULT_API_URL`` if ``None``.
-            system_prompt: Optional system prompt override; if empty the
-                built-in default is used.
+            additional_instructions: Optional additional instructions to append
+                to the default system prompt.
 
         Returns:
             (image_prompt, wan_prompt, lora_analysis)
@@ -781,19 +784,19 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
         url = api_url or self._DEFAULT_API_URL
 
         # Create contextualized system prompt with LoRA examples and descriptions
-        if system_prompt:
-            # User provided custom system prompt, use as-is
-            sys_prompt = system_prompt
-        else:
-            # Use our enhanced system prompt with LoRA context
-            sys_prompt = self._create_contextualized_system_prompt(lora_examples, lora_descriptions)
-            if lora_examples or lora_descriptions:
-                total_examples = sum(len(examples) for examples in lora_examples.values())
-                total_descriptions = len(lora_descriptions)
-                log(
-                    f"Prompt Splitter: Enhanced system prompt with {total_examples} examples "
-                    f"and {total_descriptions} descriptions from LoRAs"
-                )
+        sys_prompt = self._create_contextualized_system_prompt(lora_examples, lora_descriptions)
+        if lora_examples or lora_descriptions:
+            total_examples = sum(len(examples) for examples in lora_examples.values())
+            total_descriptions = len(lora_descriptions)
+            log(
+                f"Prompt Splitter: Enhanced system prompt with {total_examples} examples "
+                f"and {total_descriptions} descriptions from LoRAs"
+            )
+
+        # Append additional instructions if provided
+        if additional_instructions and additional_instructions.strip():
+            sys_prompt = f"{sys_prompt}\n\nAdditional Instructions:\n{additional_instructions.strip()}"
+            log("Prompt Splitter: Appended additional instructions to system prompt")
 
         log(f"Prompt Splitter: Starting split using model '{model}'")
         self._send_progress_update(0.3, f"Checking Ollama model '{model}'...")
