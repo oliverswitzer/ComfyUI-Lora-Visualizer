@@ -231,13 +231,18 @@ This node
         """
         import re
 
+        log_debug(f"Looking for pair for: {selected_lora_name}")
+
         name_lower = selected_lora_name.lower()
 
         # Check if it contains "high" or "low" (case insensitive)
         has_high = "high" in name_lower
         has_low = "low" in name_lower
 
+        log_debug(f"  has_high: {has_high}, has_low: {has_low}")
+
         if not (has_high or has_low):
+            log_debug(f"  Not a high/low variant, skipping")
             return None  # Not a high/low variant
 
         # Simple replacement: swap "high" with "low" and vice versa (preserve case)
@@ -266,11 +271,30 @@ This node
 
             pair_name = re.sub(r"low", replace_low, selected_lora_name, flags=re.IGNORECASE)
 
-        # Check if the pair exists in available LoRAs
-        if pair_name in self._lora_database:
-            return pair_name
+        log_debug(f"  Generated pair name: {pair_name}")
 
-        return None
+        # Check if the pair exists in available LoRAs
+        exists = pair_name in self._lora_database
+        log_debug(f"  Pair exists in database: {exists}")
+
+        if exists:
+            log(f"WAN 2.2 pair found: {selected_lora_name} <-> {pair_name}")
+            return pair_name
+        else:
+            log_debug(f"  Pair not found. Database has {len(self._lora_database)} LoRAs")
+
+            # Show all LoRAs containing "high" or "low" for debugging
+            high_low_loras = [name for name in self._lora_database.keys()
+                            if "high" in name.lower() or "low" in name.lower()]
+            if high_low_loras:
+                log_debug(f"  HIGH/LOW LoRAs in database: {high_low_loras[:10]}")  # Show first 10
+
+            # Log some similar names for debugging
+            similar_names = [name for name in self._lora_database.keys()
+                           if any(word in name.lower() for word in pair_name.lower().split()[:3])][:5]
+            if similar_names:
+                log_debug(f"  Similar names in database: {similar_names}")
+            return None
 
     def _apply_wan_2_2_pairing(
         self, video_loras: list[dict[str, Any]], max_count: int
@@ -301,6 +325,7 @@ This node
             # Check if this is a WAN 2.2 LoRA
             metadata = lora.get("metadata")
             if metadata and is_wan_2_2_lora(metadata):
+                log_debug(f"Found WAN 2.2 LoRA: {lora['name']}")
                 # Try to find the matching pair
                 pair_name = self._find_wan_lora_pair(lora["name"])
 

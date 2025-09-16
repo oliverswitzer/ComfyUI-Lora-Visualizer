@@ -247,6 +247,63 @@ class TestPromptComposerNode(unittest.TestCase):
         result = self.node._find_wan_lora_pair("Wan22-I2V-HIGH-Dancing_Robot")
         self.assertEqual(result, "Wan22-I2V-LOW-Dancing_Robot")
 
+    def test_find_wan_lora_pair_middle_high_low_pattern(self):
+        """_find_wan_lora_pair should handle HIGH/LOW in the middle of filename."""
+        # Setup mock database with HIGH/LOW in middle of name
+        self.node._lora_database = {
+            "Wan22-I2V-HIGH-Action_Character": {"metadata": {}},
+            "Wan22-I2V-LOW-Action_Character": {"metadata": {}},
+        }
+
+        # Test HIGH to LOW
+        result = self.node._find_wan_lora_pair("Wan22-I2V-HIGH-Action_Character")
+        self.assertEqual(result, "Wan22-I2V-LOW-Action_Character")
+
+        # Test LOW to HIGH
+        result_reverse = self.node._find_wan_lora_pair("Wan22-I2V-LOW-Action_Character")
+        self.assertEqual(result_reverse, "Wan22-I2V-HIGH-Action_Character")
+
+    def test_find_wan_lora_pair_end_high_low_pattern(self):
+        """_find_wan_lora_pair should handle HIGH/LOW at the end of filename."""
+        # Setup mock database with HIGH/LOW at end of name
+        self.node._lora_database = {
+            "ModelName_I2V_14B_HIGH": {"metadata": {}},
+            "ModelName_I2V_14B_LOW": {"metadata": {}},
+        }
+
+        # Test HIGH to LOW
+        result = self.node._find_wan_lora_pair("ModelName_I2V_14B_HIGH")
+        self.assertEqual(result, "ModelName_I2V_14B_LOW")
+
+        # Test LOW to HIGH
+        result_reverse = self.node._find_wan_lora_pair("ModelName_I2V_14B_LOW")
+        self.assertEqual(result_reverse, "ModelName_I2V_14B_HIGH")
+
+    def test_find_wan_lora_pair_mixed_patterns_together(self):
+        """Test different HIGH/LOW patterns in the same database."""
+        # Setup mock database with different HIGH/LOW patterns
+        self.node._lora_database = {
+            "Wan22-I2V-HIGH-Action_Character": {"metadata": {}},
+            "Wan22-I2V-LOW-Action_Character": {"metadata": {}},
+            "ModelName_I2V_14B_HIGH": {"metadata": {}},
+            "ModelName_I2V_14B_LOW": {"metadata": {}},
+        }
+
+        # Test middle pattern
+        result1 = self.node._find_wan_lora_pair("Wan22-I2V-HIGH-Action_Character")
+        self.assertEqual(result1, "Wan22-I2V-LOW-Action_Character")
+
+        # Test end pattern
+        result2 = self.node._find_wan_lora_pair("ModelName_I2V_14B_HIGH")
+        self.assertEqual(result2, "ModelName_I2V_14B_LOW")
+
+        # Test reverse directions
+        result1_rev = self.node._find_wan_lora_pair("Wan22-I2V-LOW-Action_Character")
+        self.assertEqual(result1_rev, "Wan22-I2V-HIGH-Action_Character")
+
+        result2_rev = self.node._find_wan_lora_pair("ModelName_I2V_14B_LOW")
+        self.assertEqual(result2_rev, "ModelName_I2V_14B_HIGH")
+
     def test_find_wan_lora_pair_low_to_high(self):
         """_find_wan_lora_pair should find matching high pair for low LoRA."""
         # Setup mock database with pairs

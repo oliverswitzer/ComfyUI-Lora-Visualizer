@@ -478,31 +478,47 @@ def is_wan_2_2_lora(metadata: dict[str, Any]) -> bool:
     if not metadata:
         return False
 
+    wan_2_2_indicators = [
+        "wan2.2", "wan 2.2", "wanv2.2", "wan v2.2", "wan_2.2",
+        "wan video 2.2",  # Matches "Wan Video 2.2 I2V-A14B"
+        "i2v-a14b",       # Matches the specific model architecture
+        "video 2.2"       # Matches "Video 2.2" part
+    ]
+
     # Check base_model field for WAN 2.2 indicators
     base_model = metadata.get("base_model", "").lower()
-    wan_2_2_indicators = ["wan2.2", "wan 2.2", "wanv2.2", "wan v2.2", "wan_2.2"]
-    if any(indicator in base_model for indicator in wan_2_2_indicators):
-        return True
+    for indicator in wan_2_2_indicators:
+        if indicator in base_model:
+            return True
 
     # Check civitai base model
     civitai = metadata.get("civitai")
     if isinstance(civitai, dict):
         civitai_base = civitai.get("baseModel", "").lower()
-        if any(indicator in civitai_base for indicator in wan_2_2_indicators):
-            return True
+        for indicator in wan_2_2_indicators:
+            if indicator in civitai_base:
+                return True
 
     # Check model name and description for WAN 2.2 mentions
     model_name = metadata.get("model_name", "").lower()
-    if any(indicator in model_name for indicator in wan_2_2_indicators):
-        return True
+    for indicator in wan_2_2_indicators:
+        if indicator in model_name:
+            return True
 
     # Check civitai model name
     if isinstance(civitai, dict):
         model = civitai.get("model")
         if isinstance(model, dict):
             civitai_model_name = model.get("name", "").lower()
-            if any(indicator in civitai_model_name for indicator in wan_2_2_indicators):
-                return True
+            for indicator in wan_2_2_indicators:
+                if indicator in civitai_model_name:
+                    return True
+
+    # Check filename for WAN 2.2 indicators (important pattern!)
+    filename = metadata.get("file_name", "").lower()
+    for indicator in wan_2_2_indicators:
+        if indicator in filename:
+            return True
 
     return False
 
