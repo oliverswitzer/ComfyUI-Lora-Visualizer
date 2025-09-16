@@ -193,6 +193,7 @@ def call_ollama_chat(
         "model": model_name,
         "messages": messages,
         "stream": False,
+        "format": "json",
     }
 
     # Retry mechanism for cases where model is still loading after download

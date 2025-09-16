@@ -456,6 +456,7 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 timeout=60,
                 requests_module=requests,
             )
+            log_debug(f"Prompt Splitter: Received raw response from Ollama ({len(content)} characters)")
         except Exception as e:
             log_error(f"Prompt Splitter: Error calling Ollama: {e}")
             if "Connection" in str(e) or "refused" in str(e):
@@ -515,9 +516,25 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 ) from None
 
         try:
-            result = json.loads(content.strip())
-            image_prompt = str(result.get("image_prompt", ""))
-            wan_prompt = str(result.get("wan_prompt", ""))
+            # Strip markdown code blocks if present
+            content_clean = content.strip()
+            if content_clean.startswith("```json"):
+                content_clean = content_clean[7:]  # Remove ```json
+            if content_clean.startswith("```"):
+                content_clean = content_clean[3:]   # Remove ```
+            if content_clean.endswith("```"):
+                content_clean = content_clean[:-3]  # Remove closing ```
+            content_clean = content_clean.strip()
+
+            result = json.loads(content_clean)
+            image_prompt = str(result.get("image_prompt", "")).strip()
+            wan_prompt = str(result.get("wan_prompt", "")).strip()
+
+            # Validate that we got meaningful content
+            if not image_prompt and not wan_prompt:
+                log_debug("Prompt Splitter: JSON parsed but both prompts are empty")
+                raise json.JSONDecodeError("Empty prompts", content, 0)
+
             log("Prompt Splitter: Successfully parsed JSON response")
             return image_prompt, wan_prompt
         except json.JSONDecodeError as e:
