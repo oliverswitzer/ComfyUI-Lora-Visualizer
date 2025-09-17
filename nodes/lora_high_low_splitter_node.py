@@ -90,7 +90,7 @@ class LoRAHighLowSplitterNode:
         # Use the shared splitting logic with HN/LN support
         high_prompt, low_prompt = split_prompt_by_lora_high_low(prompt_text)
 
-        log(f"LoRA High/Low Splitter: Split completed")
+        log("LoRA High/Low Splitter: Split completed")
         log(f"  High prompt length: {len(high_prompt)} characters")
         log(f"  Low prompt length: {len(low_prompt)} characters")
 
