@@ -135,9 +135,11 @@ class TestLoRAHighLowSplitter(unittest.TestCase):
 
     def test_complex_wan_22_example(self):
         """Test with a realistic WAN 2.2 example using complex LoRA names."""
-        prompt = ("futuristic cityscape <lora:Wan22-I2V-HIGH-Cyberpunk:0.7> "
-                 "with neon lights <lora:Wan22-I2V-LOW-Cyberpunk:0.7> "
-                 "and flying cars <lora:General-SciFi:0.5>")
+        prompt = (
+            "futuristic cityscape <lora:Wan22-I2V-HIGH-Cyberpunk:0.7> "
+            "with neon lights <lora:Wan22-I2V-LOW-Cyberpunk:0.7> "
+            "and flying cars <lora:General-SciFi:0.5>"
+        )
 
         high_prompt, low_prompt = self.node.split_high_low(prompt)
 
@@ -160,10 +162,12 @@ class TestLoRAHighLowSplitter(unittest.TestCase):
     def test_substring_matching_precision(self):
         """Test that substring matching works correctly and doesn't create false positives."""
         # Test case where LoRA names contain high/low as substrings but not as intended patterns
-        prompt = ("character <lora:highlight_effect:0.8> "
-                 "with <lora:lowlight_shadows:0.6> "
-                 "and <lora:character_high:0.7> "
-                 "plus <lora:bg_low:0.5>")
+        prompt = (
+            "character <lora:highlight_effect:0.8> "
+            "with <lora:lowlight_shadows:0.6> "
+            "and <lora:character_high:0.7> "
+            "plus <lora:bg_low:0.5>"
+        )
 
         high_prompt, low_prompt = self.node.split_high_low(prompt)
 

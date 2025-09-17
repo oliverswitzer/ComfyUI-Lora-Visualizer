@@ -613,12 +613,18 @@ def split_prompt_by_lora_high_low(prompt_text: str) -> tuple[str, str]:
 
             # Enhanced matching for HIGH LoRA tags: high, HIGH, hn, HN
             # Use word boundaries to avoid false positives like "highlight" matching "high"
-            if any(pattern in tag_name_lower.replace("_", " ").replace("-", " ").split() for pattern in ["high", "hn"]):
+            if any(
+                pattern in tag_name_lower.replace("_", " ").replace("-", " ").split()
+                for pattern in ["high", "hn"]
+            ):
                 high_lora_tags.append(part)
                 log_debug(f"Classified as HIGH LoRA: {part}")
             # Enhanced matching for LOW LoRA tags: low, LOW, ln, LN
             # Use word boundaries to avoid false positives like "lowlight" matching "low"
-            elif any(pattern in tag_name_lower.replace("_", " ").replace("-", " ").split() for pattern in ["low", "ln"]):
+            elif any(
+                pattern in tag_name_lower.replace("_", " ").replace("-", " ").split()
+                for pattern in ["low", "ln"]
+            ):
                 low_lora_tags.append(part)
                 log_debug(f"Classified as LOW LoRA: {part}")
             else:

@@ -44,9 +44,11 @@ def main():
 
     # Example 3: Mixed patterns with single LoRAs
     print("=== Example 3: Mixed Patterns with Single LoRAs ===")
-    prompt3 = ("futuristic scene <lora:Style_HIGH:0.8> "
-               "<lora:Motion_low:0.6> <lora:General_Style:0.7> "
-               "<lora:Effect_HN:0.5> <lora:Bg_ln:0.4>")
+    prompt3 = (
+        "futuristic scene <lora:Style_HIGH:0.8> "
+        "<lora:Motion_low:0.6> <lora:General_Style:0.7> "
+        "<lora:Effect_HN:0.5> <lora:Bg_ln:0.4>"
+    )
     high_prompt3, low_prompt3 = splitter.split_high_low(prompt3)
 
     print(f"Input:  {prompt3}")
@@ -56,9 +58,11 @@ def main():
 
     # Example 4: WAN 2.2 realistic example
     print("=== Example 4: WAN 2.2 Realistic Example ===")
-    prompt4 = ("cyberpunk cityscape <lora:Wan22-I2V-HIGH-Cyberpunk:0.7> "
-               "with neon lights <lora:Wan22-I2V-LOW-Cyberpunk:0.7> "
-               "and flying cars <lora:General-SciFi:0.5>")
+    prompt4 = (
+        "cyberpunk cityscape <lora:Wan22-I2V-HIGH-Cyberpunk:0.7> "
+        "with neon lights <lora:Wan22-I2V-LOW-Cyberpunk:0.7> "
+        "and flying cars <lora:General-SciFi:0.5>"
+    )
     high_prompt4, low_prompt4 = splitter.split_high_low(prompt4)
 
     print(f"Input:  {prompt4}")
@@ -68,9 +72,11 @@ def main():
 
     # Example 5: Edge case - avoiding false positives
     print("=== Example 5: Edge Case - Avoiding False Positives ===")
-    prompt5 = ("character <lora:highlight_effect:0.8> "
-               "with <lora:lowlight_shadows:0.6> "
-               "and <lora:character_high:0.7>")
+    prompt5 = (
+        "character <lora:highlight_effect:0.8> "
+        "with <lora:lowlight_shadows:0.6> "
+        "and <lora:character_high:0.7>"
+    )
     high_prompt5, low_prompt5 = splitter.split_high_low(prompt5)
 
     print(f"Input:  {prompt5}")
