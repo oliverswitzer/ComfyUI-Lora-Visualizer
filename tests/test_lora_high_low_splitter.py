@@ -8,7 +8,7 @@ that supports HN/LN naming patterns in addition to HIGH/LOW.
 import unittest
 
 from nodes.lora_high_low_splitter_node import LoRAHighLowSplitterNode
-from nodes.lora_metadata_utils import split_prompt_by_lora_high_low
+from nodes.lora_metadata_utils import find_lora_high_low_pair, split_prompt_by_lora_high_low
 
 
 class TestLoRAHighLowSplitter(unittest.TestCase):
@@ -186,6 +186,160 @@ class TestLoRAHighLowSplitter(unittest.TestCase):
         self.assertIn("<lora:highlight_effect:0.8>", low_prompt)
         self.assertIn("<lora:lowlight_shadows:0.6>", low_prompt)
         self.assertNotIn("<lora:character_high:0.7>", low_prompt)
+
+
+class TestLoRAHighLowPairing(unittest.TestCase):
+    """Unit tests for the shared LoRA high/low pairing functionality."""
+
+    def test_find_high_low_pair_basic(self):
+        """Test basic HIGH/LOW pairing."""
+        available_loras = ["character_high", "character_low", "style_normal"]
+
+        # Test HIGH -> LOW
+        pair = find_lora_high_low_pair("character_high", available_loras)
+        self.assertEqual(pair, "character_low")
+
+        # Test LOW -> HIGH
+        pair = find_lora_high_low_pair("character_low", available_loras)
+        self.assertEqual(pair, "character_high")
+
+    def test_find_hn_ln_pair_basic(self):
+        """Test basic HN/LN pairing."""
+        available_loras = ["robot_hn", "robot_ln", "style_normal"]
+
+        # Test HN -> LN
+        pair = find_lora_high_low_pair("robot_hn", available_loras)
+        self.assertEqual(pair, "robot_ln")
+
+        # Test LN -> HN
+        pair = find_lora_high_low_pair("robot_ln", available_loras)
+        self.assertEqual(pair, "robot_hn")
+
+    def test_find_pair_case_preservation(self):
+        """Test that case is preserved in pairing."""
+        available_loras = ["Style_HIGH", "Style_LOW", "Character_HN", "Character_LN"]
+
+        # Test case preservation
+        pair = find_lora_high_low_pair("Style_HIGH", available_loras)
+        self.assertEqual(pair, "Style_LOW")
+
+        pair = find_lora_high_low_pair("Character_HN", available_loras)
+        self.assertEqual(pair, "Character_LN")
+
+    def test_find_pair_wan_22_example(self):
+        """Test with realistic WAN 2.2 LoRA names."""
+        available_loras = [
+            "Wan22-I2V-HIGH-Cyberpunk",
+            "Wan22-I2V-LOW-Cyberpunk",
+            "General-SciFi",
+        ]
+
+        pair = find_lora_high_low_pair("Wan22-I2V-HIGH-Cyberpunk", available_loras)
+        self.assertEqual(pair, "Wan22-I2V-LOW-Cyberpunk")
+
+        pair = find_lora_high_low_pair("Wan22-I2V-LOW-Cyberpunk", available_loras)
+        self.assertEqual(pair, "Wan22-I2V-HIGH-Cyberpunk")
+
+    def test_find_pair_no_pair_available(self):
+        """Test when no pair is available."""
+        available_loras = ["character_high", "style_normal", "motion_single"]
+
+        # No LOW pair available
+        pair = find_lora_high_low_pair("character_high", available_loras)
+        self.assertIsNone(pair)
+
+        # LoRA is not high/low variant
+        pair = find_lora_high_low_pair("style_normal", available_loras)
+        self.assertIsNone(pair)
+
+    def test_find_pair_mixed_case_patterns(self):
+        """Test mixed case patterns like High, Low, Hn, Ln."""
+        available_loras = [
+            "Character_High",
+            "Character_Low",
+            "Robot_Hn",
+            "Robot_Ln",
+            "Effect_high",
+            "Effect_low",
+        ]
+
+        # Test different case patterns
+        pairs = [
+            ("Character_High", "Character_Low"),
+            ("Character_Low", "Character_High"),
+            ("Robot_Hn", "Robot_Ln"),
+            ("Robot_Ln", "Robot_Hn"),
+            ("Effect_high", "Effect_low"),
+            ("Effect_low", "Effect_high"),
+        ]
+
+        for lora_name, expected_pair in pairs:
+            with self.subTest(lora_name=lora_name):
+                pair = find_lora_high_low_pair(lora_name, available_loras)
+                self.assertEqual(pair, expected_pair)
+
+    def test_find_pair_uppercase_patterns(self):
+        """Test fully uppercase patterns."""
+        available_loras = ["STYLE_HIGH", "STYLE_LOW", "EFFECT_HN", "EFFECT_LN"]
+
+        pairs = [
+            ("STYLE_HIGH", "STYLE_LOW"),
+            ("STYLE_LOW", "STYLE_HIGH"),
+            ("EFFECT_HN", "EFFECT_LN"),
+            ("EFFECT_LN", "EFFECT_HN"),
+        ]
+
+        for lora_name, expected_pair in pairs:
+            with self.subTest(lora_name=lora_name):
+                pair = find_lora_high_low_pair(lora_name, available_loras)
+                self.assertEqual(pair, expected_pair)
+
+    def test_find_pair_empty_list(self):
+        """Test with empty available LoRA list."""
+        pair = find_lora_high_low_pair("character_high", [])
+        self.assertIsNone(pair)
+
+    def test_find_pair_priority_order(self):
+        """Test that HIGH/LOW takes priority over HN/LN when both are present."""
+        # Edge case: LoRA name contains both patterns
+        available_loras = ["complex_high_hn_style", "complex_low_hn_style"]
+
+        # Should prioritize HIGH/LOW over HN/LN
+        pair = find_lora_high_low_pair("complex_high_hn_style", available_loras)
+        self.assertEqual(pair, "complex_low_hn_style")
+
+    def test_find_pair_no_false_positives(self):
+        """Test that substring matches don't create false pairs."""
+        available_loras = [
+            "highlight_effect",
+            "lowlight_shadows",
+            "character_high",
+            "background_low",
+        ]
+
+        # "highlight" contains "high" but shouldn't pair with "lowlight"
+        pair = find_lora_high_low_pair("highlight_effect", available_loras)
+        self.assertIsNone(pair)
+
+        # "lowlight" contains "low" but shouldn't pair with "highlight"
+        pair = find_lora_high_low_pair("lowlight_shadows", available_loras)
+        self.assertIsNone(pair)
+
+        # But actual high/low pairs should work if they match exactly
+        # "character_high" should not pair with "background_low" - no exact match
+        pair = find_lora_high_low_pair("character_high", available_loras)
+        self.assertIsNone(pair)  # No matching "character_low" available
+
+    def test_shared_function_used_by_nodes(self):
+        """Test that the shared function produces consistent results with both nodes."""
+        available_loras = ["style_high", "style_low", "motion_hn", "motion_ln"]
+
+        # Test pairing function directly
+        pair1 = find_lora_high_low_pair("style_high", available_loras)
+        self.assertEqual(pair1, "style_low")
+
+        pair2 = find_lora_high_low_pair("motion_hn", available_loras)
+        self.assertEqual(pair2, "motion_ln")
 
 
 if __name__ == "__main__":

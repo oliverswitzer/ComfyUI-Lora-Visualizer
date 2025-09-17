@@ -16,6 +16,7 @@ from .lora_metadata_utils import (
     extract_embeddable_content,
     extract_example_prompts,
     extract_recommended_weight,
+    find_lora_high_low_pair,
 )
 
 
@@ -244,7 +245,7 @@ This node
 
     def _find_wan_lora_pair(self, selected_lora_name: str) -> Optional[str]:
         """
-        Find the matching HIGH/LOW pair for a WAN LoRA using simple word replacement.
+        Find the matching HIGH/LOW pair for a WAN LoRA.
 
         Args:
             selected_lora_name: Name of the selected WAN LoRA
@@ -252,78 +253,9 @@ This node
         Returns:
             Name of the matching pair LoRA, or None if no pair found
         """
-        import re
-
-        log_debug(f"Looking for pair for: {selected_lora_name}")
-
-        name_lower = selected_lora_name.lower()
-
-        # Check if it contains "high" or "low" (case insensitive)
-        has_high = "high" in name_lower
-        has_low = "low" in name_lower
-
-        log_debug(f"  has_high: {has_high}, has_low: {has_low}")
-
-        if not (has_high or has_low):
-            log_debug("  Not a high/low variant, skipping")
-            return None  # Not a high/low variant
-
-        # Simple replacement: swap "high" with "low" and vice versa (preserve case)
-        if has_high:
-            # Replace preserving case: HIGH->LOW, High->Low, high->low
-            def replace_high(match):
-                original = match.group(0)
-                if original.isupper():
-                    return "LOW"
-                elif original.istitle():
-                    return "Low"
-                else:
-                    return "low"
-
-            pair_name = re.sub(r"high", replace_high, selected_lora_name, flags=re.IGNORECASE)
-        else:  # has_low
-            # Replace preserving case: LOW->HIGH, Low->High, low->high
-            def replace_low(match):
-                original = match.group(0)
-                if original.isupper():
-                    return "HIGH"
-                elif original.istitle():
-                    return "High"
-                else:
-                    return "high"
-
-            pair_name = re.sub(r"low", replace_low, selected_lora_name, flags=re.IGNORECASE)
-
-        log_debug(f"  Generated pair name: {pair_name}")
-
-        # Check if the pair exists in available LoRAs
-        exists = pair_name in self._lora_database
-        log_debug(f"  Pair exists in database: {exists}")
-
-        if exists:
-            log(f"WAN 2.2 pair found: {selected_lora_name} <-> {pair_name}")
-            return pair_name
-        else:
-            log_debug(f"  Pair not found. Database has {len(self._lora_database)} LoRAs")
-
-            # Show all LoRAs containing "high" or "low" for debugging
-            high_low_loras = [
-                name
-                for name in self._lora_database.keys()
-                if "high" in name.lower() or "low" in name.lower()
-            ]
-            if high_low_loras:
-                log_debug(f"  HIGH/LOW LoRAs in database: {high_low_loras[:10]}")  # Show first 10
-
-            # Log some similar names for debugging
-            similar_names = [
-                name
-                for name in self._lora_database.keys()
-                if any(word in name.lower() for word in pair_name.lower().split()[:3])
-            ][:5]
-            if similar_names:
-                log_debug(f"  Similar names in database: {similar_names}")
-            return None
+        # Use the shared pairing logic
+        available_lora_names = list(self._lora_database.keys())
+        return find_lora_high_low_pair(selected_lora_name, available_lora_names)
 
     def _apply_wan_2_2_pairing(
         self, video_loras: list[dict[str, Any]], max_count: int

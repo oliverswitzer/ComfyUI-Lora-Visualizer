@@ -656,3 +656,117 @@ def split_prompt_by_lora_high_low(prompt_text: str) -> tuple[str, str]:
     )
 
     return high_prompt, low_prompt
+
+
+def find_lora_high_low_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
+    """
+    Find the matching HIGH/LOW or HN/LN pair for a LoRA using case-preserving replacement.
+
+    This function extracts the pairing logic from PromptComposerNode to make it reusable
+    and supports both HIGH/LOW and HN/LN naming patterns.
+
+    Args:
+        lora_name: Name of the LoRA to find a pair for
+        available_lora_names: List of available LoRA names to search in
+
+    Returns:
+        Name of the matching pair LoRA, or None if no pair found
+    """
+    log_debug(f"Looking for HIGH/LOW pair for: {lora_name}")
+
+    name_lower = lora_name.lower()
+
+    # Check for HIGH/LOW patterns
+    has_high = "high" in name_lower
+    has_low = "low" in name_lower
+
+    # Check for HN/LN patterns
+    has_hn = "hn" in name_lower
+    has_ln = "ln" in name_lower
+
+    log_debug(f"  has_high: {has_high}, has_low: {has_low}, has_hn: {has_hn}, has_ln: {has_ln}")
+
+    if not (has_high or has_low or has_hn or has_ln):
+        log_debug("  Not a high/low/hn/ln variant, skipping")
+        return None
+
+    pair_name = None
+
+    # Handle HIGH/LOW pairs
+    if has_high:
+        # Replace preserving case: HIGH->LOW, High->Low, high->low
+        def replace_high(match):
+            original = match.group(0)
+            if original.isupper():
+                return "LOW"
+            elif original.istitle():
+                return "Low"
+            else:
+                return "low"
+
+        pair_name = re.sub(r"high", replace_high, lora_name, flags=re.IGNORECASE)
+    elif has_low:
+        # Replace preserving case: LOW->HIGH, Low->High, low->high
+        def replace_low(match):
+            original = match.group(0)
+            if original.isupper():
+                return "HIGH"
+            elif original.istitle():
+                return "High"
+            else:
+                return "high"
+
+        pair_name = re.sub(r"low", replace_low, lora_name, flags=re.IGNORECASE)
+
+    # Handle HN/LN pairs
+    elif has_hn:
+        # Replace preserving case: HN->LN, Hn->Ln, hn->ln
+        def replace_hn(match):
+            original = match.group(0)
+            if original.isupper():
+                return "LN"
+            elif original.istitle():
+                return "Ln"
+            else:
+                return "ln"
+
+        pair_name = re.sub(r"hn", replace_hn, lora_name, flags=re.IGNORECASE)
+    elif has_ln:
+        # Replace preserving case: LN->HN, Ln->Hn, ln->hn
+        def replace_ln(match):
+            original = match.group(0)
+            if original.isupper():
+                return "HN"
+            elif original.istitle():
+                return "Hn"
+            else:
+                return "hn"
+
+        pair_name = re.sub(r"ln", replace_ln, lora_name, flags=re.IGNORECASE)
+
+    if not pair_name:
+        log_debug("  Could not generate pair name")
+        return None
+
+    log_debug(f"  Generated pair name: {pair_name}")
+
+    # Check if the pair exists in available LoRAs
+    exists = pair_name in available_lora_names
+    log_debug(f"  Pair exists in available LoRAs: {exists}")
+
+    if exists:
+        log(f"LoRA pair found: {lora_name} <-> {pair_name}")
+        return pair_name
+    else:
+        log_debug(f"  Pair not found. Available LoRAs: {len(available_lora_names)}")
+
+        # Show matching HIGH/LOW/HN/LN LoRAs for debugging
+        high_low_loras = [
+            name
+            for name in available_lora_names
+            if any(pattern in name.lower() for pattern in ["high", "low", "hn", "ln"])
+        ]
+        if high_low_loras:
+            log_debug(f"  HIGH/LOW/HN/LN LoRAs available: {high_low_loras[:10]}")  # Show first 10
+
+        return None
