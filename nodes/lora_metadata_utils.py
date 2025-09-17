@@ -566,3 +566,87 @@ def extract_recommended_weight(metadata: dict[str, Any]) -> float:
         return 0.6  # Video LoRAs often need lower weights
     else:
         return 0.8  # Standard default for image LoRAs
+
+
+def split_prompt_by_lora_high_low(prompt_text: str) -> tuple[str, str]:
+    """
+    Split a prompt into HIGH and LOW specific versions based on LoRA tags.
+
+    This function extracts the existing high/low splitting logic from PromptSplitterNode
+    to make it reusable across different nodes.
+
+    High LoRA tags contain: "high", "HIGH", "hn", "HN" in their name
+    Low LoRA tags contain: "low", "LOW", "ln", "LN" in their name
+
+    Args:
+        prompt_text: Input prompt with LoRA tags
+
+    Returns:
+        Tuple of (high_prompt, low_prompt) where:
+        - high_prompt: Contains ONLY HIGH lora tags + base prompt text
+        - low_prompt: Contains ONLY LOW lora tags + base prompt text
+        - Base prompt text excludes all LoRA tags
+        - Single LoRA tags (without high/low/hn/ln) are included in both outputs
+    """
+    log_debug(f"Splitting prompt by HIGH/LOW LoRA tags: '{prompt_text}'")
+
+    base_prompt_parts = []
+    high_lora_tags = []
+    low_lora_tags = []
+    single_lora_tags = []
+
+    # Split the prompt by lora tags and regular content
+    parts = re.split(r"(<lora:[^>]+>)", prompt_text)
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        if part.startswith("<lora:") and part.endswith(">"):
+            # This is a lora tag - classify it by name
+            tag_content = part[6:-1]  # Remove <lora: and >
+            tag_name = tag_content.split(":")[0]  # Get name before first colon
+
+            tag_name_lower = tag_name.lower()
+            log_debug(f"Checking LoRA tag name: '{tag_name}' (lowercase: '{tag_name_lower}')")
+
+            # Enhanced matching for HIGH LoRA tags: high, HIGH, hn, HN
+            # Use word boundaries to avoid false positives like "highlight" matching "high"
+            if any(pattern in tag_name_lower.replace("_", " ").replace("-", " ").split() for pattern in ["high", "hn"]):
+                high_lora_tags.append(part)
+                log_debug(f"Classified as HIGH LoRA: {part}")
+            # Enhanced matching for LOW LoRA tags: low, LOW, ln, LN
+            # Use word boundaries to avoid false positives like "lowlight" matching "low"
+            elif any(pattern in tag_name_lower.replace("_", " ").replace("-", " ").split() for pattern in ["low", "ln"]):
+                low_lora_tags.append(part)
+                log_debug(f"Classified as LOW LoRA: {part}")
+            else:
+                # Single lora (not part of HIGH/LOW pair) - include in both outputs
+                single_lora_tags.append(part)
+                log_debug(f"Classified as single LoRA (included in both): {part}")
+        else:
+            # This is regular prompt content (text, not LoRA tags)
+            base_prompt_parts.append(part)
+
+    # Build the base prompt (text content only, no LoRA tags)
+    base_prompt = " ".join(base_prompt_parts).strip()
+
+    # Build HIGH prompt: base + HIGH lora tags + single lora tags
+    high_prompt_parts = [base_prompt] + high_lora_tags + single_lora_tags
+    high_prompt = " ".join(part for part in high_prompt_parts if part.strip())
+
+    # Build LOW prompt: base + LOW lora tags + single lora tags
+    low_prompt_parts = [base_prompt] + low_lora_tags + single_lora_tags
+    low_prompt = " ".join(part for part in low_prompt_parts if part.strip())
+
+    log_debug(f"HIGH prompt: '{high_prompt}'")
+    log_debug(f"LOW prompt: '{low_prompt}'")
+
+    log(
+        f"LoRA split - HIGH tags: {len(high_lora_tags)}, "
+        f"LOW tags: {len(low_lora_tags)}, "
+        f"Single tags: {len(single_lora_tags)}"
+    )
+
+    return high_prompt, low_prompt

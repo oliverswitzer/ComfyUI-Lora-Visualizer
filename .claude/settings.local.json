@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pdm test:*)"
+      "Bash(pdm test:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
