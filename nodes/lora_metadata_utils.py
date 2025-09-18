@@ -658,30 +658,28 @@ def split_prompt_by_lora_high_low(prompt_text: str) -> tuple[str, str]:
     return high_prompt, low_prompt
 
 
-def find_lora_pairs_in_prompt_with_ollama(
-    prompt_text: str,
-    model_name: str = "qwen2.5-coder:7b",
-    api_url: str = "http://localhost:11434/api/chat",
-) -> str:
+def find_lora_pairs_in_prompt_with_rapidfuzz(prompt_text: str) -> str:
     """
-    Find and pair HIGH/LOW LoRA tags in a prompt using Ollama for intelligent matching.
+    Find and pair LoRA tags in a prompt using rapidfuzz for fuzzy string matching.
 
-    This function extracts LoRA tags from the prompt, uses Ollama to intelligently find
-    their HIGH/LOW pairs from available LoRAs, and stitches the results back into the
-    prompt deterministically.
+    This function extracts LoRA tags from the prompt, uses rapidfuzz to find the best
+    matching pairs from available LoRAs on the system, and stitches the results back
+    into the prompt deterministically.
+
+    This approach uses pure string similarity without making assumptions about naming
+    patterns, making it flexible for any LoRA naming convention.
 
     Args:
         prompt_text: Input prompt containing LoRA tags
-        model_name: Ollama model to use for analysis
-        api_url: Ollama API URL
 
     Returns:
         Modified prompt with paired LoRA tags added
     """
     import re
-    from .ollama_utils import call_ollama_chat, ensure_model_available
 
-    log_debug(f"Finding LoRA pairs in prompt with Ollama")
+    from rapidfuzz import fuzz, process
+
+    log_debug("Finding LoRA pairs in prompt with rapidfuzz")
 
     # Extract all LoRA tags from the prompt
     lora_pattern = r"<lora:([^>]+)>"
@@ -701,111 +699,48 @@ def find_lora_pairs_in_prompt_with_ollama(
         log_debug("  No LoRAs available on system")
         return prompt_text
 
-    # Find HIGH/LOW LoRAs that need pairing
-    high_low_loras_in_prompt = []
+    # Extract LoRA names from the prompt (without weights)
+    lora_names_in_prompt = []
     for lora_tag in lora_matches:
         lora_name = lora_tag.split(":")[0]  # Get name before weight
-        if any(pattern in lora_name.lower() for pattern in ["high", "low", "hn", "ln"]):
-            high_low_loras_in_prompt.append(lora_name)
+        lora_names_in_prompt.append(lora_name)
 
-    if not high_low_loras_in_prompt:
-        log_debug("  No HIGH/LOW/HN/LN LoRAs found in prompt")
-        return prompt_text
+    log_debug(f"  LoRA names in prompt: {lora_names_in_prompt}")
 
-    log_debug(f"  Found HIGH/LOW LoRAs to pair: {high_low_loras_in_prompt}")
-
-    # Filter available LoRAs to only potential pairs
-    potential_pairs = [
-        name
-        for name in available_lora_names
-        if any(pattern in name.lower() for pattern in ["high", "low", "hn", "ln"])
-    ]
-
-    if not potential_pairs:
-        log_debug("  No potential HIGH/LOW pairs available on system")
-        return prompt_text
-
-    # Use Ollama to find pairs
     pairs_to_add = []
 
-    for lora_name in high_low_loras_in_prompt:
-        try:
-            # Create a focused prompt for this specific LoRA
-            system_prompt = """You are an expert at LoRA (Low-Rank Adaptation) pairing for AI generation.
+    for lora_name in lora_names_in_prompt:
+        # Use rapidfuzz to find the most similar LoRA
+        # Exclude the current LoRA and any already in the prompt
+        candidates = [
+            name for name in available_lora_names
+            if name != lora_name and name not in lora_names_in_prompt
+        ]
 
-Find the best matching HIGH/LOW or HN/LN pair for the given LoRA from the available list.
+        if not candidates:
+            continue
 
-Rules:
-- HIGH pairs with LOW (and vice versa)
-- HN pairs with LN (and vice versa)
-- Look for exact name matches except for the high/low/hn/ln part
-- Respond with ONLY the LoRA name, or "NONE" if no suitable pair exists
+        # Use fuzzy matching to find the best candidate
+        # Use a high threshold to ensure we only get very similar LoRAs
+        result = process.extractOne(
+            lora_name,
+            candidates,
+            scorer=fuzz.ratio,
+            score_cutoff=60,  # Only accept matches with >60% similarity
+        )
 
-Examples:
-- "character_high" pairs with "character_low"
-- "style_hn" pairs with "style_ln"
-- "Wan22-I2V-HIGH-Fantasy" pairs with "Wan22-I2V-LOW-Fantasy"
-"""
-
-            candidates_list = "\n".join(
-                [f"- {name}" for name in potential_pairs if name != lora_name]
-            )
-
-            user_prompt = f"""Find the best pair for: {lora_name}
-
-Available LoRAs:
-{candidates_list}
-
-Best pair name:"""
-
-            # Ensure model is available
-            ensure_model_available(model_name, api_url, status_channel="lora_pairing_status")
-
-            # Call Ollama
-            response = call_ollama_chat(
-                system_prompt,
-                user_prompt,
-                model_name=model_name,
-                api_url=api_url,
-                timeout=15,
-            )
-
-            if not response or response.strip().upper() == "NONE":
-                log_debug(f"    Ollama found no pair for {lora_name}")
-                continue
-
-            # Clean and validate response
-            pair_name = response.strip()
-
-            # Try to match response to available LoRA names
-            if pair_name in potential_pairs and pair_name != lora_name:
-                # Check if this pair is not already in the prompt
-                if not any(pair_name in tag for tag in lora_matches):
-                    pairs_to_add.append(pair_name)
-                    log(f"    Ollama found pair: {lora_name} <-> {pair_name}")
-                else:
-                    log_debug(f"    Pair {pair_name} already in prompt, skipping")
-            else:
-                # Try fallback matching
-                fallback_pair = _fallback_string_pairing(lora_name, potential_pairs)
-                if fallback_pair and not any(fallback_pair in tag for tag in lora_matches):
-                    pairs_to_add.append(fallback_pair)
-                    log(f"    Fallback pair found: {lora_name} <-> {fallback_pair}")
-
-        except Exception as e:
-            log_error(f"    Error finding pair for {lora_name}: {e}")
-            # Try fallback
-            fallback_pair = _fallback_string_pairing(lora_name, potential_pairs)
-            if fallback_pair and not any(fallback_pair in tag for tag in lora_matches):
-                pairs_to_add.append(fallback_pair)
-                log(f"    Fallback pair found: {lora_name} <-> {fallback_pair}")
+        if result:
+            best_match, score, _ = result
+            # Check if this pair is not already being added
+            if best_match not in pairs_to_add:
+                pairs_to_add.append(best_match)
+                log(f"    Rapidfuzz found pair: {lora_name} <-> {best_match} (score: {score}%)")
 
     # Add paired LoRAs to the prompt deterministically
     if pairs_to_add:
         log(f"Adding {len(pairs_to_add)} paired LoRAs to prompt: {pairs_to_add}")
 
         # Insert new LoRA tags at the end of existing LoRA tags in the prompt
-        # This keeps the prompt structure deterministic
         new_lora_tags = []
         for pair_name in pairs_to_add:
             # Use a default weight of 1.0 for paired LoRAs
@@ -833,71 +768,35 @@ Best pair name:"""
     return prompt_text
 
 
-def _fallback_string_pairing(lora_name: str, candidate_names: list[str]) -> Optional[str]:
-    """
-    Fallback string-based pairing when Ollama is unavailable.
-
-    This is a simplified version of the old logic for emergency use only.
-    """
-    log_debug(f"Using fallback string pairing for: {lora_name}")
-
-    name_lower = lora_name.lower()
-
-    # Simple high/low replacement with word boundary awareness
-    # to avoid false positives like "highlight" -> "lowlight"
-    def try_replacement(original: str, find_word: str, replace_word: str) -> Optional[str]:
-        """Try to replace a word while preserving case and avoiding false positives."""
-        import re
-
-        # Use word boundaries to avoid substring matches
-        words = original.replace("_", " ").replace("-", " ").split()
-
-        for i, word in enumerate(words):
-            if word.lower() == find_word.lower():
-                # Preserve case pattern
-                if word.isupper():
-                    replacement = replace_word.upper()
-                elif word.istitle():
-                    replacement = replace_word.capitalize()
-                else:
-                    replacement = replace_word.lower()
-
-                words[i] = replacement
-                # Reconstruct with original separators
-                result = original
-                for orig_word, new_word in zip(
-                    original.replace("_", " ").replace("-", " ").split(), words
-                ):
-                    result = result.replace(orig_word, new_word, 1)
-                return result
-
-        return None
-
-    # Try each pattern
-    patterns = [
-        ("high", "low"),
-        ("low", "high"),
-        ("hn", "ln"),
-        ("ln", "hn"),
-    ]
-
-    for find_word, replace_word in patterns:
-        target = try_replacement(lora_name, find_word, replace_word)
-        if target and target in candidate_names:
-            log(f"Fallback pairing found: {lora_name} <-> {target}")
-            return target
-
-    return None
-
-
-# Keep the old function name for backward compatibility but mark it as deprecated
+# Keep the old function name for backward compatibility but use rapidfuzz now
 def find_lora_high_low_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
     """
-    DEPRECATED: Use find_lora_high_low_pair_with_ollama() instead.
+    Find the best matching LoRA pair using rapidfuzz string similarity.
 
-    This function is kept for backward compatibility but will use simple string matching.
+    This function is kept for backward compatibility and now uses rapidfuzz
+    without making assumptions about naming patterns.
     """
-    log_debug(
-        "DEPRECATED: Using find_lora_high_low_pair (string-based). Consider upgrading to Ollama-based pairing."
+    from rapidfuzz import fuzz, process
+
+    log_debug(f"Finding LoRA pair for: {lora_name}")
+
+    # Exclude the input LoRA from candidates
+    candidates = [name for name in available_lora_names if name != lora_name]
+
+    if not candidates:
+        return None
+
+    # Use fuzzy matching to find the best candidate
+    result = process.extractOne(
+        lora_name,
+        candidates,
+        scorer=fuzz.ratio,
+        score_cutoff=60,  # Only accept matches with >60% similarity
     )
-    return _fallback_string_pairing(lora_name, available_lora_names)
+
+    if result:
+        best_match, score, _ = result
+        log_debug(f"Found LoRA pair: {lora_name} <-> {best_match} (score: {score}%)")
+        return best_match
+
+    return None

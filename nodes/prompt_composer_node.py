@@ -7,7 +7,7 @@ composes prompts with optimal LoRA combinations, weights, and trigger words.
 
 import json
 import re
-from typing import Any, Optional
+from typing import Any
 
 from .logging_utils import log, log_debug, log_error
 from .lora_metadata_utils import (
@@ -16,7 +16,7 @@ from .lora_metadata_utils import (
     extract_embeddable_content,
     extract_example_prompts,
     extract_recommended_weight,
-    find_lora_pairs_in_prompt_with_ollama,
+    find_lora_pairs_in_prompt_with_rapidfuzz,
 )
 
 
@@ -149,23 +149,6 @@ This node
                             "Amount to reduce LOW LoRA weights by (e.g., 0.2 means HIGH=1.0, LOW=0.8). "
                             "Only applies to WAN 2.2 LOW LoRAs."
                         ),
-                    },
-                ),
-                "pairing_model_name": (
-                    "STRING",
-                    {
-                        "default": "qwen2.5-coder:7b",
-                        "tooltip": (
-                            "Ollama model to use for intelligent LoRA high/low pairing. "
-                            "Examples: qwen2.5-coder:7b, llama3.1:8b, nous-hermes2"
-                        ),
-                    },
-                ),
-                "pairing_api_url": (
-                    "STRING",
-                    {
-                        "default": "http://localhost:11434/api/chat",
-                        "tooltip": "URL of the Ollama chat API endpoint for LoRA pairing.",
                     },
                 ),
             },
@@ -757,8 +740,6 @@ This node
         wan_lora_dir_path: str = "",
         default_lora_weight: float = 1.0,
         low_lora_weight_offset: float = 0.2,
-        pairing_model_name: str = "qwen2.5-coder:7b",
-        pairing_api_url: str = "http://localhost:11434/api/chat",
     ) -> tuple[str, str, str]:
         """
         Main function that composes prompts from scene descriptions.
@@ -773,8 +754,6 @@ This node
             wan_lora_dir_path: Optional subdirectory to filter video LoRAs
             default_lora_weight: Default weight for all LoRAs (overrides metadata)
             low_lora_weight_offset: Amount to reduce LOW LoRA weights by
-            pairing_model_name: Ollama model to use for intelligent LoRA pairing
-            pairing_api_url: Ollama API URL for LoRA pairing
 
         Returns:
             Tuple of (composed_prompt, lora_analysis, metadata_summary)
@@ -859,21 +838,17 @@ This node
             )
             log_debug("Prompt composition completed successfully")
 
-            # Apply Ollama-based intelligent LoRA pairing to the final prompt
-            log_debug("Applying intelligent LoRA pairing with Ollama...")
+            # Apply rapidfuzz-based LoRA pairing to the final prompt
+            log_debug("Applying LoRA pairing with rapidfuzz...")
             try:
-                paired_prompt = find_lora_pairs_in_prompt_with_ollama(
-                    composed_prompt,
-                    model_name=pairing_model_name,
-                    api_url=pairing_api_url,
-                )
+                paired_prompt = find_lora_pairs_in_prompt_with_rapidfuzz(composed_prompt)
                 if paired_prompt != composed_prompt:
-                    log("Ollama LoRA pairing enhanced the prompt with additional pairs")
+                    log("Rapidfuzz LoRA pairing enhanced the prompt with additional pairs")
                     composed_prompt = paired_prompt
                 else:
-                    log_debug("No additional LoRA pairs found by Ollama")
+                    log_debug("No additional LoRA pairs found by rapidfuzz")
             except Exception as e:
-                log_error(f"Error in Ollama LoRA pairing: {e}")
+                log_error(f"Error in rapidfuzz LoRA pairing: {e}")
                 # Continue with original prompt if pairing fails
                 pass
             log_debug("LoRA pairing process completed")
