@@ -658,115 +658,246 @@ def split_prompt_by_lora_high_low(prompt_text: str) -> tuple[str, str]:
     return high_prompt, low_prompt
 
 
-def find_lora_high_low_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
+def find_lora_pairs_in_prompt_with_ollama(
+    prompt_text: str,
+    model_name: str = "qwen2.5-coder:7b",
+    api_url: str = "http://localhost:11434/api/chat",
+) -> str:
     """
-    Find the matching HIGH/LOW or HN/LN pair for a LoRA using case-preserving replacement.
+    Find and pair HIGH/LOW LoRA tags in a prompt using Ollama for intelligent matching.
 
-    This function extracts the pairing logic from PromptComposerNode to make it reusable
-    and supports both HIGH/LOW and HN/LN naming patterns.
+    This function extracts LoRA tags from the prompt, uses Ollama to intelligently find
+    their HIGH/LOW pairs from available LoRAs, and stitches the results back into the
+    prompt deterministically.
 
     Args:
-        lora_name: Name of the LoRA to find a pair for
-        available_lora_names: List of available LoRA names to search in
+        prompt_text: Input prompt containing LoRA tags
+        model_name: Ollama model to use for analysis
+        api_url: Ollama API URL
 
     Returns:
-        Name of the matching pair LoRA, or None if no pair found
+        Modified prompt with paired LoRA tags added
     """
-    log_debug(f"Looking for HIGH/LOW pair for: {lora_name}")
+    import re
+    from .ollama_utils import call_ollama_chat, ensure_model_available
+
+    log_debug(f"Finding LoRA pairs in prompt with Ollama")
+
+    # Extract all LoRA tags from the prompt
+    lora_pattern = r"<lora:([^>]+)>"
+    lora_matches = re.findall(lora_pattern, prompt_text)
+
+    if not lora_matches:
+        log_debug("  No LoRA tags found in prompt")
+        return prompt_text
+
+    log_debug(f"  Found {len(lora_matches)} LoRA tags: {lora_matches}")
+
+    # Get all available LoRAs from the system
+    all_loras = discover_all_loras()
+    available_lora_names = list(all_loras.keys())
+
+    if not available_lora_names:
+        log_debug("  No LoRAs available on system")
+        return prompt_text
+
+    # Find HIGH/LOW LoRAs that need pairing
+    high_low_loras_in_prompt = []
+    for lora_tag in lora_matches:
+        lora_name = lora_tag.split(":")[0]  # Get name before weight
+        if any(pattern in lora_name.lower() for pattern in ["high", "low", "hn", "ln"]):
+            high_low_loras_in_prompt.append(lora_name)
+
+    if not high_low_loras_in_prompt:
+        log_debug("  No HIGH/LOW/HN/LN LoRAs found in prompt")
+        return prompt_text
+
+    log_debug(f"  Found HIGH/LOW LoRAs to pair: {high_low_loras_in_prompt}")
+
+    # Filter available LoRAs to only potential pairs
+    potential_pairs = [
+        name
+        for name in available_lora_names
+        if any(pattern in name.lower() for pattern in ["high", "low", "hn", "ln"])
+    ]
+
+    if not potential_pairs:
+        log_debug("  No potential HIGH/LOW pairs available on system")
+        return prompt_text
+
+    # Use Ollama to find pairs
+    pairs_to_add = []
+
+    for lora_name in high_low_loras_in_prompt:
+        try:
+            # Create a focused prompt for this specific LoRA
+            system_prompt = """You are an expert at LoRA (Low-Rank Adaptation) pairing for AI generation.
+
+Find the best matching HIGH/LOW or HN/LN pair for the given LoRA from the available list.
+
+Rules:
+- HIGH pairs with LOW (and vice versa)
+- HN pairs with LN (and vice versa)
+- Look for exact name matches except for the high/low/hn/ln part
+- Respond with ONLY the LoRA name, or "NONE" if no suitable pair exists
+
+Examples:
+- "character_high" pairs with "character_low"
+- "style_hn" pairs with "style_ln"
+- "Wan22-I2V-HIGH-Fantasy" pairs with "Wan22-I2V-LOW-Fantasy"
+"""
+
+            candidates_list = "\n".join(
+                [f"- {name}" for name in potential_pairs if name != lora_name]
+            )
+
+            user_prompt = f"""Find the best pair for: {lora_name}
+
+Available LoRAs:
+{candidates_list}
+
+Best pair name:"""
+
+            # Ensure model is available
+            ensure_model_available(model_name, api_url, status_channel="lora_pairing_status")
+
+            # Call Ollama
+            response = call_ollama_chat(
+                system_prompt,
+                user_prompt,
+                model_name=model_name,
+                api_url=api_url,
+                timeout=15,
+            )
+
+            if not response or response.strip().upper() == "NONE":
+                log_debug(f"    Ollama found no pair for {lora_name}")
+                continue
+
+            # Clean and validate response
+            pair_name = response.strip()
+
+            # Try to match response to available LoRA names
+            if pair_name in potential_pairs and pair_name != lora_name:
+                # Check if this pair is not already in the prompt
+                if not any(pair_name in tag for tag in lora_matches):
+                    pairs_to_add.append(pair_name)
+                    log(f"    Ollama found pair: {lora_name} <-> {pair_name}")
+                else:
+                    log_debug(f"    Pair {pair_name} already in prompt, skipping")
+            else:
+                # Try fallback matching
+                fallback_pair = _fallback_string_pairing(lora_name, potential_pairs)
+                if fallback_pair and not any(fallback_pair in tag for tag in lora_matches):
+                    pairs_to_add.append(fallback_pair)
+                    log(f"    Fallback pair found: {lora_name} <-> {fallback_pair}")
+
+        except Exception as e:
+            log_error(f"    Error finding pair for {lora_name}: {e}")
+            # Try fallback
+            fallback_pair = _fallback_string_pairing(lora_name, potential_pairs)
+            if fallback_pair and not any(fallback_pair in tag for tag in lora_matches):
+                pairs_to_add.append(fallback_pair)
+                log(f"    Fallback pair found: {lora_name} <-> {fallback_pair}")
+
+    # Add paired LoRAs to the prompt deterministically
+    if pairs_to_add:
+        log(f"Adding {len(pairs_to_add)} paired LoRAs to prompt: {pairs_to_add}")
+
+        # Insert new LoRA tags at the end of existing LoRA tags in the prompt
+        # This keeps the prompt structure deterministic
+        new_lora_tags = []
+        for pair_name in pairs_to_add:
+            # Use a default weight of 1.0 for paired LoRAs
+            new_lora_tags.append(f"<lora:{pair_name}:1.0>")
+
+        # Find the position to insert (after the last LoRA tag)
+        last_lora_pos = 0
+        for match in re.finditer(lora_pattern, prompt_text):
+            last_lora_pos = match.end()
+
+        if last_lora_pos > 0:
+            # Insert after the last LoRA tag
+            result = (
+                prompt_text[:last_lora_pos]
+                + " "
+                + " ".join(new_lora_tags)
+                + prompt_text[last_lora_pos:]
+            )
+        else:
+            # Fallback: add at the beginning
+            result = " ".join(new_lora_tags) + " " + prompt_text
+
+        return result.strip()
+
+    return prompt_text
+
+
+def _fallback_string_pairing(lora_name: str, candidate_names: list[str]) -> Optional[str]:
+    """
+    Fallback string-based pairing when Ollama is unavailable.
+
+    This is a simplified version of the old logic for emergency use only.
+    """
+    log_debug(f"Using fallback string pairing for: {lora_name}")
 
     name_lower = lora_name.lower()
 
-    # Check for HIGH/LOW patterns
-    has_high = "high" in name_lower
-    has_low = "low" in name_lower
+    # Simple high/low replacement with word boundary awareness
+    # to avoid false positives like "highlight" -> "lowlight"
+    def try_replacement(original: str, find_word: str, replace_word: str) -> Optional[str]:
+        """Try to replace a word while preserving case and avoiding false positives."""
+        import re
 
-    # Check for HN/LN patterns
-    has_hn = "hn" in name_lower
-    has_ln = "ln" in name_lower
+        # Use word boundaries to avoid substring matches
+        words = original.replace("_", " ").replace("-", " ").split()
 
-    log_debug(f"  has_high: {has_high}, has_low: {has_low}, has_hn: {has_hn}, has_ln: {has_ln}")
+        for i, word in enumerate(words):
+            if word.lower() == find_word.lower():
+                # Preserve case pattern
+                if word.isupper():
+                    replacement = replace_word.upper()
+                elif word.istitle():
+                    replacement = replace_word.capitalize()
+                else:
+                    replacement = replace_word.lower()
 
-    if not (has_high or has_low or has_hn or has_ln):
-        log_debug("  Not a high/low/hn/ln variant, skipping")
-        return None
-
-    pair_name = None
-
-    # Handle HIGH/LOW pairs
-    if has_high:
-        # Replace preserving case: HIGH->LOW, High->Low, high->low
-        def replace_high(match):
-            original = match.group(0)
-            if original.isupper():
-                return "LOW"
-            elif original.istitle():
-                return "Low"
-            else:
-                return "low"
-
-        pair_name = re.sub(r"high", replace_high, lora_name, flags=re.IGNORECASE)
-    elif has_low:
-        # Replace preserving case: LOW->HIGH, Low->High, low->high
-        def replace_low(match):
-            original = match.group(0)
-            if original.isupper():
-                return "HIGH"
-            elif original.istitle():
-                return "High"
-            else:
-                return "high"
-
-        pair_name = re.sub(r"low", replace_low, lora_name, flags=re.IGNORECASE)
-
-    # Handle HN/LN pairs
-    elif has_hn:
-        # Replace preserving case: HN->LN, Hn->Ln, hn->ln
-        def replace_hn(match):
-            original = match.group(0)
-            if original.isupper():
-                return "LN"
-            elif original.istitle():
-                return "Ln"
-            else:
-                return "ln"
-
-        pair_name = re.sub(r"hn", replace_hn, lora_name, flags=re.IGNORECASE)
-    elif has_ln:
-        # Replace preserving case: LN->HN, Ln->Hn, ln->hn
-        def replace_ln(match):
-            original = match.group(0)
-            if original.isupper():
-                return "HN"
-            elif original.istitle():
-                return "Hn"
-            else:
-                return "hn"
-
-        pair_name = re.sub(r"ln", replace_ln, lora_name, flags=re.IGNORECASE)
-
-    if not pair_name:
-        log_debug("  Could not generate pair name")
-        return None
-
-    log_debug(f"  Generated pair name: {pair_name}")
-
-    # Check if the pair exists in available LoRAs
-    exists = pair_name in available_lora_names
-    log_debug(f"  Pair exists in available LoRAs: {exists}")
-
-    if exists:
-        log(f"LoRA pair found: {lora_name} <-> {pair_name}")
-        return pair_name
-    else:
-        log_debug(f"  Pair not found. Available LoRAs: {len(available_lora_names)}")
-
-        # Show matching HIGH/LOW/HN/LN LoRAs for debugging
-        high_low_loras = [
-            name
-            for name in available_lora_names
-            if any(pattern in name.lower() for pattern in ["high", "low", "hn", "ln"])
-        ]
-        if high_low_loras:
-            log_debug(f"  HIGH/LOW/HN/LN LoRAs available: {high_low_loras[:10]}")  # Show first 10
+                words[i] = replacement
+                # Reconstruct with original separators
+                result = original
+                for orig_word, new_word in zip(
+                    original.replace("_", " ").replace("-", " ").split(), words
+                ):
+                    result = result.replace(orig_word, new_word, 1)
+                return result
 
         return None
+
+    # Try each pattern
+    patterns = [
+        ("high", "low"),
+        ("low", "high"),
+        ("hn", "ln"),
+        ("ln", "hn"),
+    ]
+
+    for find_word, replace_word in patterns:
+        target = try_replacement(lora_name, find_word, replace_word)
+        if target and target in candidate_names:
+            log(f"Fallback pairing found: {lora_name} <-> {target}")
+            return target
+
+    return None
+
+
+# Keep the old function name for backward compatibility but mark it as deprecated
+def find_lora_high_low_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
+    """
+    DEPRECATED: Use find_lora_high_low_pair_with_ollama() instead.
+
+    This function is kept for backward compatibility but will use simple string matching.
+    """
+    log_debug(
+        "DEPRECATED: Using find_lora_high_low_pair (string-based). Consider upgrading to Ollama-based pairing."
+    )
+    return _fallback_string_pairing(lora_name, available_lora_names)

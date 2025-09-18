@@ -16,7 +16,7 @@ from .lora_metadata_utils import (
     extract_embeddable_content,
     extract_example_prompts,
     extract_recommended_weight,
-    find_lora_high_low_pair,
+    find_lora_pairs_in_prompt_with_ollama,
 )
 
 
@@ -151,6 +151,23 @@ This node
                         ),
                     },
                 ),
+                "pairing_model_name": (
+                    "STRING",
+                    {
+                        "default": "qwen2.5-coder:7b",
+                        "tooltip": (
+                            "Ollama model to use for intelligent LoRA high/low pairing. "
+                            "Examples: qwen2.5-coder:7b, llama3.1:8b, nous-hermes2"
+                        ),
+                    },
+                ),
+                "pairing_api_url": (
+                    "STRING",
+                    {
+                        "default": "http://localhost:11434/api/chat",
+                        "tooltip": "URL of the Ollama chat API endpoint for LoRA pairing.",
+                    },
+                ),
             },
         }
 
@@ -243,74 +260,9 @@ This node
             log_error(f"Failed to initialize embeddings: {e}")
             return False
 
-    def _find_wan_lora_pair(self, selected_lora_name: str) -> Optional[str]:
-        """
-        Find the matching HIGH/LOW pair for a WAN LoRA.
-
-        Args:
-            selected_lora_name: Name of the selected WAN LoRA
-
-        Returns:
-            Name of the matching pair LoRA, or None if no pair found
-        """
-        # Use the shared pairing logic
-        available_lora_names = list(self._lora_database.keys())
-        return find_lora_high_low_pair(selected_lora_name, available_lora_names)
-
-    def _apply_wan_2_2_pairing(
-        self, video_loras: list[dict[str, Any]], max_count: int
-    ) -> list[dict[str, Any]]:
-        """
-        Post-process video LoRA selection to add WAN 2.2 high/low pairs.
-        Respects the max_count limit by treating pairs as single units.
-
-        Args:
-            video_loras: List of selected video LoRAs
-            max_count: Maximum number of LoRA "units" (pairs count as 1 unit)
-
-        Returns:
-            Expanded list with high/low pairs added for WAN 2.2 LoRAs
-        """
-        from .lora_metadata_utils import is_wan_2_2_lora
-
-        expanded_loras = []
-        units_used = 0
-
-        for lora in video_loras:
-            if units_used >= max_count:
-                log(f"⚠️ Reached max_video_loras limit ({max_count}), skipping remaining LoRAs")
-                break
-
-            expanded_loras.append(lora)  # Always add the original
-
-            # Check if this is a WAN 2.2 LoRA
-            metadata = lora.get("metadata")
-            if metadata and is_wan_2_2_lora(metadata):
-                log_debug(f"Found WAN 2.2 LoRA: {lora['name']}")
-                # Try to find the matching pair
-                pair_name = self._find_wan_lora_pair(lora["name"])
-
-                if pair_name and pair_name in self._lora_database:
-                    # Add the pair LoRA with same relevance score and proper structure
-                    pair_db_info = self._lora_database[pair_name]
-                    pair_metadata = pair_db_info["metadata"]
-                    pair_info = {
-                        "name": pair_name,
-                        "metadata": pair_metadata,
-                        "relevance_score": lora.get("relevance_score", 0.0),
-                        "recommended_weight": extract_recommended_weight(pair_metadata),
-                        "trigger_words": pair_db_info.get("trigger_words", []),
-                        "type": "video",
-                    }
-                    expanded_loras.append(pair_info)
-
-                    log(f"🔗 WAN 2.2 pairing: {lora['name']} + {pair_name}")
-                else:
-                    log(f"⚠️ WAN 2.2 LoRA {lora['name']} has no matching pair")
-
-            units_used += 1  # Each original LoRA (with or without pair) counts as 1 unit
-
-        return expanded_loras
+    # Note: The old _find_wan_lora_pair and _apply_wan_2_2_pairing methods have been removed
+    # in favor of the more general Ollama-based prompt pairing approach for better
+    # deterministic behavior and wider applicability
 
     def _find_relevant_loras(
         self,
@@ -805,6 +757,8 @@ This node
         wan_lora_dir_path: str = "",
         default_lora_weight: float = 1.0,
         low_lora_weight_offset: float = 0.2,
+        pairing_model_name: str = "qwen2.5-coder:7b",
+        pairing_api_url: str = "http://localhost:11434/api/chat",
     ) -> tuple[str, str, str]:
         """
         Main function that composes prompts from scene descriptions.
@@ -819,6 +773,8 @@ This node
             wan_lora_dir_path: Optional subdirectory to filter video LoRAs
             default_lora_weight: Default weight for all LoRAs (overrides metadata)
             low_lora_weight_offset: Amount to reduce LOW LoRA weights by
+            pairing_model_name: Ollama model to use for intelligent LoRA pairing
+            pairing_api_url: Ollama API URL for LoRA pairing
 
         Returns:
             Tuple of (composed_prompt, lora_analysis, metadata_summary)
@@ -883,13 +839,8 @@ This node
                 wan_lora_dir_path,
             )
 
-            # Apply WAN 2.2 high/low pairing
-            original_count = len(video_loras)
-            video_loras = self._apply_wan_2_2_pairing(video_loras, max_video_loras)
-            if len(video_loras) > original_count:
-                log(
-                    f"WAN 2.2 pairing expanded video LoRAs from {original_count} to {len(video_loras)}"
-                )
+            # Note: WAN 2.2 high/low pairing is now handled by the general Ollama pairing
+            # after prompt composition for better deterministic behavior
 
             video_names = [lora.get("name", "unknown") for lora in video_loras]
             log(f"Found {len(video_loras)} video LoRAs: {video_names}")
@@ -907,6 +858,25 @@ This node
                 low_lora_weight_offset,
             )
             log_debug("Prompt composition completed successfully")
+
+            # Apply Ollama-based intelligent LoRA pairing to the final prompt
+            log_debug("Applying intelligent LoRA pairing with Ollama...")
+            try:
+                paired_prompt = find_lora_pairs_in_prompt_with_ollama(
+                    composed_prompt,
+                    model_name=pairing_model_name,
+                    api_url=pairing_api_url,
+                )
+                if paired_prompt != composed_prompt:
+                    log("Ollama LoRA pairing enhanced the prompt with additional pairs")
+                    composed_prompt = paired_prompt
+                else:
+                    log_debug("No additional LoRA pairs found by Ollama")
+            except Exception as e:
+                log_error(f"Error in Ollama LoRA pairing: {e}")
+                # Continue with original prompt if pairing fails
+                pass
+            log_debug("LoRA pairing process completed")
 
             # Create analysis output with actual weights used
             def get_actual_weight(lora_name: str, is_video: bool) -> float:
