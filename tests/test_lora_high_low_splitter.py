@@ -11,7 +11,7 @@ from unittest.mock import patch
 from nodes.lora_high_low_splitter_node import LoRAHighLowSplitterNode
 from nodes.lora_metadata_utils import (
     find_lora_high_low_pair,
-    find_lora_pairs_in_prompt_with_rapidfuzz,
+    find_lora_pairs_in_prompt,
 )
 
 
@@ -115,8 +115,8 @@ class TestLoRAHighLowSplitter(unittest.TestCase):
 class TestLoRAHighLowPairing(unittest.TestCase):
     """Unit tests for the shared LoRA high/low pairing functionality."""
 
-    def test_rapidfuzz_pairing_basic(self):
-        """Test basic rapidfuzz string pairing."""
+    def test_pairing_basic(self):
+        """Test basic string pairing."""
         available_loras = ["character_high", "character_low", "style_normal"]
 
         # Test HIGH -> LOW
@@ -127,8 +127,8 @@ class TestLoRAHighLowPairing(unittest.TestCase):
         pair = find_lora_high_low_pair("character_low", available_loras)
         self.assertEqual(pair, "character_high")
 
-    def test_rapidfuzz_hn_ln_pairing(self):
-        """Test rapidfuzz HN/LN pairing."""
+    def test_hn_ln_pairing(self):
+        """Test HN/LN pairing."""
         available_loras = ["robot_hn", "robot_ln", "style_normal"]
 
         # Test HN -> LN
@@ -139,8 +139,8 @@ class TestLoRAHighLowPairing(unittest.TestCase):
         pair = find_lora_high_low_pair("robot_ln", available_loras)
         self.assertEqual(pair, "robot_hn")
 
-    def test_rapidfuzz_similarity_threshold(self):
-        """Test that rapidfuzz respects similarity thresholds."""
+    def test_similarity_threshold(self):
+        """Test that similarity thresholds are respected."""
         available_loras = [
             "highlight_effect",
             "lowlight_shadows",
@@ -172,7 +172,7 @@ class TestLoRAHighLowPairing(unittest.TestCase):
         mock_discover.return_value = {}
 
         prompt = "woman dancing in garden"
-        result = find_lora_pairs_in_prompt_with_rapidfuzz(prompt)
+        result = find_lora_pairs_in_prompt(prompt)
 
         # Should return unchanged
         self.assertEqual(result, prompt)
@@ -186,14 +186,14 @@ class TestLoRAHighLowPairing(unittest.TestCase):
         }
 
         prompt = "woman dancing <lora:style_normal:0.8> in garden"
-        result = find_lora_pairs_in_prompt_with_rapidfuzz(prompt)
+        result = find_lora_pairs_in_prompt(prompt)
 
         # Should return unchanged since no high/low LoRAs
         self.assertEqual(result, prompt)
 
     @patch("nodes.lora_metadata_utils.discover_all_loras")
-    def test_prompt_pairing_rapidfuzz_success(self, mock_discover):
-        """Test successful rapidfuzz-based prompt pairing."""
+    def test_prompt_pairing_success(self, mock_discover):
+        """Test successful prompt pairing."""
         # Mock available LoRAs
         mock_discover.return_value = {
             "character_high": {"metadata": {}},
@@ -201,10 +201,10 @@ class TestLoRAHighLowPairing(unittest.TestCase):
             "style_normal": {"metadata": {}},
         }
 
-        # Rapidfuzz will find the pair automatically based on string similarity
+        # String similarity will find the pair automatically
 
         prompt = "woman dancing <lora:character_high:0.8> in garden"
-        result = find_lora_pairs_in_prompt_with_rapidfuzz(prompt)
+        result = find_lora_pairs_in_prompt(prompt)
 
         # Should add the paired LoRA
         self.assertIn("<lora:character_high:0.8>", result)
@@ -214,7 +214,7 @@ class TestLoRAHighLowPairing(unittest.TestCase):
 
     @patch("nodes.lora_metadata_utils.discover_all_loras")
     def test_prompt_pairing_no_match_found(self, mock_discover):
-        """Test rapidfuzz behavior when no suitable pairs are found."""
+        """Test behavior when no suitable pairs are found."""
         # Mock available LoRAs with unrelated names that won't match
         mock_discover.return_value = {
             "robot_style": {"metadata": {}},
@@ -223,7 +223,7 @@ class TestLoRAHighLowPairing(unittest.TestCase):
 
         # Use a HIGH LoRA that has no matching LOW pair available
         prompt = "woman <lora:character_high:0.8> dancing"
-        result = find_lora_pairs_in_prompt_with_rapidfuzz(prompt)
+        result = find_lora_pairs_in_prompt(prompt)
 
         # Should return unchanged since no suitable pairs exist
         self.assertEqual(result, prompt)

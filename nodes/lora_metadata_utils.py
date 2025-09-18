@@ -658,13 +658,13 @@ def split_prompt_by_lora_high_low(prompt_text: str) -> tuple[str, str]:
     return high_prompt, low_prompt
 
 
-def find_lora_pairs_in_prompt_with_rapidfuzz(prompt_text: str) -> str:
+def find_lora_pairs_in_prompt(prompt_text: str) -> str:
     """
-    Find and pair LoRA tags in a prompt using rapidfuzz for fuzzy string matching.
+    Find and pair LoRA tags in a prompt using fuzzy string matching.
 
-    This function extracts LoRA tags from the prompt, uses rapidfuzz to find the best
-    matching pairs from available LoRAs on the system, and stitches the results back
-    into the prompt deterministically.
+    This function extracts LoRA tags from the prompt, finds the best matching pairs
+    from available LoRAs on the system using string similarity, and stitches the
+    results back into the prompt deterministically.
 
     This approach uses pure string similarity without making assumptions about naming
     patterns, making it flexible for any LoRA naming convention.
@@ -713,7 +713,8 @@ def find_lora_pairs_in_prompt_with_rapidfuzz(prompt_text: str) -> str:
         # Use rapidfuzz to find the most similar LoRA
         # Exclude the current LoRA and any already in the prompt
         candidates = [
-            name for name in available_lora_names
+            name
+            for name in available_lora_names
             if name != lora_name and name not in lora_names_in_prompt
         ]
 
@@ -768,13 +769,20 @@ def find_lora_pairs_in_prompt_with_rapidfuzz(prompt_text: str) -> str:
     return prompt_text
 
 
-# Keep the old function name for backward compatibility but use rapidfuzz now
-def find_lora_high_low_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
+def find_lora_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
     """
-    Find the best matching LoRA pair using rapidfuzz string similarity.
+    Find the best matching LoRA pair using fuzzy string similarity.
 
-    This function is kept for backward compatibility and now uses rapidfuzz
-    without making assumptions about naming patterns.
+    Uses string similarity to find the most similar LoRA name from the available
+    list, without making assumptions about naming patterns. This makes it flexible
+    for any LoRA naming convention.
+
+    Args:
+        lora_name: Name of the LoRA to find a pair for
+        available_lora_names: List of available LoRA names to search through
+
+    Returns:
+        Best matching LoRA name or None if no suitable match found
     """
     from rapidfuzz import fuzz, process
 
@@ -800,3 +808,13 @@ def find_lora_high_low_pair(lora_name: str, available_lora_names: list[str]) -> 
         return best_match
 
     return None
+
+
+# Keep the old function name for backward compatibility
+def find_lora_high_low_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
+    """
+    DEPRECATED: Use find_lora_pair() instead.
+
+    This function is kept for backward compatibility.
+    """
+    return find_lora_pair(lora_name, available_lora_names)

@@ -16,7 +16,7 @@ from .lora_metadata_utils import (
     extract_embeddable_content,
     extract_example_prompts,
     extract_recommended_weight,
-    find_lora_pairs_in_prompt_with_rapidfuzz,
+    find_lora_pairs_in_prompt,
 )
 
 
@@ -838,17 +838,17 @@ This node
             )
             log_debug("Prompt composition completed successfully")
 
-            # Apply rapidfuzz-based LoRA pairing to the final prompt
-            log_debug("Applying LoRA pairing with rapidfuzz...")
+            # Apply intelligent LoRA pairing to the final prompt
+            log_debug("Applying LoRA pairing...")
             try:
-                paired_prompt = find_lora_pairs_in_prompt_with_rapidfuzz(composed_prompt)
+                paired_prompt = find_lora_pairs_in_prompt(composed_prompt)
                 if paired_prompt != composed_prompt:
-                    log("Rapidfuzz LoRA pairing enhanced the prompt with additional pairs")
+                    log("LoRA pairing enhanced the prompt with additional pairs")
                     composed_prompt = paired_prompt
                 else:
-                    log_debug("No additional LoRA pairs found by rapidfuzz")
+                    log_debug("No additional LoRA pairs found")
             except Exception as e:
-                log_error(f"Error in rapidfuzz LoRA pairing: {e}")
+                log_error(f"Error in LoRA pairing: {e}")
                 # Continue with original prompt if pairing fails
                 pass
             log_debug("LoRA pairing process completed")
