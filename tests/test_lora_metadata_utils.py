@@ -11,14 +11,18 @@ from unittest.mock import mock_open, patch
 
 from nodes.lora_metadata_utils import (
     LoRAMetadataLoader,
+    classify_lora_pairs_with_ollama,
     classify_lora_type,
     extract_embeddable_content,
     extract_example_prompts,
     extract_recommended_weight,
+    find_lora_pair_fuzzy,
     get_lora_trigger_words,
     is_video_lora,
     is_wan_2_2_lora,
     load_lora_metadata,
+    parse_ollama_classification_response,
+    split_prompt_by_lora_high_low_with_ollama,
 )
 
 os.environ.setdefault("COMFYUI_SKIP_LORA_ANALYSIS", "1")
@@ -348,6 +352,198 @@ class TestNewMetadataFunctions(unittest.TestCase):
         self.assertFalse(is_wan_2_2_lora(None))
         self.assertFalse(is_wan_2_2_lora({}))
         self.assertFalse(is_wan_2_2_lora({"unrelated_field": "value"}))
+
+
+class TestHighLowSplittingFunctions(unittest.TestCase):
+    """Tests for the HIGH/LOW LoRA splitting utility functions."""
+
+    def test_find_lora_pair_fuzzy_success(self):
+        """find_lora_pair_fuzzy should find matching pairs based on similarity."""
+        lora_names = ["Model-22-H-e8", "Model-22-L-e8", "character_high", "character_low"]
+
+        # Should find pairs based on similarity
+        pair1 = find_lora_pair_fuzzy("Model-22-H-e8", lora_names)
+        self.assertEqual(pair1, "Model-22-L-e8")
+
+        pair2 = find_lora_pair_fuzzy("character_high", lora_names)
+        self.assertEqual(pair2, "character_low")
+
+    def test_find_lora_pair_fuzzy_no_match(self):
+        """find_lora_pair_fuzzy should return None when no suitable match is found."""
+        lora_names = ["Model-22-H-e8", "Model-22-L-e8", "unrelated_lora"]
+
+        no_pair = find_lora_pair_fuzzy("unrelated_lora", lora_names)
+        self.assertIsNone(no_pair)
+
+    def test_find_lora_pair_fuzzy_empty_candidates(self):
+        """find_lora_pair_fuzzy should handle empty candidate lists."""
+        result = find_lora_pair_fuzzy("test_lora", [])
+        self.assertIsNone(result)
+
+        result = find_lora_pair_fuzzy("test_lora", ["test_lora"])  # Only self
+        self.assertIsNone(result)
+
+    def test_split_prompt_by_lora_high_low_with_ollama_simple_mode(self):
+        """split_prompt_by_lora_high_low_with_ollama should work in simple mode (no Ollama)."""
+        prompt = "test scene <lora:character_high:0.8> <lora:character_low:0.6>"
+
+        # Test simple mode (no Ollama, treats all LoRAs as singles)
+        high_prompt, low_prompt = split_prompt_by_lora_high_low_with_ollama(
+            prompt, use_ollama=False
+        )
+
+        # Both outputs should contain the base prompt
+        self.assertIn("test scene", high_prompt)
+        self.assertIn("test scene", low_prompt)
+
+        # In simple mode without rapidfuzz, LoRAs are treated as singles (included in both outputs)
+        # With rapidfuzz available, similar LoRAs might be paired via fuzzy matching
+        # Both HIGH and LOW should contain the base prompt
+        self.assertEqual(high_prompt.count("test scene"), 1)
+        self.assertEqual(low_prompt.count("test scene"), 1)
+
+        # Both LoRAs should appear in the output (either paired or as singles)
+        self.assertIn("<lora:character_high:0.8>", high_prompt)
+        self.assertIn("<lora:character_low:0.6>", low_prompt)
+
+    @patch("nodes.ollama_utils.ensure_model_available")
+    @patch("nodes.ollama_utils.call_ollama_chat")
+    def test_classify_lora_pairs_with_ollama_success(self, mock_chat, mock_ensure):
+        """classify_lora_pairs_with_ollama should successfully classify pairs."""
+        candidate_pairs = [("Model-22-H-e8", "Model-22-L-e8")]
+
+        # Mock successful Ollama response
+        mock_response = """{
+            "classifications": [
+                {
+                    "pair_index": 1,
+                    "high_lora": "Model-22-H-e8",
+                    "low_lora": "Model-22-L-e8",
+                    "reasoning": "H indicator suggests high noise"
+                }
+            ]
+        }"""
+        mock_chat.return_value = mock_response
+
+        classifications = classify_lora_pairs_with_ollama(candidate_pairs)
+
+        expected_key = ("Model-22-H-e8", "Model-22-L-e8")
+        self.assertIn(expected_key, classifications)
+        self.assertEqual(classifications[expected_key]["high_lora"], "Model-22-H-e8")
+        self.assertEqual(classifications[expected_key]["low_lora"], "Model-22-L-e8")
+        self.assertEqual(
+            classifications[expected_key]["reasoning"], "H indicator suggests high noise"
+        )
+
+    @patch("nodes.ollama_utils.ensure_model_available")
+    def test_classify_lora_pairs_with_ollama_model_unavailable(self, mock_ensure):
+        """classify_lora_pairs_with_ollama should raise exception when model is unavailable."""
+        candidate_pairs = [("test_high", "test_low")]
+
+        # Mock model unavailable
+        mock_ensure.side_effect = Exception("Model not found")
+
+        with self.assertRaises(Exception) as context:
+            classify_lora_pairs_with_ollama(candidate_pairs)
+
+        self.assertIn("qwen-coder:7b model is not available", str(context.exception))
+        self.assertIn("ollama pull qwen-coder:7b", str(context.exception))
+
+    def test_parse_ollama_classification_response_success(self):
+        """parse_ollama_classification_response should parse valid JSON responses."""
+        response = """{
+            "classifications": [
+                {
+                    "pair_index": 1,
+                    "high_lora": "test_high",
+                    "low_lora": "test_low",
+                    "reasoning": "test reasoning"
+                }
+            ]
+        }"""
+        candidate_pairs = [("test_high", "test_low")]
+
+        classifications = parse_ollama_classification_response(response, candidate_pairs)
+
+        expected_key = ("test_high", "test_low")
+        self.assertIn(expected_key, classifications)
+        self.assertEqual(classifications[expected_key]["high_lora"], "test_high")
+        self.assertEqual(classifications[expected_key]["low_lora"], "test_low")
+
+    def test_parse_ollama_classification_response_invalid_json(self):
+        """parse_ollama_classification_response should handle invalid JSON gracefully."""
+        response = "This is not valid JSON"
+        candidate_pairs = [("test_high", "test_low")]
+
+        classifications = parse_ollama_classification_response(response, candidate_pairs)
+
+        self.assertEqual(classifications, {})
+
+    def test_parse_ollama_classification_response_with_code_blocks(self):
+        """parse_ollama_classification_response should handle markdown code blocks."""
+        response = """```json
+        {
+            "classifications": [
+                {
+                    "pair_index": 1,
+                    "high_lora": "test_high",
+                    "low_lora": "test_low",
+                    "reasoning": "test reasoning"
+                }
+            ]
+        }
+        ```"""
+        candidate_pairs = [("test_high", "test_low")]
+
+        classifications = parse_ollama_classification_response(response, candidate_pairs)
+
+        expected_key = ("test_high", "test_low")
+        self.assertIn(expected_key, classifications)
+
+    def test_split_prompt_by_lora_high_low_with_ollama_no_pairs(self):
+        """split_prompt_by_lora_high_low_with_ollama should handle prompts with no pairs."""
+        prompt = "simple scene <lora:style1:0.8> <lora:character:0.6>"
+
+        high_prompt, low_prompt = split_prompt_by_lora_high_low_with_ollama(
+            prompt, use_ollama=False
+        )
+
+        # Both outputs should be identical (base + all single lora tags)
+        self.assertEqual(high_prompt, low_prompt)
+        self.assertIn("simple scene", high_prompt)
+        self.assertIn("<lora:style1:0.8>", high_prompt)
+        self.assertIn("<lora:character:0.6>", high_prompt)
+
+    @patch("nodes.ollama_utils.ensure_model_available")
+    @patch("nodes.ollama_utils.call_ollama_chat")
+    def test_split_prompt_by_lora_high_low_with_ollama_advanced_mode(self, mock_chat, mock_ensure):
+        """split_prompt_by_lora_high_low_with_ollama should work with Ollama classification."""
+        prompt = "dancing robot <lora:character_high:0.8> <lora:character_low:0.6>"
+
+        # Mock successful Ollama response
+        mock_response = """{
+            "classifications": [
+                {
+                    "pair_index": 1,
+                    "high_lora": "character_high",
+                    "low_lora": "character_low",
+                    "reasoning": "high vs low naming pattern"
+                }
+            ]
+        }"""
+        mock_chat.return_value = mock_response
+
+        high_prompt, low_prompt = split_prompt_by_lora_high_low_with_ollama(prompt, use_ollama=True)
+
+        # HIGH prompt should have base + HIGH lora tag from the pair
+        self.assertIn("dancing robot", high_prompt)
+        self.assertIn("<lora:character_high:0.8>", high_prompt)
+        self.assertNotIn("<lora:character_low:0.6>", high_prompt)
+
+        # LOW prompt should have base + LOW lora tag from the pair
+        self.assertIn("dancing robot", low_prompt)
+        self.assertIn("<lora:character_low:0.6>", low_prompt)
+        self.assertNotIn("<lora:character_high:0.8>", low_prompt)
 
 
 if __name__ == "__main__":

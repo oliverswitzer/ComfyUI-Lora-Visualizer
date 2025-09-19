@@ -68,15 +68,31 @@ class LoRAHighLowSplitterNode:
                         ),
                     },
                 ),
+                "find_matching_high_low_lora": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": (
+                            "Enable advanced LoRA pair matching.\n\n"
+                            "• FALSE (Default): Simple pattern-based extraction of existing HIGH/LOW LoRAs\n"
+                            "• TRUE (Advanced): Use AI to find and add missing HIGH/LOW pairs\n\n"
+                            "Example: With FALSE, '<lora:Model-H:1>' is extracted as-is. "
+                            "With TRUE, system finds and adds matching '<lora:Model-L:0.5>' automatically."
+                        ),
+                    },
+                ),
             },
         }
 
-    def split_high_low(self, prompt_text: str) -> tuple[str, str]:
+    def split_high_low(
+        self, prompt_text: str, find_matching_high_low_lora: bool = False
+    ) -> tuple[str, str]:
         """
         Split the prompt into high and low LoRA variants.
 
         Args:
             prompt_text: Input prompt with LoRA tags
+            find_matching_high_low_lora: Enable advanced LoRA pair matching with AI
 
         Returns:
             Tuple of (high_prompt, low_prompt)
@@ -87,8 +103,18 @@ class LoRAHighLowSplitterNode:
 
         log("LoRA High/Low Splitter: Splitting prompt by HIGH/LOW LoRA tags")
 
-        # Use the shared splitting logic with HN/LN support
-        high_prompt, low_prompt = split_prompt_by_lora_high_low(prompt_text)
+        if find_matching_high_low_lora:
+            # Use advanced AI-powered matching and classification
+            from .lora_metadata_utils import split_prompt_by_lora_high_low_with_ollama
+
+            log("LoRA High/Low Splitter: Using advanced AI-powered matching mode")
+            high_prompt, low_prompt = split_prompt_by_lora_high_low_with_ollama(
+                prompt_text, use_ollama=True
+            )
+        else:
+            # Use simple pattern-based splitting (default)
+            log("LoRA High/Low Splitter: Using simple pattern-based extraction mode")
+            high_prompt, low_prompt = split_prompt_by_lora_high_low(prompt_text)
 
         log("LoRA High/Low Splitter: Split completed")
         log(f"  High prompt length: {len(high_prompt)} characters")

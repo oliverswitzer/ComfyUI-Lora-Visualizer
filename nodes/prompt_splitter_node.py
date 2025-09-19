@@ -715,90 +715,37 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             # Don't fail the entire operation if progress update fails
             log_error(f"Failed to send progress update: {e}")
 
-    def _naive_split(self, prompt: str) -> tuple[str, str]:
-        """Deprecated fallback splitting.
-
-        Historically, this method provided a naive fallback when Ollama
-        requests failed.  To avoid confusion, fallback splitting is no
-        longer used.  This method now simply returns two copies of the
-        input prompt, preserving behaviour for any external callers that
-        might still invoke it.
+    def _split_wan_prompt_by_high_low(
+        self, wan_prompt: str, use_advanced_matching: bool = True
+    ) -> tuple[str, str]:
         """
-        return prompt, prompt
+        Split a WAN prompt into HIGH and LOW specific versions using shared classification.
 
-    def _split_wan_prompt_by_high_low(self, wan_prompt: str) -> tuple[str, str]:
-        """
-        Split a WAN prompt into HIGH and LOW specific versions for WAN 2.2 support.
-
-        - wan_prompt_high: Contains ONLY HIGH lora tags + base prompt text
-        - wan_prompt_low: Contains ONLY LOW lora tags + base prompt text
-        - Base prompt text excludes all LoRA tags (those are distributed separately)
-        - LoRA tags without HIGH/LOW in name are excluded from both outputs
+        Delegates to the shared function in lora_metadata_utils for consistent behavior
+        across all nodes that need HIGH/LOW LoRA splitting.
 
         Args:
             wan_prompt: Video prompt with LoRA tags (converted from wanlora tags)
+            use_advanced_matching: Enable advanced LoRA pair matching with Ollama (default True)
 
         Returns:
             Tuple of (wan_prompt_high, wan_prompt_low)
+
+        Note:
+            This node always uses advanced matching for WAN 2.2 LoRAs to automatically
+            find and add HIGH/LOW pairs as needed for proper video generation.
         """
-        import re
+        from .lora_metadata_utils import split_prompt_by_lora_high_low_with_ollama
 
-        log_debug(f"Input wan_prompt: '{wan_prompt}'")
+        log_debug(f"Delegating to shared HIGH/LOW split function: '{wan_prompt}'")
 
-        # Extract the base prompt (without wanlora tags) and wanlora tags separately
-        base_prompt_parts = []
-        high_wanlora_tags = []
-        low_wanlora_tags = []
-        single_wanlora_tags = []
-
-        # Split the prompt by lora tags and regular content
-        # Note: wanlora tags have been converted to lora tags at this point
-        parts = re.split(r"(<lora:[^>]+>)", wan_prompt)
-
-        for part in parts:
-            part = part.strip()
-            if not part:
-                continue
-
-            if part.startswith("<lora:") and part.endswith(">"):
-                # This is a lora tag - classify it by name
-                tag_content = part[6:-1]  # Remove <lora: and >
-                tag_name = tag_content.split(":")[0]  # Get name before first colon
-
-                tag_name_lower = tag_name.lower()
-                log_debug(f"Checking tag name: '{tag_name}' (lowercase: '{tag_name_lower}')")
-
-                if "high" in tag_name_lower:
-                    high_wanlora_tags.append(part)
-                    log_debug(f"Classified as HIGH lora: {part}")
-                elif "low" in tag_name_lower:
-                    low_wanlora_tags.append(part)
-                    log_debug(f"Classified as LOW lora: {part}")
-                else:
-                    # Single lora (not part of HIGH/LOW pair) - include in both outputs
-                    single_wanlora_tags.append(part)
-                    log_debug(f"Classified as single lora: {part}")
-            else:
-                # This is regular prompt content (text, not LoRA tags)
-                base_prompt_parts.append(part)
-
-        # Build the base prompt (text content only, no LoRA tags)
-        base_prompt = " ".join(base_prompt_parts).strip()
-
-        # Build HIGH prompt: base + HIGH lora tags + single lora tags
-        wan_prompt_high_parts = [base_prompt] + high_wanlora_tags + single_wanlora_tags
-        wan_prompt_high = " ".join(part for part in wan_prompt_high_parts if part.strip())
-
-        # Build LOW prompt: base + LOW lora tags + single lora tags
-        wan_prompt_low_parts = [base_prompt] + low_wanlora_tags + single_wanlora_tags
-        wan_prompt_low = " ".join(part for part in wan_prompt_low_parts if part.strip())
+        # Use the shared function with configurable matching behavior
+        wan_prompt_high, wan_prompt_low = split_prompt_by_lora_high_low_with_ollama(
+            wan_prompt, use_ollama=use_advanced_matching
+        )
 
         log_debug(f"HIGH output: '{wan_prompt_high}'")
         log_debug(f"LOW output: '{wan_prompt_low}'")
-
-        log_debug(
-            f"WAN 2.2 split - HIGH wanlora tags: {len(high_wanlora_tags)}, LOW wanlora tags: {len(low_wanlora_tags)}, Single wanlora tags: {len(single_wanlora_tags)}"
-        )
 
         return wan_prompt_high, wan_prompt_low
 
@@ -821,7 +768,11 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
                 to the default system prompt.
 
         Returns:
-            (image_prompt, wan_prompt, lora_analysis)
+            (image_prompt, wan_prompt, wan_prompt_high, wan_prompt_low, lora_analysis)
+
+        Note:
+            For WAN 2.2 LoRAs, advanced HIGH/LOW pair matching is automatically enabled
+            to ensure proper LoRA pairing for video generation.
         """
         if not prompt_text or not prompt_text.strip():
             log("Prompt Splitter: Empty input prompt, returning empty results")
@@ -1011,7 +962,10 @@ Input Prompt: "woman dancing overwatch, ana gracefully she jumps up and down"
             analysis_output = json.dumps(analysis_data, indent=2, ensure_ascii=False)
 
             # Generate HIGH/LOW specific prompts for WAN 2.2
-            wan_prompt_high, wan_prompt_low = self._split_wan_prompt_by_high_low(wan_prompt)
+            # Always use advanced matching for WAN 2.2 LoRAs to ensure proper HIGH/LOW pairing
+            wan_prompt_high, wan_prompt_low = self._split_wan_prompt_by_high_low(
+                wan_prompt, use_advanced_matching=True
+            )
 
             log("Prompt Splitter: Successfully split prompt")
             log(f"Prompt Splitter: Final image prompt length: {len(image_prompt)} characters")

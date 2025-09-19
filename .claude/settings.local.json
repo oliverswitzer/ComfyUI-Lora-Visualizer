@@ -3,7 +3,8 @@
     "allow": [
       "Bash(pdm test:*)",
       "Bash(pdm run:*)",
-      "Bash(pdm run test:*)"
+      "Bash(pdm run test:*)",
+      "Bash(pdm run pytest:*)"
     ],
     "deny": [],
     "ask": []
