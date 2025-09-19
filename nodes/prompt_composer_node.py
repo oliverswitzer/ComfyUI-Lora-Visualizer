@@ -7,7 +7,7 @@ composes prompts with optimal LoRA combinations, weights, and trigger words.
 
 import json
 import re
-from typing import Any, Optional
+from typing import Any
 
 from .logging_utils import log, log_debug, log_error
 from .lora_metadata_utils import (
@@ -16,6 +16,7 @@ from .lora_metadata_utils import (
     extract_embeddable_content,
     extract_example_prompts,
     extract_recommended_weight,
+    find_lora_pairs_in_prompt,
 )
 
 
@@ -242,143 +243,9 @@ This node
             log_error(f"Failed to initialize embeddings: {e}")
             return False
 
-    def _find_wan_lora_pair(self, selected_lora_name: str) -> Optional[str]:
-        """
-        Find the matching HIGH/LOW pair for a WAN LoRA using simple word replacement.
-
-        Args:
-            selected_lora_name: Name of the selected WAN LoRA
-
-        Returns:
-            Name of the matching pair LoRA, or None if no pair found
-        """
-        import re
-
-        log_debug(f"Looking for pair for: {selected_lora_name}")
-
-        name_lower = selected_lora_name.lower()
-
-        # Check if it contains "high" or "low" (case insensitive)
-        has_high = "high" in name_lower
-        has_low = "low" in name_lower
-
-        log_debug(f"  has_high: {has_high}, has_low: {has_low}")
-
-        if not (has_high or has_low):
-            log_debug("  Not a high/low variant, skipping")
-            return None  # Not a high/low variant
-
-        # Simple replacement: swap "high" with "low" and vice versa (preserve case)
-        if has_high:
-            # Replace preserving case: HIGH->LOW, High->Low, high->low
-            def replace_high(match):
-                original = match.group(0)
-                if original.isupper():
-                    return "LOW"
-                elif original.istitle():
-                    return "Low"
-                else:
-                    return "low"
-
-            pair_name = re.sub(r"high", replace_high, selected_lora_name, flags=re.IGNORECASE)
-        else:  # has_low
-            # Replace preserving case: LOW->HIGH, Low->High, low->high
-            def replace_low(match):
-                original = match.group(0)
-                if original.isupper():
-                    return "HIGH"
-                elif original.istitle():
-                    return "High"
-                else:
-                    return "high"
-
-            pair_name = re.sub(r"low", replace_low, selected_lora_name, flags=re.IGNORECASE)
-
-        log_debug(f"  Generated pair name: {pair_name}")
-
-        # Check if the pair exists in available LoRAs
-        exists = pair_name in self._lora_database
-        log_debug(f"  Pair exists in database: {exists}")
-
-        if exists:
-            log(f"WAN 2.2 pair found: {selected_lora_name} <-> {pair_name}")
-            return pair_name
-        else:
-            log_debug(f"  Pair not found. Database has {len(self._lora_database)} LoRAs")
-
-            # Show all LoRAs containing "high" or "low" for debugging
-            high_low_loras = [
-                name
-                for name in self._lora_database.keys()
-                if "high" in name.lower() or "low" in name.lower()
-            ]
-            if high_low_loras:
-                log_debug(f"  HIGH/LOW LoRAs in database: {high_low_loras[:10]}")  # Show first 10
-
-            # Log some similar names for debugging
-            similar_names = [
-                name
-                for name in self._lora_database.keys()
-                if any(word in name.lower() for word in pair_name.lower().split()[:3])
-            ][:5]
-            if similar_names:
-                log_debug(f"  Similar names in database: {similar_names}")
-            return None
-
-    def _apply_wan_2_2_pairing(
-        self, video_loras: list[dict[str, Any]], max_count: int
-    ) -> list[dict[str, Any]]:
-        """
-        Post-process video LoRA selection to add WAN 2.2 high/low pairs.
-        Respects the max_count limit by treating pairs as single units.
-
-        Args:
-            video_loras: List of selected video LoRAs
-            max_count: Maximum number of LoRA "units" (pairs count as 1 unit)
-
-        Returns:
-            Expanded list with high/low pairs added for WAN 2.2 LoRAs
-        """
-        from .lora_metadata_utils import is_wan_2_2_lora
-
-        expanded_loras = []
-        units_used = 0
-
-        for lora in video_loras:
-            if units_used >= max_count:
-                log(f"⚠️ Reached max_video_loras limit ({max_count}), skipping remaining LoRAs")
-                break
-
-            expanded_loras.append(lora)  # Always add the original
-
-            # Check if this is a WAN 2.2 LoRA
-            metadata = lora.get("metadata")
-            if metadata and is_wan_2_2_lora(metadata):
-                log_debug(f"Found WAN 2.2 LoRA: {lora['name']}")
-                # Try to find the matching pair
-                pair_name = self._find_wan_lora_pair(lora["name"])
-
-                if pair_name and pair_name in self._lora_database:
-                    # Add the pair LoRA with same relevance score and proper structure
-                    pair_db_info = self._lora_database[pair_name]
-                    pair_metadata = pair_db_info["metadata"]
-                    pair_info = {
-                        "name": pair_name,
-                        "metadata": pair_metadata,
-                        "relevance_score": lora.get("relevance_score", 0.0),
-                        "recommended_weight": extract_recommended_weight(pair_metadata),
-                        "trigger_words": pair_db_info.get("trigger_words", []),
-                        "type": "video",
-                    }
-                    expanded_loras.append(pair_info)
-
-                    log(f"🔗 WAN 2.2 pairing: {lora['name']} + {pair_name}")
-                else:
-                    log(f"⚠️ WAN 2.2 LoRA {lora['name']} has no matching pair")
-
-            units_used += 1  # Each original LoRA (with or without pair) counts as 1 unit
-
-        return expanded_loras
+    # Note: The old _find_wan_lora_pair and _apply_wan_2_2_pairing methods have been removed
+    # in favor of the more general Ollama-based prompt pairing approach for better
+    # deterministic behavior and wider applicability
 
     def _find_relevant_loras(
         self,
@@ -951,13 +818,8 @@ This node
                 wan_lora_dir_path,
             )
 
-            # Apply WAN 2.2 high/low pairing
-            original_count = len(video_loras)
-            video_loras = self._apply_wan_2_2_pairing(video_loras, max_video_loras)
-            if len(video_loras) > original_count:
-                log(
-                    f"WAN 2.2 pairing expanded video LoRAs from {original_count} to {len(video_loras)}"
-                )
+            # Note: WAN 2.2 high/low pairing is now handled by the general Ollama pairing
+            # after prompt composition for better deterministic behavior
 
             video_names = [lora.get("name", "unknown") for lora in video_loras]
             log(f"Found {len(video_loras)} video LoRAs: {video_names}")
@@ -975,6 +837,21 @@ This node
                 low_lora_weight_offset,
             )
             log_debug("Prompt composition completed successfully")
+
+            # Apply intelligent LoRA pairing to the final prompt
+            log_debug("Applying LoRA pairing...")
+            try:
+                paired_prompt = find_lora_pairs_in_prompt(composed_prompt)
+                if paired_prompt != composed_prompt:
+                    log("LoRA pairing enhanced the prompt with additional pairs")
+                    composed_prompt = paired_prompt
+                else:
+                    log_debug("No additional LoRA pairs found")
+            except Exception as e:
+                log_error(f"Error in LoRA pairing: {e}")
+                # Continue with original prompt if pairing fails
+                pass
+            log_debug("LoRA pairing process completed")
 
             # Create analysis output with actual weights used
             def get_actual_weight(lora_name: str, is_video: bool) -> float:

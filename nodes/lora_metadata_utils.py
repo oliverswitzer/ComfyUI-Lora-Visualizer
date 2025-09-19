@@ -17,7 +17,7 @@ except ImportError:
     # folder_paths may not be available during testing
     folder_paths = None
 
-from .logging_utils import log, log_debug, log_error
+from .logging_utils import log, log_debug, log_error, log_warning
 
 
 class LoRAMetadataLoader:
@@ -566,3 +566,618 @@ def extract_recommended_weight(metadata: dict[str, Any]) -> float:
         return 0.6  # Video LoRAs often need lower weights
     else:
         return 0.8  # Standard default for image LoRAs
+
+
+def split_prompt_by_lora_high_low(prompt_text: str) -> tuple[str, str]:
+    """
+    Simple mode: Extract base prompt and treat ALL LoRAs as singles.
+
+    NO pattern matching, NO fuzzy matching, NO classification.
+    Just extract LoRA tags and include them in both outputs.
+
+    Args:
+        prompt_text: Input prompt with LoRA tags
+
+    Returns:
+        Tuple of (high_prompt, low_prompt) where:
+        - Both outputs are identical
+        - Both contain base prompt + all LoRA tags
+        - Base prompt text excludes all LoRA tags
+    """
+    log_debug(f"Simple mode: treating all LoRAs as singles: '{prompt_text}'")
+
+    # Extract base prompt and all LoRA tags
+    base_prompt_parts = []
+    all_lora_tags = []
+
+    # Split the prompt by lora tags and regular content
+    parts = re.split(r"(<lora:[^>]+>)", prompt_text)
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        if part.startswith("<lora:") and part.endswith(">"):
+            all_lora_tags.append(part)
+            log_debug(f"Found LoRA tag: {part}")
+        else:
+            # This is regular prompt content (text, not LoRA tags)
+            base_prompt_parts.append(part)
+
+    # Build the base prompt (text content only, no LoRA tags)
+    base_prompt = " ".join(base_prompt_parts).strip()
+
+    # Simple mode: ALL LoRA tags go to both outputs (treated as singles)
+    # Build HIGH prompt: base + all lora tags
+    high_prompt_parts = [base_prompt] + all_lora_tags
+    high_prompt = " ".join(part for part in high_prompt_parts if part.strip())
+
+    # Build LOW prompt: base + all lora tags (identical to HIGH in simple mode)
+    low_prompt_parts = [base_prompt] + all_lora_tags
+    low_prompt = " ".join(part for part in low_prompt_parts if part.strip())
+
+    log_debug(f"HIGH prompt: '{high_prompt}'")
+    log_debug(f"LOW prompt: '{low_prompt}'")
+
+    log(
+        f"Simple LoRA split - All {len(all_lora_tags)} LoRA tags treated as singles (included in both outputs)"
+    )
+
+    return high_prompt, low_prompt
+
+
+def find_lora_pairs_in_prompt(prompt_text: str) -> str:
+    """
+    Find and pair LoRA tags in a prompt using fuzzy string matching.
+
+    This function extracts LoRA tags from the prompt, finds the best matching pairs
+    from available LoRAs on the system using string similarity, and stitches the
+    results back into the prompt deterministically.
+
+    This approach uses pure string similarity without making assumptions about naming
+    patterns, making it flexible for any LoRA naming convention.
+
+    Args:
+        prompt_text: Input prompt containing LoRA tags
+
+    Returns:
+        Modified prompt with paired LoRA tags added
+    """
+    import re
+
+    from rapidfuzz import fuzz, process
+
+    log_debug("Finding LoRA pairs in prompt with rapidfuzz")
+
+    # Extract all LoRA tags from the prompt
+    lora_pattern = r"<lora:([^>]+)>"
+    lora_matches = re.findall(lora_pattern, prompt_text)
+
+    if not lora_matches:
+        log_debug("  No LoRA tags found in prompt")
+        return prompt_text
+
+    log_debug(f"  Found {len(lora_matches)} LoRA tags: {lora_matches}")
+
+    # Get all available LoRAs from the system
+    all_loras = discover_all_loras()
+    available_lora_names = list(all_loras.keys())
+
+    if not available_lora_names:
+        log_debug("  No LoRAs available on system")
+        return prompt_text
+
+    # Extract LoRA names from the prompt (without weights)
+    lora_names_in_prompt = []
+    for lora_tag in lora_matches:
+        lora_name = lora_tag.split(":")[0]  # Get name before weight
+        lora_names_in_prompt.append(lora_name)
+
+    log_debug(f"  LoRA names in prompt: {lora_names_in_prompt}")
+
+    pairs_to_add = []
+
+    for lora_name in lora_names_in_prompt:
+        # Use rapidfuzz to find the most similar LoRA
+        # Exclude the current LoRA and any already in the prompt
+        candidates = [
+            name
+            for name in available_lora_names
+            if name != lora_name and name not in lora_names_in_prompt
+        ]
+
+        if not candidates:
+            continue
+
+        # Use fuzzy matching to find the best candidate
+        # Use a high threshold to ensure we only get very similar LoRAs
+        result = process.extractOne(
+            lora_name,
+            candidates,
+            scorer=fuzz.ratio,
+            score_cutoff=60,  # Only accept matches with >60% similarity
+        )
+
+        if result:
+            best_match, score, _ = result
+            # Check if this pair is not already being added
+            if best_match not in pairs_to_add:
+                pairs_to_add.append(best_match)
+                log(f"    Rapidfuzz found pair: {lora_name} <-> {best_match} (score: {score}%)")
+
+    # Add paired LoRAs to the prompt deterministically
+    if pairs_to_add:
+        log(f"Adding {len(pairs_to_add)} paired LoRAs to prompt: {pairs_to_add}")
+
+        # Insert new LoRA tags at the end of existing LoRA tags in the prompt
+        new_lora_tags = []
+        for pair_name in pairs_to_add:
+            # Use a default weight of 1.0 for paired LoRAs
+            new_lora_tags.append(f"<lora:{pair_name}:1.0>")
+
+        # Find the position to insert (after the last LoRA tag)
+        last_lora_pos = 0
+        for match in re.finditer(lora_pattern, prompt_text):
+            last_lora_pos = match.end()
+
+        if last_lora_pos > 0:
+            # Insert after the last LoRA tag
+            result = (
+                prompt_text[:last_lora_pos]
+                + " "
+                + " ".join(new_lora_tags)
+                + prompt_text[last_lora_pos:]
+            )
+        else:
+            # Fallback: add at the beginning
+            result = " ".join(new_lora_tags) + " " + prompt_text
+
+        return result.strip()
+
+    return prompt_text
+
+
+def find_lora_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
+    """
+    Find the best matching LoRA pair using fuzzy string similarity.
+
+    Uses string similarity to find the most similar LoRA name from the available
+    list, without making assumptions about naming patterns. This makes it flexible
+    for any LoRA naming convention.
+
+    Args:
+        lora_name: Name of the LoRA to find a pair for
+        available_lora_names: List of available LoRA names to search through
+
+    Returns:
+        Best matching LoRA name or None if no suitable match found
+    """
+    from rapidfuzz import fuzz, process
+
+    log_debug(f"Finding LoRA pair for: {lora_name}")
+
+    # Exclude the input LoRA from candidates
+    candidates = [name for name in available_lora_names if name != lora_name]
+
+    if not candidates:
+        return None
+
+    # Use fuzzy matching to find the best candidate
+    result = process.extractOne(
+        lora_name,
+        candidates,
+        scorer=fuzz.ratio,
+        score_cutoff=60,  # Only accept matches with >60% similarity
+    )
+
+    if result:
+        best_match, score, _ = result
+        log_debug(f"Found LoRA pair: {lora_name} <-> {best_match} (score: {score}%)")
+        return best_match
+
+    return None
+
+
+# Keep the old function name for backward compatibility
+def find_lora_high_low_pair(lora_name: str, available_lora_names: list[str]) -> Optional[str]:
+    """
+    DEPRECATED: Use find_lora_pair() instead.
+
+    This function is kept for backward compatibility.
+    """
+    return find_lora_pair(lora_name, available_lora_names)
+
+
+def split_prompt_by_lora_high_low_with_ollama(
+    prompt_text: str, use_ollama: bool = True
+) -> tuple[str, str]:
+    """
+    Split a prompt into HIGH and LOW specific versions using configurable matching strategies.
+
+    Two modes available:
+    - Simple mode (use_ollama=False): Pattern-based extraction of existing HIGH/LOW LoRAs only
+    - Advanced mode (use_ollama=True): Fuzzy matching + Ollama to find and classify LoRA pairs
+
+    Args:
+        prompt_text: Input prompt with LoRA tags
+        use_ollama: Whether to use advanced fuzzy matching + Ollama classification (defaults to True)
+
+    Returns:
+        Tuple of (high_prompt, low_prompt) where:
+        - Simple mode: Extracts existing HIGH/LOW LoRAs based on naming patterns
+        - Advanced mode: Finds pairs via fuzzy matching and classifies with Ollama
+        - Single LoRAs (no pairs found): Included in both outputs
+        - Base prompt text excludes all LoRA tags
+    """
+    if use_ollama:
+        # Advanced mode: Use fuzzy matching + Ollama classification
+        return _split_with_fuzzy_matching_and_ollama(prompt_text)
+    else:
+        # Simple mode: Use pattern-based extraction (same as split_prompt_by_lora_high_low)
+        return split_prompt_by_lora_high_low(prompt_text)
+
+
+def _split_with_fuzzy_matching_and_ollama(prompt_text: str) -> tuple[str, str]:
+    """
+    Advanced splitting using fuzzy matching + Ollama classification.
+
+    This is the original implementation that was in split_prompt_by_lora_high_low_with_ollama.
+    """
+    import re
+
+    log_debug(f"Input prompt for advanced HIGH/LOW split: '{prompt_text}'")
+
+    # Extract the base prompt (without lora tags) and lora tags separately
+    base_prompt_parts = []
+    high_lora_tags = []
+    low_lora_tags = []
+    single_lora_tags = []
+
+    # First pass: collect all LoRA names from the prompt
+    lora_names_in_prompt = []
+    lora_pattern = r"<lora:([^>]+)>"
+    for match in re.finditer(lora_pattern, prompt_text):
+        tag_content = match.group(1)
+        lora_name = tag_content.split(":")[0]  # Get name before weight
+        lora_names_in_prompt.append(lora_name)
+
+    log_debug(f"Found LoRA names in prompt: {lora_names_in_prompt}")
+
+    # Split the prompt by lora tags and regular content
+    parts = re.split(r"(<lora:[^>]+>)", prompt_text)
+
+    # Collect candidate pairs for classification
+    candidate_pairs = []
+    lora_tag_mapping = {}  # Map lora name to full tag
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        if part.startswith("<lora:") and part.endswith(">"):
+            # This is a lora tag - extract name and store mapping
+            tag_content = part[6:-1]  # Remove <lora: and >
+            tag_name = tag_content.split(":")[0]  # Get name before first colon
+            lora_tag_mapping[tag_name] = part
+
+            # Use fuzzy matching to find LoRA pairs
+            pair_name = find_lora_pair_fuzzy(tag_name, lora_names_in_prompt)
+
+            if pair_name:
+                # We found a pair - add to candidates for classification
+                pair_tuple = tuple(sorted([tag_name, pair_name]))  # Ensure consistent ordering
+                if pair_tuple not in [tuple(sorted([p[0], p[1]])) for p in candidate_pairs]:
+                    candidate_pairs.append((tag_name, pair_name))
+                    log_debug(f"Found LoRA pair for classification: {tag_name} <-> {pair_name}")
+            else:
+                # Single lora (no pair found) - include in both outputs
+                single_lora_tags.append(part)
+                log_debug(f"Classified as single lora (no pair found): {part}")
+        else:
+            # This is regular prompt content (text, not LoRA tags)
+            base_prompt_parts.append(part)
+
+    # Classify HIGH/LOW for all candidate pairs using Ollama
+    if candidate_pairs:
+        classifications = classify_lora_pairs_with_ollama(candidate_pairs)
+
+        # Apply classifications
+        for lora1, lora2 in candidate_pairs:
+            lora1_tag = lora_tag_mapping[lora1]
+            lora2_tag = lora_tag_mapping[lora2]
+
+            classification = classifications.get((lora1, lora2))
+            if not classification:
+                # Fallback: treat as single LoRAs (include both in both outputs) if Ollama classification failed
+                log_debug(f"Ollama classification failed for {lora1} vs {lora2}, treating as single LoRAs")
+                single_lora_tags.extend([lora1_tag, lora2_tag])
+                continue
+
+            # Apply Ollama classification
+            if classification["high_lora"] == lora1:
+                high_lora_tags.append(lora1_tag)
+                low_lora_tags.append(lora2_tag)
+                log_debug(f"Ollama classified {lora1} as HIGH, {lora2} as LOW")
+            else:
+                high_lora_tags.append(lora2_tag)
+                low_lora_tags.append(lora1_tag)
+                log_debug(f"Ollama classified {lora2} as HIGH, {lora1} as LOW")
+
+    # Build the base prompt (text content only, no LoRA tags)
+    base_prompt = " ".join(base_prompt_parts).strip()
+
+    # Build HIGH prompt: base + HIGH lora tags + single lora tags
+    high_prompt_parts = [base_prompt] + high_lora_tags + single_lora_tags
+    high_prompt = " ".join(part for part in high_prompt_parts if part.strip())
+
+    # Build LOW prompt: base + LOW lora tags + single lora tags
+    low_prompt_parts = [base_prompt] + low_lora_tags + single_lora_tags
+    low_prompt = " ".join(part for part in low_prompt_parts if part.strip())
+
+    log_debug(f"HIGH output: '{high_prompt}'")
+    log_debug(f"LOW output: '{low_prompt}'")
+
+    log_debug(
+        f"Advanced HIGH/LOW split - HIGH lora tags: {len(high_lora_tags)}, LOW lora tags: {len(low_lora_tags)}, Single lora tags: {len(single_lora_tags)}"
+    )
+
+    return high_prompt, low_prompt
+
+
+def find_lora_pair_fuzzy(lora_name: str, lora_names_in_prompt: list[str]) -> Optional[str]:
+    """
+    Find the best matching LoRA pair using fuzzy string similarity.
+
+    Args:
+        lora_name: Name of the LoRA to find a pair for
+        lora_names_in_prompt: List of LoRA names in the current prompt
+
+    Returns:
+        Best matching LoRA name or None if no suitable match found
+    """
+    try:
+        from rapidfuzz import fuzz, process
+    except ImportError:
+        log_debug(f"rapidfuzz not available, cannot find fuzzy pairs for {lora_name}")
+        return None
+
+    # Exclude the current LoRA from candidates
+    candidates = [name for name in lora_names_in_prompt if name != lora_name]
+
+    if not candidates:
+        return None
+
+    # Use fuzzy matching to find the best candidate
+    result = process.extractOne(
+        lora_name,
+        candidates,
+        scorer=fuzz.ratio,
+        score_cutoff=60,  # Only accept matches with >60% similarity
+    )
+
+    if result:
+        best_match, score, _ = result
+        log_debug(f"Fuzzy found LoRA pair: {lora_name} <-> {best_match} (score: {score}%)")
+        return best_match
+
+    return None
+
+
+
+
+def classify_lora_pairs_with_ollama(
+    candidate_pairs: list[tuple[str, str]],
+) -> dict[tuple[str, str], dict[str, str]]:
+    """
+    Use Ollama to classify which LoRA in each pair is HIGH vs LOW.
+
+    Args:
+        candidate_pairs: List of tuples containing LoRA name pairs
+
+    Returns:
+        Dict mapping (lora1, lora2) tuples to classification results with keys:
+        - "high_lora": Name of the LoRA that should be considered HIGH
+        - "low_lora": Name of the LoRA that should be considered LOW
+        - "reasoning": Brief explanation of the classification
+    """
+    if not candidate_pairs:
+        return {}
+
+    try:
+        # Import shared Ollama utilities
+        from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat
+        from .ollama_utils import ensure_model_available as _shared_ensure_model_available
+
+        # Import requests for Ollama communication
+        try:
+            import requests
+        except ImportError:
+            log_error("requests module not available for Ollama communication")
+            return {}
+
+        # Ensure qwen-coder model is available
+        model_name = "qwen-coder:7b"
+        api_url = "http://localhost:11434/api/chat"
+
+        try:
+            log_debug(f"Ensuring {model_name} is available for HIGH/LOW classification")
+            _shared_ensure_model_available(
+                model_name,
+                api_url,
+                requests_module=requests,
+                status_channel="lora_metadata_status",
+            )
+        except Exception as e:
+            log_error(f"Failed to ensure {model_name} is available: {e}")
+            raise Exception(
+                f"Cannot classify LoRA pairs: {model_name} model is not available. "
+                "Please install it with: ollama pull qwen-coder:7b"
+            ) from e
+
+        # Create structured prompt for classification
+        system_prompt = create_ollama_classification_prompt()
+
+        # Format pairs for Ollama
+        pairs_text = "\n".join(
+            [f"Pair {i + 1}: {pair[0]} vs {pair[1]}" for i, pair in enumerate(candidate_pairs)]
+        )
+        user_prompt = f"Classify these LoRA pairs:\n\n{pairs_text}"
+
+        log_debug(f"Sending {len(candidate_pairs)} pairs to Ollama for HIGH/LOW classification")
+
+        try:
+            response = _shared_call_ollama_chat(
+                system_prompt,
+                user_prompt,
+                model_name=model_name,
+                api_url=api_url,
+                timeout=60,
+                requests_module=requests,
+            )
+
+            if not response:
+                log_error("Ollama returned empty response for HIGH/LOW classification")
+                return {}
+
+            # Parse structured response
+            classifications = parse_ollama_classification_response(response, candidate_pairs)
+            log_debug(f"Successfully classified {len(classifications)} LoRA pairs using Ollama")
+            return classifications
+
+        except Exception as e:
+            log_error(f"Error during Ollama HIGH/LOW classification: {e}")
+            return {}
+
+    except ImportError as e:
+        log_error(f"Failed to import Ollama utilities: {e}")
+        return {}
+
+
+def create_ollama_classification_prompt() -> str:
+    """Create the system prompt for Ollama HIGH/LOW classification."""
+    return """You are a LoRA classification expert. Your task is to analyze LoRA model names and determine which one in each pair should be considered HIGH vs LOW for WAN 2.2 video generation.
+
+HIGH LoRAs typically:
+- Have "high", "H", "highnoise", or similar indicators in the name
+- Are designed for high noise/strength applications
+- May have version suffixes that suggest higher intensity
+
+LOW LoRAs typically:
+- Have "low", "L", "lownoise", or similar indicators in the name
+- Are designed for low noise/strength applications
+- May have version suffixes that suggest lower intensity
+
+IMPORTANT: Base your classification ONLY on the LoRA names provided. Do not make assumptions about content or purpose beyond what the names clearly indicate.
+
+For each pair, output a JSON object with this exact structure:
+{
+  "classifications": [
+    {
+      "pair_index": 1,
+      "high_lora": "name_of_high_lora",
+      "low_lora": "name_of_low_lora",
+      "reasoning": "brief explanation of classification"
+    }
+  ]
+}
+
+Examples:
+
+Input Pairs:
+Pair 1: NSFW-22-H-e8 vs NSFW-22-L-e8
+Pair 2: character_highnoise vs character_lownoise
+
+Expected Output:
+{
+  "classifications": [
+    {
+      "pair_index": 1,
+      "high_lora": "NSFW-22-H-e8",
+      "low_lora": "NSFW-22-L-e8",
+      "reasoning": "H indicator suggests high noise/strength"
+    },
+    {
+      "pair_index": 2,
+      "high_lora": "character_highnoise",
+      "low_lora": "character_lownoise",
+      "reasoning": "highnoise vs lownoise clearly indicates intensity levels"
+    }
+  ]
+}"""
+
+
+def parse_ollama_classification_response(
+    response: str, candidate_pairs: list[tuple[str, str]]
+) -> dict[tuple[str, str], dict[str, str]]:
+    """
+    Parse the structured JSON response from Ollama classification.
+
+    Args:
+        response: Raw JSON response from Ollama
+        candidate_pairs: Original list of candidate pairs for validation
+
+    Returns:
+        Dict mapping pair tuples to classification results
+    """
+    try:
+        # Clean response - remove markdown code blocks if present
+        response_clean = response.strip()
+        if response_clean.startswith("```json"):
+            response_clean = response_clean[7:]
+        if response_clean.startswith("```"):
+            response_clean = response_clean[3:]
+        if response_clean.endswith("```"):
+            response_clean = response_clean[:-3]
+        response_clean = response_clean.strip()
+
+        # Parse JSON
+        data = json.loads(response_clean)
+
+        if "classifications" not in data:
+            log_error("Ollama response missing 'classifications' key")
+            return {}
+
+        classifications = {}
+
+        for classification in data["classifications"]:
+            pair_index = classification.get("pair_index", 0) - 1  # Convert to 0-based index
+
+            if pair_index < 0 or pair_index >= len(candidate_pairs):
+                log_warning(f"Invalid pair_index {pair_index + 1} in Ollama response")
+                continue
+
+            pair = candidate_pairs[pair_index]
+            high_lora = classification.get("high_lora", "")
+            low_lora = classification.get("low_lora", "")
+            reasoning = classification.get("reasoning", "")
+
+            # Validate that high/low LoRAs match the original pair
+            if high_lora not in pair or low_lora not in pair:
+                log_warning(f"Ollama classification doesn't match original pair: {pair}")
+                continue
+
+            if high_lora == low_lora:
+                log_warning(f"Ollama classified both LoRAs the same: {high_lora}")
+                continue
+
+            classifications[pair] = {
+                "high_lora": high_lora,
+                "low_lora": low_lora,
+                "reasoning": reasoning,
+            }
+
+            log_debug(
+                f"Ollama classified {pair}: HIGH={high_lora}, LOW={low_lora}, Reason={reasoning}"
+            )
+
+        return classifications
+
+    except json.JSONDecodeError as e:
+        log_error(f"Failed to parse Ollama classification response as JSON: {e}")
+        log_debug(f"Raw response: {response[:500]}...")
+        return {}
+    except Exception as e:
+        log_error(f"Error parsing Ollama classification response: {e}")
+        return {}

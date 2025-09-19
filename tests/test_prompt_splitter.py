@@ -531,26 +531,39 @@ through the scene with fluid motion"""
         self.assertIn("model_used", analysis_data)
 
     def test_split_wan_prompt_by_high_low_with_mixed_tags(self):
-        """_split_wan_prompt_by_high_low should separate HIGH/LOW lora tags correctly."""
-        # Test prompt with mixed HIGH/LOW lora tags, single lora tags, and regular lora tags
+        """_split_wan_prompt_by_high_low should separate HIGH/LOW lora tags using Ollama classification."""
+        # Test prompt with HIGH/LOW pair and unrelated single LoRA
         # Note: wanlora tags have been converted to lora tags at this point in the real flow
-        wan_prompt = "dancing robot in the city <lora:character_high:0.8> <lora:character_low:0.6> <lora:single_style:0.5> <lora:regular_style:0.7>"
+        wan_prompt = "dancing robot in the city <lora:character_high:0.8> <lora:character_low:0.6> <lora:unrelated_lora:0.5>"
 
-        wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+        # Mock Ollama classification
+        mock_classifications = {
+            ("character_high", "character_low"): {
+                "high_lora": "character_high",
+                "low_lora": "character_low",
+                "reasoning": "high vs low naming pattern",
+            }
+        }
 
-        # HIGH prompt should have base + HIGH lora tag + single lora tag + regular lora tag
+        with patch(
+            "nodes.lora_metadata_utils.classify_lora_pairs_with_ollama",
+            return_value=mock_classifications,
+        ):
+            wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+
+        # HIGH prompt should have base + HIGH lora tag from the pair
         self.assertIn("dancing robot in the city", wan_high)
         self.assertIn("<lora:character_high:0.8>", wan_high)
-        self.assertIn("<lora:single_style:0.5>", wan_high)
-        self.assertIn("<lora:regular_style:0.7>", wan_high)  # Regular lora tags should be preserved
         self.assertNotIn("<lora:character_low:0.6>", wan_high)
 
-        # LOW prompt should have base + LOW lora tag + single lora tag + regular lora tag
+        # LOW prompt should have base + LOW lora tag from the pair
         self.assertIn("dancing robot in the city", wan_low)
         self.assertIn("<lora:character_low:0.6>", wan_low)
-        self.assertIn("<lora:single_style:0.5>", wan_low)
-        self.assertIn("<lora:regular_style:0.7>", wan_low)  # Regular lora tags should be preserved
         self.assertNotIn("<lora:character_high:0.8>", wan_low)
+
+        # Both should contain the unrelated single LoRA (no good fuzzy match found)
+        self.assertIn("<lora:unrelated_lora:0.5>", wan_high)
+        self.assertIn("<lora:unrelated_lora:0.5>", wan_low)
 
     def test_split_wan_prompt_by_high_low_with_dash_patterns(self):
         """_split_wan_prompt_by_high_low should handle dash-separated HIGH/LOW lora patterns."""
@@ -559,7 +572,20 @@ through the scene with fluid motion"""
             "futuristic scene <lora:Wan22-I2V-HIGH-Robot:0.7> <lora:Wan22-I2V-LOW-Robot:0.7>"
         )
 
-        wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+        # Mock Ollama classification
+        mock_classifications = {
+            ("Wan22-I2V-HIGH-Robot", "Wan22-I2V-LOW-Robot"): {
+                "high_lora": "Wan22-I2V-HIGH-Robot",
+                "low_lora": "Wan22-I2V-LOW-Robot",
+                "reasoning": "HIGH vs LOW indicator in name",
+            }
+        }
+
+        with patch(
+            "nodes.lora_metadata_utils.classify_lora_pairs_with_ollama",
+            return_value=mock_classifications,
+        ):
+            wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
 
         # HIGH prompt should contain only HIGH lora tag
         self.assertIn("<lora:Wan22-I2V-HIGH-Robot:0.7>", wan_high)
@@ -573,18 +599,112 @@ through the scene with fluid motion"""
         self.assertIn("futuristic scene", wan_high)
         self.assertIn("futuristic scene", wan_low)
 
+    def test_split_wan_prompt_by_high_low_with_single_letters(self):
+        """_split_wan_prompt_by_high_low should handle single letter H/L patterns via Ollama classification."""
+        # Test single letter patterns using Ollama classification
+        wan_prompt = "test scene <lora:Model-22-H-e8:1.0> <lora:Model-22-L-e8:0.5>"
+
+        # Mock Ollama classification
+        mock_classifications = {
+            ("Model-22-H-e8", "Model-22-L-e8"): {
+                "high_lora": "Model-22-H-e8",
+                "low_lora": "Model-22-L-e8",
+                "reasoning": "H vs L letter indicator",
+            }
+        }
+
+        with patch(
+            "nodes.lora_metadata_utils.classify_lora_pairs_with_ollama",
+            return_value=mock_classifications,
+        ):
+            wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+
+        # HIGH prompt should contain only HIGH lora tag
+        self.assertIn("<lora:Model-22-H-e8:1.0>", wan_high)
+        self.assertNotIn("<lora:Model-22-L-e8:0.5>", wan_high)
+
+        # LOW prompt should contain only LOW lora tag
+        self.assertIn("<lora:Model-22-L-e8:0.5>", wan_low)
+        self.assertNotIn("<lora:Model-22-H-e8:1.0>", wan_low)
+
+        # Both should contain base prompt
+        self.assertIn("test scene", wan_high)
+        self.assertIn("test scene", wan_low)
+
     def test_split_wan_prompt_by_high_low_with_no_pairs(self):
         """_split_wan_prompt_by_high_low should handle prompts with no HIGH/LOW lora tags."""
         # Note: wanlora tags have been converted to lora tags at this point in the real flow
         wan_prompt = "simple scene <lora:style1:0.8> <lora:character:0.6>"
 
-        wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+        # Mock empty Ollama classification (no pairs found)
+        with patch("nodes.lora_metadata_utils.classify_lora_pairs_with_ollama", return_value={}):
+            wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
 
         # Both outputs should be identical (base + all single lora tags)
         self.assertEqual(wan_high, wan_low)
         self.assertIn("simple scene", wan_high)
         self.assertIn("<lora:style1:0.8>", wan_high)  # Regular lora tag preserved
         self.assertIn("<lora:character:0.6>", wan_high)  # Single lora tag in both
+
+    def test_split_wan_prompt_by_high_low_with_ollama_failure_fallback(self):
+        """_split_wan_prompt_by_high_low should treat LoRAs as singles when Ollama fails."""
+        wan_prompt = "test scene <lora:character_high:0.8> <lora:character_low:0.6>"
+
+        # Mock Ollama returning empty classifications (failure case)
+        with patch("nodes.lora_metadata_utils.classify_lora_pairs_with_ollama", return_value={}):
+            wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+
+        # When Ollama fails, both LoRAs should be treated as single LoRAs (included in both outputs)
+        self.assertIn("<lora:character_high:0.8>", wan_high)
+        self.assertIn("<lora:character_low:0.6>", wan_high)
+
+        # Both LoRAs should also be in LOW prompt
+        self.assertIn("<lora:character_high:0.8>", wan_low)
+        self.assertIn("<lora:character_low:0.6>", wan_low)
+
+    def test_high_low_split_integration_with_mocked_shared_function(self):
+        """Test HIGH/LOW splitting integration with mocked shared function."""
+        wan_prompt = "test scene <lora:Model-22-H-e8:1> <lora:Model-22-L-e8:0.5>"
+
+        # Mock the shared function to return expected results
+        mock_high = "test scene <lora:Model-22-H-e8:1>"
+        mock_low = "test scene <lora:Model-22-L-e8:0.5>"
+
+        with patch(
+            "nodes.lora_metadata_utils.split_prompt_by_lora_high_low_with_ollama",
+            return_value=(mock_high, mock_low),
+        ) as mock_split:
+            wan_high, wan_low = self.node._split_wan_prompt_by_high_low(wan_prompt)
+
+        # Verify the node correctly delegates to shared function with advanced mode (always True for PromptSplitterNode)
+        mock_split.assert_called_once_with(wan_prompt, use_ollama=True)
+
+        # Verify the node correctly returns results from shared function
+        self.assertEqual(wan_high, mock_high)
+        self.assertEqual(wan_low, mock_low)
+
+    def test_high_low_split_with_advanced_mode_enabled(self):
+        """Test HIGH/LOW splitting with advanced matching mode enabled."""
+        wan_prompt = "test scene <lora:character_high:0.8>"
+
+        # Mock the shared function to simulate finding missing LOW pair
+        mock_high = "test scene <lora:character_high:0.8>"
+        mock_low = "test scene <lora:character_low:0.6>"
+
+        with patch(
+            "nodes.lora_metadata_utils.split_prompt_by_lora_high_low_with_ollama",
+            return_value=(mock_high, mock_low),
+        ) as mock_split:
+            wan_high, wan_low = self.node._split_wan_prompt_by_high_low(
+                wan_prompt, use_advanced_matching=True
+            )
+
+        # Verify the node calls shared function with Ollama enabled
+        mock_split.assert_called_once_with(wan_prompt, use_ollama=True)
+
+        # Verify the results
+        self.assertEqual(wan_high, mock_high)
+        self.assertEqual(wan_low, mock_low)
 
 
 if __name__ == "__main__":
