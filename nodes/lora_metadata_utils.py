@@ -636,7 +636,7 @@ def find_lora_relative_path(lora_name: str) -> str:
         lora_name: Name of the LoRA file (without extension)
 
     Returns:
-        Relative path from LoRA directory with Linux-style separators, or error message if not found
+        Relative path from LoRA directory with Windows-style separators, or error message if not found
     """
     if not folder_paths:
         return f"[ComfyUI not available] {lora_name}.safetensors"
@@ -657,9 +657,9 @@ def find_lora_relative_path(lora_name: str) -> str:
                 # Search recursively through subdirectories
                 for file_path in lora_dir.rglob(filename):
                     if file_path.is_file():
-                        # Get relative path from LoRA directory and convert to Linux style
+                        # Get relative path from LoRA directory with Windows-style separators
                         rel_path = file_path.relative_to(lora_dir)
-                        return str(rel_path).replace("\\", "/")
+                        return str(rel_path)
 
         # If not found, return expected relative path
         return f"{lora_name}.safetensors"

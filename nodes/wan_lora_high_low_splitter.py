@@ -198,11 +198,11 @@ Other acronyms you may see in the LoRA names but can ignore:
         )
         return high_prompt, low_prompt, json.dumps(analysis)
 
-    def _create_detailed_analysis(self, high_tags: list[str], low_tags: list[str], base_prompt: str) -> dict:
+    def _create_detailed_analysis(
+        self, high_tags: list[str], low_tags: list[str], base_prompt: str
+    ) -> dict:
         """Create detailed analysis with LoRA paths and strengths."""
-        analysis = {
-            "prompt_no_lora_tags": base_prompt
-        }
+        analysis = {"prompt_no_lora_tags": base_prompt}
 
         # Process HIGH tags
         for i, tag in enumerate(high_tags, 1):

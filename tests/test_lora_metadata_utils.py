@@ -425,17 +425,17 @@ class TestFindLoraRelativePath(unittest.TestCase):
 
         # Mock the file path relative_to method to return a Windows-style path
         mock_relative_path = Mock()
-        mock_relative_path.__str__ = Mock(return_value="wan\\wan2.2\\mating_press.safetensors")
+        mock_relative_path.__str__ = Mock(return_value=r"wan\wan2.2\style_lora.safetensors")
         mock_file_path.relative_to.return_value = mock_relative_path
         mock_file_path.is_file.return_value = True
 
         mock_lora_dir.rglob.return_value = [mock_file_path]
         mock_path_class.return_value = mock_lora_dir
 
-        result = find_lora_relative_path("mating_press")
+        result = find_lora_relative_path("style_lora")
 
-        # Should convert Windows path to Linux style
-        self.assertEqual(result, "wan/wan2.2/mating_press.safetensors")
+        # Should return Windows-style path with backslashes
+        self.assertEqual(result, r"wan\wan2.2\style_lora.safetensors")
         mock_file_path.relative_to.assert_called_once_with(mock_lora_dir)
 
     @patch("nodes.lora_metadata_utils.folder_paths")
