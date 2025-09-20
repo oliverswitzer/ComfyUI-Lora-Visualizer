@@ -15,6 +15,7 @@ Features:
 import json
 import re
 
+from .lora_metadata_utils import find_lora_relative_path, parse_lora_tag
 from .ollama_utils import call_ollama_chat as _shared_call_ollama_chat
 from .ollama_utils import (
     ensure_model_available as _shared_ensure_model_available,
@@ -191,8 +192,36 @@ Other acronyms you may see in the LoRA names but can ignore:
         high_prompt = f"{base_prompt} {' '.join(classification['high_tags'])}".strip()
         low_prompt = f"{base_prompt} {' '.join(classification['low_tags'])}".strip()
 
-        analysis = {
-            "high_tags": classification["high_tags"],
-            "low_tags": classification["low_tags"],
-        }
+        # Create enhanced analysis with detailed LoRA information
+        analysis = self._create_detailed_analysis(
+            classification["high_tags"], classification["low_tags"]
+        )
         return high_prompt, low_prompt, json.dumps(analysis)
+
+    def _create_detailed_analysis(self, high_tags: list[str], low_tags: list[str]) -> dict:
+        """Create detailed analysis with LoRA paths and strengths."""
+        analysis = {}
+
+        # Process HIGH tags
+        for i, tag in enumerate(high_tags, 1):
+            lora_info = parse_lora_tag(tag)
+            rel_path = find_lora_relative_path(lora_info["name"])
+
+            analysis[f"high_lora_{i}"] = {
+                "tag": tag,
+                "strength": lora_info["strength"],
+                "rel_path": rel_path,
+            }
+
+        # Process LOW tags
+        for i, tag in enumerate(low_tags, 1):
+            lora_info = parse_lora_tag(tag)
+            rel_path = find_lora_relative_path(lora_info["name"])
+
+            analysis[f"low_lora_{i}"] = {
+                "tag": tag,
+                "strength": lora_info["strength"],
+                "rel_path": rel_path,
+            }
+
+        return analysis

@@ -9,6 +9,7 @@ import glob
 import json
 import os
 import re
+from pathlib import Path
 from typing import Any, Optional
 
 try:
@@ -566,3 +567,102 @@ def extract_recommended_weight(metadata: dict[str, Any]) -> float:
         return 0.6  # Video LoRAs often need lower weights
     else:
         return 0.8  # Standard default for image LoRAs
+
+
+def parse_lora_tag(tag: str) -> dict[str, str]:
+    """
+    Parse a LoRA tag to extract name and strength.
+
+    Args:
+        tag: LoRA tag in format <lora:name:strength> or <lora:name:strength:other>
+
+    Returns:
+        Dict with keys: 'name', 'strength', 'tag'
+    """
+    # Remove <lora: and >
+    inner = tag[6:-1] if tag.startswith("<lora:") and tag.endswith(">") else tag
+
+    # Split by colons: name:strength or name:strength:other_params
+    parts = inner.split(":")
+    name = parts[0] if parts else ""
+    strength = parts[1] if len(parts) > 1 else "1.0"
+
+    return {"name": name, "strength": strength, "tag": tag}
+
+
+def find_lora_absolute_path(lora_name: str) -> str:
+    """
+    Find the absolute path to a LoRA file.
+
+    Args:
+        lora_name: Name of the LoRA file (without extension)
+
+    Returns:
+        Absolute path to the LoRA file, or error message if not found
+    """
+    if not folder_paths:
+        return f"[ComfyUI not available] {lora_name}.safetensors"
+
+    try:
+        lora_paths = folder_paths.get_folder_paths("loras")
+        if not lora_paths:
+            return f"[No LoRA folders configured] {lora_name}.safetensors"
+
+        # Search in all LoRA directories
+        for lora_dir in lora_paths:
+            lora_dir = Path(lora_dir)
+
+            # Try common extensions and search recursively
+            possible_files = [f"{lora_name}.safetensors", f"{lora_name}.ckpt", f"{lora_name}.pt"]
+
+            for filename in possible_files:
+                # Search recursively through subdirectories
+                for file_path in lora_dir.rglob(filename):
+                    if file_path.is_file():
+                        return str(file_path.absolute())
+
+        # If not found, return expected path in first LoRA directory
+        return str(Path(lora_paths[0]) / f"{lora_name}.safetensors")
+
+    except Exception as e:
+        return f"[Error finding path: {e}] {lora_name}.safetensors"
+
+
+def find_lora_relative_path(lora_name: str) -> str:
+    """
+    Find the relative path to a LoRA file from the LoRA directory.
+
+    Args:
+        lora_name: Name of the LoRA file (without extension)
+
+    Returns:
+        Relative path from LoRA directory with Linux-style separators, or error message if not found
+    """
+    if not folder_paths:
+        return f"[ComfyUI not available] {lora_name}.safetensors"
+
+    try:
+        lora_paths = folder_paths.get_folder_paths("loras")
+        if not lora_paths:
+            return f"[No LoRA folders configured] {lora_name}.safetensors"
+
+        # Search in all LoRA directories
+        for lora_dir in lora_paths:
+            lora_dir = Path(lora_dir)
+
+            # Try common extensions and search recursively
+            possible_files = [f"{lora_name}.safetensors", f"{lora_name}.ckpt", f"{lora_name}.pt"]
+
+            for filename in possible_files:
+                # Search recursively through subdirectories
+                for file_path in lora_dir.rglob(filename):
+                    if file_path.is_file():
+                        # Get relative path from LoRA directory and convert to Linux style
+                        rel_path = file_path.relative_to(lora_dir)
+                        return str(rel_path).replace("\\", "/")
+
+        # If not found, return expected relative path
+        return f"{lora_name}.safetensors"
+
+    except Exception as e:
+        return f"[Error finding path: {e}] {lora_name}.safetensors"

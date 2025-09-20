@@ -4,6 +4,11 @@ Generate ONE massive ComfyUI workflow containing ALL WAN 2.2 HIGH/LOW LoRA pairs
 
 This script creates a single workflow with all pairs arranged in parallel,
 each with their own text input → splitter → 3 show text nodes.
+
+Usage:
+    python generate_wan_high_low_splitter_test_workflow.py <output_file>
+
+output_file defaults to Wan22HighLowSplitterTest.json
 """
 
 import json
@@ -12,6 +17,7 @@ import re
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
 
 # Define a simplified version of extract_example_prompts
 def extract_example_prompts(metadata: Dict, limit: int = 3) -> List[str]:
@@ -50,7 +56,7 @@ def extract_example_prompts(metadata: Dict, limit: int = 3) -> List[str]:
 def load_metadata(metadata_path: str) -> Optional[Dict]:
     """Load metadata from a JSON file."""
     try:
-        with open(metadata_path, 'r', encoding='utf-8') as f:
+        with open(metadata_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         print(f"Error loading metadata from {metadata_path}: {e}")
@@ -77,41 +83,50 @@ def find_lora_pairs(lora_dir: str) -> List[Tuple[str, str, str, str]]:
         high_file = None
         low_file = None
 
-        if any(pattern in base_lower for pattern in ['high', 'hn', '_h_', '_h.']):
+        if any(pattern in base_lower for pattern in ["high", "hn", "_h_", "_h."]):
             high_file = file
             low_base = base_name
-            low_base = re.sub(r'[Hh]igh', 'Low', low_base)
-            low_base = re.sub(r'HIGH', 'LOW', low_base)
-            low_base = re.sub(r'[Hh][Nn]', 'LN', low_base)
-            low_base = re.sub(r'_[Hh]_', '_L_', low_base)
-            low_base = re.sub(r'_[Hh]\.', '_L.', low_base)
+            low_base = re.sub(r"[Hh]igh", "Low", low_base)
+            low_base = re.sub(r"HIGH", "LOW", low_base)
+            low_base = re.sub(r"[Hh][Nn]", "LN", low_base)
+            low_base = re.sub(r"_[Hh]_", "_L_", low_base)
+            low_base = re.sub(r"_[Hh]\.", "_L.", low_base)
 
             low_path = lora_dir / f"{low_base}.safetensors"
             if low_path.exists():
                 low_file = low_path
 
-        elif any(pattern in base_lower for pattern in ['low', 'ln', '_l_', '_l.']):
+        elif any(pattern in base_lower for pattern in ["low", "ln", "_l_", "_l."]):
             low_file = file
             high_base = base_name
-            high_base = re.sub(r'[Ll]ow', 'High', high_base)
-            high_base = re.sub(r'LOW', 'HIGH', high_base)
-            high_base = re.sub(r'[Ll][Nn]', 'HN', high_base)
-            high_base = re.sub(r'_[Ll]_', '_H_', high_base)
-            high_base = re.sub(r'_[Ll]\.', '_H.', high_base)
+            high_base = re.sub(r"[Ll]ow", "High", high_base)
+            high_base = re.sub(r"LOW", "HIGH", high_base)
+            high_base = re.sub(r"[Ll][Nn]", "HN", high_base)
+            high_base = re.sub(r"_[Ll]_", "_H_", high_base)
+            high_base = re.sub(r"_[Ll]\.", "_H.", high_base)
 
             high_path = lora_dir / f"{high_base}.safetensors"
             if high_path.exists():
                 high_file = high_path
 
         if high_file and low_file:
-            pair_base = re.sub(r'[_\-\s]*(high|low|hn|ln)[_\-\s]*', '', base_name, flags=re.IGNORECASE)
-            pair_base = re.sub(r'[_\-\s]+', '_', pair_base).strip('_')
+            pair_base = re.sub(
+                r"[_\-\s]*(high|low|hn|ln)[_\-\s]*", "", base_name, flags=re.IGNORECASE
+            )
+            pair_base = re.sub(r"[_\-\s]+", "_", pair_base).strip("_")
 
-            metadata_file = high_file.with_suffix('.metadata.json')
+            metadata_file = high_file.with_suffix(".metadata.json")
             if not metadata_file.exists():
-                metadata_file = low_file.with_suffix('.metadata.json')
+                metadata_file = low_file.with_suffix(".metadata.json")
 
-            pairs.append((pair_base, high_file.name, low_file.name, metadata_file.name if metadata_file.exists() else None))
+            pairs.append(
+                (
+                    pair_base,
+                    high_file.name,
+                    low_file.name,
+                    metadata_file.name if metadata_file.exists() else None,
+                )
+            )
 
             processed_bases.add(high_file.stem)
             processed_bases.add(low_file.stem)
@@ -131,8 +146,8 @@ def get_example_prompt(metadata_path: str) -> str:
     examples = extract_example_prompts(metadata, limit=1)
     if examples:
         example = examples[0]
-        example = re.sub(r'<(?:lora|wanlora):[^>]+>', '', example)
-        example = re.sub(r'\s+', ' ', example).strip()
+        example = re.sub(r"<(?:lora|wanlora):[^>]+>", "", example)
+        example = re.sub(r"\s+", " ", example).strip()
         return example if example else "beautiful woman, detailed"
 
     return "beautiful woman, detailed"
@@ -158,9 +173,9 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
             "VHS_latentpreview": True,
             "VHS_latentpreviewrate": 0,
             "VHS_MetadataImage": True,
-            "VHS_KeepIntermediate": True
+            "VHS_KeepIntermediate": True,
         },
-        "version": 0.4
+        "version": 0.4,
     }
 
     node_id = 1
@@ -174,7 +189,7 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
     start_y = -2500
 
     for i, (pair_base, high_lora, low_lora, metadata_file) in enumerate(pairs):
-        print(f"Adding pair {i+1}/{len(pairs)}: {pair_base}")
+        print(f"Adding pair {i + 1}/{len(pairs)}: {pair_base}")
 
         # Calculate position
         row = i // pairs_per_row
@@ -187,8 +202,8 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
         example_prompt = get_example_prompt(metadata_path)
 
         # Remove .safetensors extension for LoRA tags
-        high_name = high_lora.replace('.safetensors', '')
-        low_name = low_lora.replace('.safetensors', '')
+        high_name = high_lora.replace(".safetensors", "")
+        low_name = low_lora.replace(".safetensors", "")
         full_prompt = f"{example_prompt} <lora:{high_name}:1.0> <lora:{low_name}:1.0>"
 
         # 1. Text input node
@@ -205,9 +220,9 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
             "properties": {
                 "cnr_id": "comfyui_tinyterranodes",
                 "ver": "2.0.9",
-                "Node name for S&R": "ttN text"
+                "Node name for S&R": "ttN text",
             },
-            "widgets_values": [full_prompt]
+            "widgets_values": [full_prompt],
         }
         workflow["nodes"].append(text_node)
         text_node_id = node_id
@@ -229,20 +244,20 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
                     "name": "prompt_text",
                     "type": "STRING",
                     "widget": {"name": "prompt_text"},
-                    "link": text_link_id
+                    "link": text_link_id,
                 }
             ],
             "outputs": [
                 {"name": "high_prompt", "type": "STRING", "links": [link_id]},
                 {"name": "low_prompt", "type": "STRING", "links": [link_id + 1]},
-                {"name": "analysis", "type": "STRING", "links": [link_id + 2]}
+                {"name": "analysis", "type": "STRING", "links": [link_id + 2]},
             ],
             "properties": {
                 "cnr_id": "comfyui-lora-visualizer",
                 "ver": "be9066028e8151fde79736d128408de6baa63527",
-                "Node name for S&R": "WANLoRAHighLowSplitter"
+                "Node name for S&R": "WANLoRAHighLowSplitter",
             },
-            "widgets_values": [""]
+            "widgets_values": [""],
         }
         workflow["nodes"].append(splitter_node)
         splitter_node_id = node_id
@@ -266,8 +281,8 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
             "properties": {
                 "cnr_id": "comfyui-custom-scripts",
                 "ver": "1.2.5",
-                "Node name for S&R": "ShowText|pysssss"
-            }
+                "Node name for S&R": "ShowText|pysssss",
+            },
         }
         workflow["nodes"].append(high_show_node)
         node_id += 1
@@ -286,8 +301,8 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
             "properties": {
                 "cnr_id": "comfyui-custom-scripts",
                 "ver": "1.2.5",
-                "Node name for S&R": "ShowText|pysssss"
-            }
+                "Node name for S&R": "ShowText|pysssss",
+            },
         }
         workflow["nodes"].append(low_show_node)
         node_id += 1
@@ -306,19 +321,21 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
             "properties": {
                 "cnr_id": "comfyui-custom-scripts",
                 "ver": "1.2.5",
-                "Node name for S&R": "ShowText|pysssss"
-            }
+                "Node name for S&R": "ShowText|pysssss",
+            },
         }
         workflow["nodes"].append(analysis_show_node)
         node_id += 1
 
         # Add links for this pair
-        workflow["links"].extend([
-            [text_link_id, text_node_id, 0, splitter_node_id, 0, "STRING"],
-            [high_link_id, splitter_node_id, 0, high_show_node["id"], 0, "STRING"],
-            [low_link_id, splitter_node_id, 1, low_show_node["id"], 0, "STRING"],
-            [analysis_link_id, splitter_node_id, 2, analysis_show_node["id"], 0, "STRING"]
-        ])
+        workflow["links"].extend(
+            [
+                [text_link_id, text_node_id, 0, splitter_node_id, 0, "STRING"],
+                [high_link_id, splitter_node_id, 0, high_show_node["id"], 0, "STRING"],
+                [low_link_id, splitter_node_id, 1, low_show_node["id"], 0, "STRING"],
+                [analysis_link_id, splitter_node_id, 2, analysis_show_node["id"], 0, "STRING"],
+            ]
+        )
 
     workflow["last_node_id"] = node_id - 1
     workflow["last_link_id"] = link_id - 1
@@ -328,9 +345,10 @@ def create_mega_workflow(pairs: List[Tuple[str, str, str, str]], lora_dir: str) 
 
 def main():
     import sys
+
     """Main function to generate the mega workflow."""
     lora_dir = "../ComfyUI/models/loras/wan/wan2.2"
-    output_file = sys.argv[1] if len(sys.argv) > 1 else "mega_wan_workflow.json"
+    output_file = sys.argv[1] if len(sys.argv) > 1 else "Wan22HighLowSplitterTest.json"
 
     print("Scanning for WAN 2.2 HIGH/LOW LoRA pairs...")
     pairs = find_lora_pairs(lora_dir)
@@ -345,7 +363,7 @@ def main():
     workflow = create_mega_workflow(pairs, lora_dir)
 
     # Save workflow
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(workflow, f, indent=2)
 
     print(f"Generated mega workflow: {output_file}")

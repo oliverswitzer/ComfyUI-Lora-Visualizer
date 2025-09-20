@@ -7,7 +7,7 @@ works correctly with mock data and different metadata file formats.
 
 import os
 import unittest
-from unittest.mock import mock_open, patch
+from unittest.mock import Mock, mock_open, patch
 
 from nodes.lora_metadata_utils import (
     LoRAMetadataLoader,
@@ -15,10 +15,12 @@ from nodes.lora_metadata_utils import (
     extract_embeddable_content,
     extract_example_prompts,
     extract_recommended_weight,
+    find_lora_absolute_path,
     get_lora_trigger_words,
     is_video_lora,
     is_wan_2_2_lora,
     load_lora_metadata,
+    parse_lora_tag,
 )
 
 os.environ.setdefault("COMFYUI_SKIP_LORA_ANALYSIS", "1")
@@ -348,6 +350,197 @@ class TestNewMetadataFunctions(unittest.TestCase):
         self.assertFalse(is_wan_2_2_lora(None))
         self.assertFalse(is_wan_2_2_lora({}))
         self.assertFalse(is_wan_2_2_lora({"unrelated_field": "value"}))
+
+
+class TestLoRATagParsing(unittest.TestCase):
+    """Tests for LoRA tag parsing functions."""
+
+    def test_parse_lora_tag_basic(self):
+        """parse_lora_tag should parse basic LoRA tags correctly."""
+        tag = "<lora:style_HIGH:0.8>"
+        result = parse_lora_tag(tag)
+
+        expected = {"name": "style_HIGH", "strength": "0.8", "tag": "<lora:style_HIGH:0.8>"}
+        self.assertEqual(result, expected)
+
+    def test_parse_lora_tag_default_strength(self):
+        """parse_lora_tag should default to 1.0 strength when not provided."""
+        tag = "<lora:character>"
+        result = parse_lora_tag(tag)
+
+        self.assertEqual(result["name"], "character")
+        self.assertEqual(result["strength"], "1.0")
+        self.assertEqual(result["tag"], "<lora:character>")
+
+    def test_parse_lora_tag_with_extra_params(self):
+        """parse_lora_tag should handle tags with extra parameters."""
+        tag = "<lora:model_name:0.6:extra_param>"
+        result = parse_lora_tag(tag)
+
+        self.assertEqual(result["name"], "model_name")
+        self.assertEqual(result["strength"], "0.6")
+        self.assertEqual(result["tag"], "<lora:model_name:0.6:extra_param>")
+
+    def test_parse_lora_tag_malformed(self):
+        """parse_lora_tag should handle malformed tags gracefully."""
+        tag = "not_a_lora_tag"
+        result = parse_lora_tag(tag)
+
+        self.assertEqual(result["name"], "not_a_lora_tag")
+        self.assertEqual(result["strength"], "1.0")
+        self.assertEqual(result["tag"], "not_a_lora_tag")
+
+    def test_parse_lora_tag_empty_parts(self):
+        """parse_lora_tag should handle empty tag parts."""
+        tag = "<lora::0.5>"
+        result = parse_lora_tag(tag)
+
+        self.assertEqual(result["name"], "")
+        self.assertEqual(result["strength"], "0.5")
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    def test_find_lora_absolute_path_no_folder_paths(self, mock_folder_paths):
+        """find_lora_absolute_path should handle missing folder_paths module."""
+        # Temporarily patch the module-level folder_paths
+        with patch("nodes.lora_metadata_utils.folder_paths", None):
+            result = find_lora_absolute_path("test_lora")
+            self.assertEqual(result, "[ComfyUI not available] test_lora.safetensors")
+
+
+class TestFindLoraRelativePath(unittest.TestCase):
+    """Tests for find_lora_relative_path function."""
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    @patch("nodes.lora_metadata_utils.Path")
+    def test_find_lora_relative_path_success(self, mock_path_class, mock_folder_paths):
+        """find_lora_relative_path should return Linux-style relative path."""
+        from nodes.lora_metadata_utils import find_lora_relative_path
+
+        # Mock folder paths
+        mock_folder_paths.get_folder_paths.return_value = ["C:\\ComfyUI\\models\\loras"]
+
+        # Mock Path objects and file system
+        mock_lora_dir = Mock()
+        mock_file_path = Mock()
+
+        # Mock the file path relative_to method to return a Windows-style path
+        mock_relative_path = Mock()
+        mock_relative_path.__str__ = Mock(return_value="wan\\wan2.2\\mating_press.safetensors")
+        mock_file_path.relative_to.return_value = mock_relative_path
+        mock_file_path.is_file.return_value = True
+
+        mock_lora_dir.rglob.return_value = [mock_file_path]
+        mock_path_class.return_value = mock_lora_dir
+
+        result = find_lora_relative_path("mating_press")
+
+        # Should convert Windows path to Linux style
+        self.assertEqual(result, "wan/wan2.2/mating_press.safetensors")
+        mock_file_path.relative_to.assert_called_once_with(mock_lora_dir)
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    def test_find_lora_relative_path_no_folder_paths(self, mock_folder_paths):
+        """find_lora_relative_path should handle missing folder_paths module."""
+        from nodes.lora_metadata_utils import find_lora_relative_path
+
+        # Temporarily patch the module-level folder_paths
+        with patch("nodes.lora_metadata_utils.folder_paths", None):
+            result = find_lora_relative_path("test_lora")
+            self.assertEqual(result, "[ComfyUI not available] test_lora.safetensors")
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    def test_find_lora_relative_path_no_lora_paths(self, mock_folder_paths):
+        """find_lora_relative_path should handle empty lora paths."""
+        from nodes.lora_metadata_utils import find_lora_relative_path
+
+        mock_folder_paths.get_folder_paths.return_value = []
+
+        result = find_lora_relative_path("test_lora")
+        self.assertEqual(result, "[No LoRA folders configured] test_lora.safetensors")
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    @patch("nodes.lora_metadata_utils.Path")
+    def test_find_lora_relative_path_not_found(self, mock_path_class, mock_folder_paths):
+        """find_lora_relative_path should handle file not found."""
+        from nodes.lora_metadata_utils import find_lora_relative_path
+
+        mock_folder_paths.get_folder_paths.return_value = ["C:\\ComfyUI\\models\\loras"]
+
+        # Mock empty search results
+        mock_lora_dir = Mock()
+        mock_lora_dir.rglob.return_value = []
+        mock_path_class.return_value = mock_lora_dir
+
+        result = find_lora_relative_path("nonexistent_lora")
+        self.assertEqual(result, "nonexistent_lora.safetensors")
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    def test_find_lora_absolute_path_no_lora_folders(self, mock_folder_paths):
+        """find_lora_absolute_path should handle missing LoRA folders."""
+        mock_folder_paths.get_folder_paths.return_value = []
+
+        result = find_lora_absolute_path("test_lora")
+        self.assertEqual(result, "[No LoRA folders configured] test_lora.safetensors")
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    @patch("nodes.lora_metadata_utils.Path")
+    def test_find_lora_absolute_path_found(self, mock_path_class, mock_folder_paths):
+        """find_lora_absolute_path should return absolute path when file is found."""
+        # Mock folder_paths
+        mock_folder_paths.get_folder_paths.return_value = ["/fake/loras"]
+
+        # Mock Path and rglob
+        mock_lora_dir = mock_path_class.return_value
+        mock_file_path = mock_path_class.return_value
+        mock_file_path.is_file.return_value = True
+        mock_file_path.absolute.return_value = "/absolute/path/test_lora.safetensors"
+        mock_lora_dir.rglob.return_value = [mock_file_path]
+
+        # Mock Path constructor to return our mocked directory
+        mock_path_class.side_effect = (
+            lambda x: mock_lora_dir if x == "/fake/loras" else mock_file_path
+        )
+
+        result = find_lora_absolute_path("test_lora")
+        self.assertEqual(result, "/absolute/path/test_lora.safetensors")
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    @patch("nodes.lora_metadata_utils.Path")
+    def test_find_lora_absolute_path_not_found(self, mock_path_class, mock_folder_paths):
+        """find_lora_absolute_path should return expected path when file is not found."""
+        # Mock folder_paths
+        mock_folder_paths.get_folder_paths.return_value = ["/fake/loras"]
+
+        # Mock Path and empty rglob results
+        mock_lora_dir = mock_path_class.return_value
+        mock_lora_dir.rglob.return_value = []  # No files found
+
+        # Mock expected path construction
+        expected_path = mock_path_class.return_value
+        expected_path.__truediv__ = lambda self, other: f"/fake/loras/{other}"
+
+        # Mock Path constructor behavior
+        def path_constructor(path_str):
+            if path_str == "/fake/loras":
+                return mock_lora_dir
+            else:
+                return expected_path
+
+        mock_path_class.side_effect = path_constructor
+
+        result = find_lora_absolute_path("test_lora")
+        # Should return the expected path when file is not found
+        self.assertIn("/fake/loras", result)
+        self.assertIn("test_lora.safetensors", result)
+
+    @patch("nodes.lora_metadata_utils.folder_paths")
+    def test_find_lora_absolute_path_exception(self, mock_folder_paths):
+        """find_lora_absolute_path should handle exceptions gracefully."""
+        mock_folder_paths.get_folder_paths.side_effect = Exception("Test error")
+
+        result = find_lora_absolute_path("test_lora")
+        self.assertIn("[Error finding path: Test error]", result)
+        self.assertIn("test_lora.safetensors", result)
 
 
 if __name__ == "__main__":
