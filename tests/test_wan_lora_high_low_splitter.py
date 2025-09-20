@@ -95,9 +95,13 @@ class TestWANLoRAHighLowSplitterNode(unittest.TestCase):
         analysis = json.loads(analysis_json)
 
         # Test structure
+        self.assertIn("prompt_no_lora_tags", analysis)
         self.assertIn("high_lora_1", analysis)
         self.assertIn("high_lora_2", analysis)
         self.assertIn("low_lora_1", analysis)
+
+        # Test prompt without LoRA tags
+        self.assertEqual(analysis["prompt_no_lora_tags"], "woman dancing")
 
         # Test high_lora_1
         self.assertEqual(analysis["high_lora_1"]["tag"], "<lora:style_HIGH:0.8>")
@@ -136,8 +140,10 @@ class TestWANLoRAHighLowSplitterNode(unittest.TestCase):
         # Parse analysis
         analysis = json.loads(analysis_json)
 
-        # Should be empty analysis
-        self.assertEqual(len(analysis), 0)
+        # Should only have prompt_no_lora_tags
+        self.assertEqual(len(analysis), 1)
+        self.assertIn("prompt_no_lora_tags", analysis)
+        self.assertEqual(analysis["prompt_no_lora_tags"], "beautiful woman dancing")
         self.assertNotIn("high_lora_1", analysis)
         self.assertNotIn("low_lora_1", analysis)
 
