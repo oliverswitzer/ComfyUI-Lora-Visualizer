@@ -1,3 +1,13 @@
 {
-    "apiKeyHelper": "echo $ANTHROPIC_API_KEY"
+  "apiKeyHelper": "echo $ANTHROPIC_API_KEY",
+  "permissions": {
+    "allow": [
+      "Bash(pdm test:*)",
+      "Bash(pdm run:*)",
+      "Bash(pdm run test:*)",
+      "Bash(pdm run pytest:*)"
+    ],
+    "deny": [],
+    "ask": []
   }
+}

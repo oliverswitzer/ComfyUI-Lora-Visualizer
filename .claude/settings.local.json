@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(pdm test:*)"
-    ],
-    "deny": [],
-    "ask": []
-  }
-}
