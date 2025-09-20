@@ -25,3 +25,4 @@ Thumbs.db
 *.log
 
 .pdm-python
+.claude/settings.local.json

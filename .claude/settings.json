@@ -1,5 +1,4 @@
 {
-  "apiKeyHelper": "echo $ANTHROPIC_API_KEY",
   "permissions": {
     "allow": [
       "Bash(pdm test:*)",
