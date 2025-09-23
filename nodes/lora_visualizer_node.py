@@ -3,13 +3,12 @@ LoRA Visualizer Node Implementation
 Parses prompts for LoRA tags and displays metadata, thumbnails, and example images.
 """
 
-import json
-import os
+import time
 from typing import Optional
 
 import folder_paths
 
-from .lora_metadata_utils import parse_lora_tags
+from .lora_metadata_utils import get_metadata_loader, parse_lora_tags
 
 
 class LoRAVisualizerNode:
@@ -26,11 +25,11 @@ class LoRAVisualizerNode:
     CATEGORY = "conditioning"
     DESCRIPTION = """Analyzes prompt text to extract and visualize LoRA information with metadata.
 
-• Parses standard LoRA tags: <lora:name:strength>
-• Parses custom WanLoRA tags: <wanlora:name:strength>
+• Parses all LoRA tags: <lora:name:strength> and <wanlora:name:strength>
+• Automatically detects WAN/video LoRAs by examining metadata
 • Displays thumbnails, trigger words, and base models
 • Shows scalable previews with hover galleries
-• Supports both image and video LoRAs
+• Supports both image and video LoRAs with appropriate visual indicators
 • Requires ComfyUI LoRA Manager for metadata"""
 
     @classmethod
@@ -72,6 +71,7 @@ class LoRAVisualizerNode:
             if folder_paths.get_folder_paths("loras")
             else None
         )
+        self.metadata_loader = get_metadata_loader()
 
     def parse_lora_tags(self, prompt_text: str) -> tuple[list[dict], list[dict]]:
         """
@@ -86,6 +86,7 @@ class LoRAVisualizerNode:
     def load_metadata(self, lora_name: str) -> Optional[dict]:
         """
         Load metadata for a LoRA from its .metadata.json file.
+        Uses the shared metadata loader that searches recursively.
 
         Args:
             lora_name: Name of the LoRA (without extension)
@@ -93,26 +94,7 @@ class LoRAVisualizerNode:
         Returns:
             Dict containing metadata or None if not found
         """
-        if not self.loras_folder:
-            return None
-
-        metadata_path = os.path.join(self.loras_folder, f"{lora_name}.metadata.json")
-
-        if not os.path.exists(metadata_path):
-            # Try with .safetensors extension in name
-            metadata_path = os.path.join(
-                self.loras_folder, f"{lora_name}.safetensors.metadata.json"
-            )
-
-        if not os.path.exists(metadata_path):
-            return None
-
-        try:
-            with open(metadata_path, encoding="utf-8") as f:
-                return json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            print(f"Error loading metadata for {lora_name}: {e}")
-            return None
+        return self.metadata_loader.load_metadata(lora_name)
 
     def extract_lora_info(self, lora_data: dict, metadata: Optional[dict]) -> dict:
         """
@@ -141,12 +123,13 @@ class LoRAVisualizerNode:
 
         if metadata:
             # Extract trigger words
-            if "civitai" in metadata and "trainedWords" in metadata["civitai"]:
-                info["trigger_words"] = metadata["civitai"]["trainedWords"]
+            civitai_data = metadata.get("civitai")
+            if civitai_data and "trainedWords" in civitai_data:
+                info["trigger_words"] = civitai_data["trainedWords"]
 
             # Extract Civitai URL
-            if "civitai" in metadata and "modelId" in metadata["civitai"]:
-                model_id = metadata["civitai"]["modelId"]
+            if civitai_data and "modelId" in civitai_data:
+                model_id = civitai_data["modelId"]
                 info["civitai_url"] = f"https://civitai.com/models/{model_id}"
 
             # Extract preview image
@@ -154,17 +137,19 @@ class LoRAVisualizerNode:
                 info["preview_url"] = metadata["preview_url"]
 
             # Extract example images
-            if "civitai" in metadata and "images" in metadata["civitai"]:
+            if civitai_data and "images" in civitai_data:
                 info["example_images"] = [
                     {
                         "url": img["url"],
                         "width": img.get("width", 0),
                         "height": img.get("height", 0),
                         "nsfw_level": img.get("nsfwLevel", 1),
-                        "type": img.get("type", "image"),
+                        "type": img.get(
+                            "type", "video" if img["url"].endswith(".mp4") else "image"
+                        ),
                         "meta": img.get("meta", {}),  # Include full metadata for prompts
                     }
-                    for img in metadata["civitai"]["images"]
+                    for img in civitai_data["images"]
                 ]
 
             # Extract model info
@@ -222,7 +207,7 @@ class LoRAVisualizerNode:
 
         return result
 
-    def visualize_loras(self, prompt_text: str) -> tuple[str, str]:
+    def visualize_loras(self, prompt_text: str, **kwargs) -> tuple[str, str]:
         """
         Main function that processes the prompt and returns LoRA information.
 
@@ -258,18 +243,31 @@ class LoRAVisualizerNode:
             info = self.extract_lora_info(lora_data, metadata)
             wanloras_info.append(info)
 
+        # Try to get ComfyUI node ID from kwargs (ComfyUI passes unique_id during execution)
+        node_id = (
+            kwargs.get("unique_id")
+            or kwargs.get("node_id")
+            or kwargs.get("extra_pnginfo", {}).get("workflow", {}).get("nodes", [{}])[0].get("id")
+        )
+        if not node_id:
+            # Create a unique identifier based on object ID + timestamp
+            node_id = f"{id(self)}_{int(time.time() * 1000)}"
+
+        print(f"DEBUG: LoRA Visualizer node_id: {node_id}, available kwargs: {list(kwargs.keys())}")
+
         # Store visualization data for frontend access
         self.last_lora_data = {
             "standard_loras": standard_loras_info,
             "wanloras": wanloras_info,
             "prompt": prompt_text,
+            "node_id": str(node_id),
         }
 
         # Send data to frontend via server message
         try:
             from server import PromptServer
 
-            message_data = {"node_id": str(id(self)), "data": self.last_lora_data}
+            message_data = {"node_id": str(node_id), "data": self.last_lora_data}
             PromptServer.instance.send_sync("lora_visualization_data", message_data)
         except Exception as e:
             print(f"Failed to send LoRA visualization data: {e}")
@@ -287,6 +285,11 @@ class LoRAVisualizerNode:
                     "trigger_words": lora.get("trigger_words", []),
                     "base_model": lora.get("base_model", "Unknown"),
                     "civitai_url": lora.get("civitai_url"),
+                    "preview_url": lora.get("preview_url", ""),
+                    "example_images_count": len(lora.get("example_images", [])),
+                    "example_images_sample": [
+                        img.get("url", "") for img in lora.get("example_images", [])
+                    ][:3],  # First 3 URLs for debugging
                     "has_metadata": bool(lora.get("preview_url") or lora.get("trigger_words")),
                 }
                 for lora in standard_loras_info
@@ -299,6 +302,11 @@ class LoRAVisualizerNode:
                     "trigger_words": lora.get("trigger_words", []),
                     "base_model": lora.get("base_model", "Unknown"),
                     "civitai_url": lora.get("civitai_url"),
+                    "preview_url": lora.get("preview_url", ""),
+                    "example_images_count": len(lora.get("example_images", [])),
+                    "example_images_sample": [
+                        img.get("url", "") for img in lora.get("example_images", [])
+                    ][:3],  # First 3 URLs for debugging
                     "has_metadata": bool(lora.get("preview_url") or lora.get("trigger_words")),
                 }
                 for lora in wanloras_info

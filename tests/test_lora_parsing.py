@@ -29,73 +29,150 @@ class TestLoRAVisualizerNode(unittest.TestCase):
         with patch("folder_paths.get_folder_paths", return_value=[]):
             self.node = LoRAVisualizerNode()
 
+        # Mock metadata responses for test LoRAs
+        self.mock_metadata = {
+            # Standard image LoRAs - no metadata indicates they are image LoRAs
+            "landscape_v1": None,
+            "style_v1": None,
+            "Detail Enhancer v2.0: Professional Edition": None,
+            "Style: Modern Art v1.0": None,
+            "style_lora": None,
+            "portrait": None,
+            "lighting": None,
+            # WAN/Video LoRAs - metadata indicates they are video LoRAs
+            "Woman877.v2": {"base_model": "Wan Video", "preview_url": "test.mp4"},
+            "DetailAmplifier wan480p v1.0": {
+                "base_model": "Wan Video 14B i2v 480p",
+                "preview_url": "test.mp4",
+            },
+            "Model Name: v2.0: Enhanced Edition": {
+                "base_model": "Wan Video 2.2 I2V-A14B",
+                "preview_url": "test.mp4",
+            },
+            "Character: Anime Girl v2.1": {"base_model": "Wan Video", "preview_url": "test.mp4"},
+        }
+
     def test_parse_standard_lora_tags(self):
         """Test parsing of standard LoRA tags."""
-        prompt = "A beautiful landscape <lora:landscape_v1:0.8> with mountains"
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            mock_loader.load_metadata.side_effect = lambda name: self.mock_metadata.get(name)
+            mock_loader.is_video_lora.side_effect = lambda metadata: bool(
+                metadata and "wan video" in metadata.get("base_model", "").lower()
+            )
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 1)
-        self.assertEqual(len(wanloras), 0)
-        self.assertEqual(standard_loras[0]["name"], "landscape_v1")
-        self.assertEqual(standard_loras[0]["strength"], "0.8")
-        self.assertEqual(standard_loras[0]["type"], "lora")
+            prompt = "A beautiful landscape <lora:landscape_v1:0.8> with mountains"
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+            self.assertEqual(len(standard_loras), 1)
+            self.assertEqual(len(wanloras), 0)
+            self.assertEqual(standard_loras[0]["name"], "landscape_v1")
+            self.assertEqual(standard_loras[0]["strength"], "0.8")
+            self.assertEqual(standard_loras[0]["type"], "lora")
 
     def test_parse_wanlora_tags(self):
         """Test parsing of wanlora tags."""
-        prompt = "Portrait of a woman <wanlora:Woman877.v2:1.0> smiling"
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            mock_loader.load_metadata.side_effect = lambda name: self.mock_metadata.get(name)
+            mock_loader.is_video_lora.side_effect = lambda metadata: bool(
+                metadata and "wan video" in metadata.get("base_model", "").lower()
+            )
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 0)
-        self.assertEqual(len(wanloras), 1)
-        self.assertEqual(wanloras[0]["name"], "Woman877.v2")
-        self.assertEqual(wanloras[0]["strength"], "1.0")
-        self.assertEqual(wanloras[0]["type"], "wanlora")
+            prompt = "Portrait of a woman <wanlora:Woman877.v2:1.0> smiling"
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+            self.assertEqual(len(standard_loras), 0)
+            self.assertEqual(len(wanloras), 1)
+            self.assertEqual(wanloras[0]["name"], "Woman877.v2")
+            self.assertEqual(wanloras[0]["strength"], "1.0")
+            self.assertEqual(wanloras[0]["type"], "wanlora")
 
     def test_parse_mixed_lora_tags(self):
         """Test parsing of both standard and wanlora tags."""
-        prompt = "Portrait <lora:style_v1:0.5> of woman <wanlora:Woman877.v2:0.8> in park"
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            mock_loader.load_metadata.side_effect = lambda name: self.mock_metadata.get(name)
+            mock_loader.is_video_lora.side_effect = lambda metadata: bool(
+                metadata and "wan video" in metadata.get("base_model", "").lower()
+            )
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 1)
-        self.assertEqual(len(wanloras), 1)
-        self.assertEqual(standard_loras[0]["name"], "style_v1")
-        self.assertEqual(wanloras[0]["name"], "Woman877.v2")
+            prompt = "Portrait <lora:style_v1:0.5> of woman <wanlora:Woman877.v2:0.8> in park"
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+            self.assertEqual(len(standard_loras), 1)
+            self.assertEqual(len(wanloras), 1)
+            self.assertEqual(standard_loras[0]["name"], "style_v1")
+            self.assertEqual(wanloras[0]["name"], "Woman877.v2")
 
     def test_parse_wanlora_with_spaces(self):
         """Test parsing of wanlora tags with spaces and special characters."""
-        prompt = "test <wanlora:DetailAmplifier wan480p v1.0:1> more text"
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            mock_loader.load_metadata.side_effect = lambda name: self.mock_metadata.get(name)
+            mock_loader.is_video_lora.side_effect = lambda metadata: bool(
+                metadata and "wan video" in metadata.get("base_model", "").lower()
+            )
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 0)
-        self.assertEqual(len(wanloras), 1)
+            prompt = "test <wanlora:DetailAmplifier wan480p v1.0:1> more text"
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
 
-        wanlora = wanloras[0]
-        self.assertEqual(wanlora["name"], "DetailAmplifier wan480p v1.0")
-        self.assertEqual(wanlora["strength"], "1")
-        self.assertEqual(wanlora["type"], "wanlora")
-        self.assertEqual(wanlora["tag"], "<wanlora:DetailAmplifier wan480p v1.0:1>")
+            self.assertEqual(len(standard_loras), 0)
+            self.assertEqual(len(wanloras), 1)
+
+            wanlora = wanloras[0]
+            self.assertEqual(wanlora["name"], "DetailAmplifier wan480p v1.0")
+            self.assertEqual(wanlora["strength"], "1")
+            self.assertEqual(wanlora["type"], "wanlora")
+            self.assertEqual(wanlora["tag"], "<wanlora:DetailAmplifier wan480p v1.0:1>")
 
     def test_parse_complex_wanlora_names(self):
         """Test parsing complex wanlora names with multiple colons."""
-        prompt = "test <wanlora:Model Name: v2.0: Enhanced Edition:0.5> more text"
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            mock_loader.load_metadata.side_effect = lambda name: self.mock_metadata.get(name)
+            mock_loader.is_video_lora.side_effect = lambda metadata: bool(
+                metadata and "wan video" in metadata.get("base_model", "").lower()
+            )
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 0)
-        self.assertEqual(len(wanloras), 1)
+            prompt = "test <wanlora:Model Name: v2.0: Enhanced Edition:0.5> more text"
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
 
-        wanlora = wanloras[0]
-        self.assertEqual(wanlora["name"], "Model Name: v2.0: Enhanced Edition")
-        self.assertEqual(wanlora["strength"], "0.5")
-        self.assertEqual(wanlora["type"], "wanlora")
-        self.assertEqual(wanlora["tag"], "<wanlora:Model Name: v2.0: Enhanced Edition:0.5>")
+            self.assertEqual(len(standard_loras), 0)
+            self.assertEqual(len(wanloras), 1)
+
+            wanlora = wanloras[0]
+            self.assertEqual(wanlora["name"], "Model Name: v2.0: Enhanced Edition")
+            self.assertEqual(wanlora["strength"], "0.5")
+            self.assertEqual(wanlora["type"], "wanlora")
+            self.assertEqual(wanlora["tag"], "<wanlora:Model Name: v2.0: Enhanced Edition:0.5>")
 
     def test_parse_lora_with_spaces(self):
         """Test parsing of standard LoRA tags with spaces and special characters."""
-        prompt = "test <lora:Detail Enhancer v2.0: Professional Edition:0.8> more text"
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            mock_loader.load_metadata.side_effect = lambda name: self.mock_metadata.get(name)
+            mock_loader.is_video_lora.side_effect = lambda metadata: bool(
+                metadata and "wan video" in metadata.get("base_model", "").lower()
+            )
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 1)
-        self.assertEqual(len(wanloras), 0)
+            prompt = "test <lora:Detail Enhancer v2.0: Professional Edition:0.8> more text"
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+            self.assertEqual(len(standard_loras), 1)
+            self.assertEqual(len(wanloras), 0)
 
         lora = standard_loras[0]
         self.assertEqual(lora["name"], "Detail Enhancer v2.0: Professional Edition")
@@ -105,44 +182,67 @@ class TestLoRAVisualizerNode(unittest.TestCase):
 
     def test_parse_consistent_handling(self):
         """Test that both LoRA types handle complex names consistently."""
-        prompt = (
-            "test <lora:Style: Modern Art v1.0:0.7> and "
-            "<wanlora:Character: Anime Girl v2.1:0.9> together"
-        )
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            mock_loader.load_metadata.side_effect = lambda name: self.mock_metadata.get(name)
+            mock_loader.is_video_lora.side_effect = lambda metadata: bool(
+                metadata and "wan video" in metadata.get("base_model", "").lower()
+            )
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 1)
-        self.assertEqual(len(wanloras), 1)
+            prompt = (
+                "test <lora:Style: Modern Art v1.0:0.7> and "
+                "<wanlora:Character: Anime Girl v2.1:0.9> together"
+            )
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
 
-        # Both should parse complex names with colons correctly
-        lora = standard_loras[0]
-        self.assertEqual(lora["name"], "Style: Modern Art v1.0")
-        self.assertEqual(lora["strength"], "0.7")
+            self.assertEqual(len(standard_loras), 1)
+            self.assertEqual(len(wanloras), 1)
 
-        wanlora = wanloras[0]
-        self.assertEqual(wanlora["name"], "Character: Anime Girl v2.1")
-        self.assertEqual(wanlora["strength"], "0.9")
+            # Both should parse complex names with colons correctly
+            lora = standard_loras[0]
+            self.assertEqual(lora["name"], "Style: Modern Art v1.0")
+            self.assertEqual(lora["strength"], "0.7")
+
+            wanlora = wanloras[0]
+            self.assertEqual(wanlora["name"], "Character: Anime Girl v2.1")
+            self.assertEqual(wanlora["strength"], "0.9")
 
     def test_parse_multiple_loras(self):
         """Test parsing multiple LoRA tags of the same type."""
-        prompt = "A scene <lora:style1:0.5> with <lora:style2:0.3> and <lora:style3:1.0>"
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            mock_loader.load_metadata.side_effect = (
+                lambda name: None
+            )  # All return None (image LoRAs)
+            mock_loader.is_video_lora.side_effect = lambda metadata: False  # All are image LoRAs
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 3)
-        self.assertEqual(len(wanloras), 0)
+            prompt = "A scene <lora:style1:0.5> with <lora:style2:0.3> and <lora:style3:1.0>"
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
 
-        names = [lora["name"] for lora in standard_loras]
-        self.assertIn("style1", names)
-        self.assertIn("style2", names)
-        self.assertIn("style3", names)
+            self.assertEqual(len(standard_loras), 3)
+            self.assertEqual(len(wanloras), 0)
+
+            names = [lora["name"] for lora in standard_loras]
+            self.assertIn("style1", names)
+            self.assertIn("style2", names)
+            self.assertIn("style3", names)
 
     def test_parse_no_lora_tags(self):
         """Test handling of prompts with no LoRA tags."""
-        prompt = "A simple prompt with no LoRA tags"
-        standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance (won't be called since no LoRAs)
+            mock_loader = Mock()
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(len(standard_loras), 0)
-        self.assertEqual(len(wanloras), 0)
+            prompt = "A simple prompt with no LoRA tags"
+            standard_loras, wanloras = self.node.parse_lora_tags(prompt)
+
+            self.assertEqual(len(standard_loras), 0)
+            self.assertEqual(len(wanloras), 0)
 
     def test_extract_lora_info_no_metadata(self):
         """Test extracting LoRA info when no metadata is available."""
@@ -254,20 +354,37 @@ class TestVisualizeLoras(unittest.TestCase):
 
     def test_visualize_with_loras(self):
         """Test visualization with LoRA tags."""
-        prompt = "Portrait <lora:style_v1:0.5> of woman <wanlora:Woman877.v2:0.8>"
-        result, processed_prompt = self.node.visualize_loras(prompt)
+        with patch("nodes.lora_metadata_utils.get_metadata_loader") as mock_get_loader:
+            # Mock the metadata loader instance
+            mock_loader = Mock()
+            wan_metadata = {"base_model": "Wan Video", "preview_url": "test.mp4"}
 
-        # Parse JSON result
-        import json as json_module
+            def load_metadata_side_effect(name):
+                if name == "Woman877.v2":
+                    return wan_metadata
+                return None
 
-        metadata = json_module.loads(result)
+            mock_loader.load_metadata.side_effect = load_metadata_side_effect
+            mock_loader.is_video_lora.side_effect = lambda metadata: bool(
+                metadata and "wan video" in metadata.get("base_model", "").lower()
+            )
+            mock_get_loader.return_value = mock_loader
 
-        self.assertEqual(metadata["total_loras_found"], 2)
-        self.assertEqual(metadata["standard_loras_count"], 1)
-        self.assertEqual(metadata["wanloras_count"], 1)
-        self.assertEqual(metadata["standard_loras"][0]["name"], "style_v1")
-        self.assertEqual(metadata["wanloras"][0]["name"], "Woman877.v2")
-        self.assertEqual(processed_prompt, prompt)
+            with patch("server.PromptServer"):
+                prompt = "Portrait <lora:style_v1:0.5> of woman <wanlora:Woman877.v2:0.8>"
+                result, processed_prompt = self.node.visualize_loras(prompt)
+
+                # Parse JSON result
+                import json as json_module
+
+                metadata = json_module.loads(result)
+
+                self.assertEqual(metadata["total_loras_found"], 2)
+                self.assertEqual(metadata["standard_loras_count"], 1)
+                self.assertEqual(metadata["wanloras_count"], 1)
+                self.assertEqual(metadata["standard_loras"][0]["name"], "style_v1")
+                self.assertEqual(metadata["wanloras"][0]["name"], "Woman877.v2")
+                self.assertEqual(processed_prompt, prompt)
 
     def test_extract_civitai_url_from_metadata(self):
         """Test that Civitai URLs are correctly extracted from metadata."""

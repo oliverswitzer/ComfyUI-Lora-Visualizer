@@ -67,13 +67,23 @@ function loadThumbnailImage(lora, node) {
     return;
   }
 
-  let thumbnailEntry = lora.example_images.find(
-    (img) => !img.url.endsWith(".mp4")
-  );
+  let thumbnailEntry;
 
-  if (!thumbnailEntry && lora.type === "wanlora") {
+  if (lora.type === "wanlora") {
+    // For WAN LoRAs, prioritize videos over images
     thumbnailEntry = lora.example_images.find(
       (img) => img.url.endsWith(".mp4")
+    );
+    // Fallback to images if no videos
+    if (!thumbnailEntry) {
+      thumbnailEntry = lora.example_images.find(
+        (img) => !img.url.endsWith(".mp4")
+      );
+    }
+  } else {
+    // For standard LoRAs, prioritize images over videos
+    thumbnailEntry = lora.example_images.find(
+      (img) => !img.url.endsWith(".mp4")
     );
   }
 
@@ -530,12 +540,14 @@ function showHoverGallery(lora, x, y, thumbnailSize, node) {
 function createGalleryElement(lora, x, y) {
   const gallery = document.createElement("div");
   gallery.className = "lora-hover-gallery";
+  // Determine if this is a WAN LoRA based on type (now set by metadata analysis)
+  const isWanLora = lora.type === "wanlora";
   gallery.style.cssText = `
         position: fixed;
         left: ${x + 10}px;
         top: ${y + 10}px;
         background: rgba(0, 0, 0, 0.95);
-        border: 2px solid ${lora.type === "wanlora" ? "#ff9a4a" : "#4a9eff"};
+        border: 2px solid ${isWanLora ? "#ff9a4a" : "#4a9eff"};
         border-radius: 8px;
         padding: 15px;
         max-width: 500px;
@@ -895,18 +907,28 @@ function updateNodeSize(node) {
 function setupNodeEventHandlers(node) {
   const canvas = app.canvas.canvas;
 
-  // Throttled mouse movement
-  let mouseTimeout;
-  canvas.addEventListener("mousemove", (e) => {
-    clearTimeout(mouseTimeout);
-    mouseTimeout = setTimeout(() => {
-      handleMouseMove(e, node);
-    }, 16);
-  });
+  // Create unique handlers for this node instance
+  const mouseMoveHandler = (e) => {
+    clearTimeout(node.mouseTimeout);
+    node.mouseTimeout = setTimeout(() => {
+      // Only handle mouse move if the mouse is over this specific node
+      const coords = transformCanvasCoordinates(e, node);
+      const nodeRect = {
+        x: 0,
+        y: 0,
+        width: node.size[0],
+        height: node.size[1]
+      };
 
-  // Mouse leave
-  canvas.addEventListener("mouseleave", (e) => {
-    clearTimeout(mouseTimeout);
+      if (coords.x >= nodeRect.x && coords.x <= nodeRect.x + nodeRect.width &&
+          coords.y >= nodeRect.y && coords.y <= nodeRect.y + nodeRect.height) {
+        handleMouseMove(e, node);
+      }
+    }, 16);
+  };
+
+  const mouseLeaveHandler = (e) => {
+    clearTimeout(node.mouseTimeout);
     if (node.hideTimeout) clearTimeout(node.hideTimeout);
     node.hideTimeout = setTimeout(() => {
       if (!node.galleryHovered) {
@@ -914,12 +936,35 @@ function setupNodeEventHandlers(node) {
         node.currentlyHovered = null;
       }
     }, 300);
-  });
+  };
 
-  // Click handling
-  canvas.addEventListener("click", (e) => {
-    handleCanvasClick(e, node);
-  });
+  const clickHandler = (e) => {
+    // Only handle clicks if they're within this node's bounds
+    const coords = transformCanvasCoordinates(e, node);
+    const nodeRect = {
+      x: 0,
+      y: 0,
+      width: node.size[0],
+      height: node.size[1]
+    };
+
+    if (coords.x >= nodeRect.x && coords.x <= nodeRect.x + nodeRect.width &&
+        coords.y >= nodeRect.y && coords.y <= nodeRect.y + nodeRect.height) {
+      handleCanvasClick(e, node);
+    }
+  };
+
+  // Store handlers on the node for cleanup
+  node.loraVisualizerHandlers = {
+    mouseMoveHandler,
+    mouseLeaveHandler,
+    clickHandler
+  };
+
+  // Add event listeners
+  canvas.addEventListener("mousemove", mouseMoveHandler);
+  canvas.addEventListener("mouseleave", mouseLeaveHandler);
+  canvas.addEventListener("click", clickHandler);
 }
 
 function setupNodeState(node) {
@@ -1027,6 +1072,11 @@ function setupWebSocketHandler() {
   api.addEventListener("lora_visualization_data", (event) => {
     const messageData = event.detail;
 
+    console.log("LoRA Visualizer: Received data", {
+      node_id: messageData.node_id,
+      available_nodes: app.graph._nodes.filter(n => n.type === "LoRAVisualizer").map(n => n.id)
+    });
+
     // Find the specific node by ID first, fallback to all LoRAVisualizer nodes
     let targetNodes = [];
     if (messageData.node_id) {
@@ -1035,12 +1085,30 @@ function setupWebSocketHandler() {
       );
       if (targetNode && targetNode.type === "LoRAVisualizer") {
         targetNodes = [targetNode];
+        console.log("LoRA Visualizer: Found specific node", targetNode.id);
+      } else {
+        console.log("LoRA Visualizer: Node ID not found, trying alternate matching");
+
+        // Try alternate matching approaches
+        const nodeById = app.graph._nodes.find(n =>
+          n.type === "LoRAVisualizer" && (
+            n.id === messageData.node_id ||
+            n.id === parseInt(messageData.node_id) ||
+            String(n.id) === String(messageData.node_id)
+          )
+        );
+
+        if (nodeById) {
+          targetNodes = [nodeById];
+          console.log("LoRA Visualizer: Found node with alternate matching", nodeById.id);
+        }
       }
     }
 
     // Fallback to all LoRAVisualizer nodes if no specific node found
     if (targetNodes.length === 0) {
       targetNodes = app.graph._nodes.filter((n) => n.type === "LoRAVisualizer");
+      console.log("LoRA Visualizer: Falling back to all nodes", targetNodes.length);
     }
 
     // Update the target nodes with new data
@@ -1048,6 +1116,7 @@ function setupWebSocketHandler() {
       node.loraData = messageData.data;
       updateNodeSize(node); // Recalculate size based on new content
       node.setDirtyCanvas(true, true);
+      console.log("LoRA Visualizer: Updated node", node.id, "with data for", messageData.data.standard_loras.length + messageData.data.wanloras.length, "LoRAs");
     });
   });
 }
@@ -1078,6 +1147,14 @@ app.registerExtension({
 
     const onRemoved = nodeType.prototype.onRemoved;
     nodeType.prototype.onRemoved = function () {
+      // Clean up event handlers to prevent memory leaks
+      if (this.loraVisualizerHandlers) {
+        const canvas = app.canvas.canvas;
+        canvas.removeEventListener("mousemove", this.loraVisualizerHandlers.mouseMoveHandler);
+        canvas.removeEventListener("mouseleave", this.loraVisualizerHandlers.mouseLeaveHandler);
+        canvas.removeEventListener("click", this.loraVisualizerHandlers.clickHandler);
+      }
+
       hideHoverGallery(this);
       if (onRemoved) {
         return onRemoved.apply(this, arguments);

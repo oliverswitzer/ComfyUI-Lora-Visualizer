@@ -92,7 +92,13 @@ class LoRAMetadataLoader:
 
     def is_video_lora(self, metadata: Optional[dict[str, Any]]) -> bool:
         """
-        Determine if a LoRA is for video generation based on base model.
+        Determine if a LoRA is for video generation based on metadata analysis.
+
+        Uses multiple detection strategies based on actual metadata patterns:
+        1. base_model field containing "Wan Video" patterns
+        2. preview_url ending with .mp4 (video preview)
+        3. civitai.baseModel containing video indicators
+        4. civitai.air URN containing "wanvideo" patterns
 
         Args:
             metadata: Loaded metadata dict or None
@@ -103,22 +109,39 @@ class LoRAMetadataLoader:
         if not metadata:
             return False
 
-        # Check base_model field for video indicators
+        # Primary check: base_model field for WAN video indicators
         base_model = metadata.get("base_model", "").lower()
-        if "wan" in base_model or "video" in base_model or "i2v" in base_model:
+        wan_video_patterns = [
+            "wan video",
+            "wanvideo",
+            "wan_video",
+            "wan video 2.2",
+            "wan video 14b",
+            "i2v-a14b",
+            "14b i2v",
+            "14b t2v",
+            "wan2.2",
+            "wan 2.2",
+        ]
+        if any(pattern in base_model for pattern in wan_video_patterns):
             return True
 
-        # Also check civitai.baseModel field
-        try:
-            civitai = metadata.get("civitai")
-            if isinstance(civitai, dict):
-                civitai_base = civitai.get("baseModel", "").lower()
-            else:
-                civitai_base = ""
-            if "wan" in civitai_base or "video" in civitai_base or "i2v" in civitai_base:
+        # Secondary check: preview file extension (video LoRAs have .mp4 previews)
+        preview_url = metadata.get("preview_url", "")
+        if preview_url.lower().endswith(".mp4"):
+            return True
+
+        # Third check: civitai.baseModel field
+        civitai = metadata.get("civitai")
+        if isinstance(civitai, dict):
+            civitai_base = civitai.get("baseModel", "").lower()
+            if any(pattern in civitai_base for pattern in wan_video_patterns):
                 return True
-        except (AttributeError, TypeError):
-            pass
+
+            # Fourth check: civitai.air URN patterns
+            air_urn = civitai.get("air", "")
+            if isinstance(air_urn, str) and "wanvideo" in air_urn.lower():
+                return True
 
         return False
 
@@ -176,7 +199,9 @@ def is_video_lora(lora_name: str) -> bool:
 
 def parse_lora_tags(prompt_text: str) -> tuple[list[dict], list[dict]]:
     """
-    Parse LoRA tags from prompt text.
+    Parse LoRA tags from prompt text and classify them based on metadata.
+
+    Now detects WAN LoRAs by examining their actual metadata rather than tag syntax.
 
     Args:
         prompt_text: Text containing LoRA tags
@@ -188,46 +213,43 @@ def parse_lora_tags(prompt_text: str) -> tuple[list[dict], list[dict]]:
     standard_loras = []
     wanloras = []
 
-    # Pattern for both LoRA types: capture everything inside the tags
-    # Both handle names with spaces and special characters the same way
-    lora_pattern = r"<lora:(.+?)>"
-    wanlora_pattern = r"<wanlora:(.+?)>"
+    loader = get_metadata_loader()
 
-    # Find standard LoRA tags
+    # Pattern for both LoRA types: capture everything inside the tags
+    # Handle both <lora:> and <wanlora:> tags uniformly
+    lora_pattern = r"<(?:wan)?lora:(.+?)>"
+
+    # Find all LoRA tags
     for match in re.finditer(lora_pattern, prompt_text):
         content = match.group(1).strip()
+        full_tag = match.group(0)
+
         # Split by last colon to separate name from strength
         last_colon_index = content.rfind(":")
         if last_colon_index > 0:
             name = content[:last_colon_index].strip()
             strength = content[last_colon_index + 1 :].strip()
 
-            standard_loras.append(
-                {
-                    "name": name,
-                    "strength": strength,
-                    "type": "lora",
-                    "tag": match.group(0),
-                }
-            )
+            # Load metadata to determine if this is a WAN/video LoRA
+            metadata = loader.load_metadata(name)
+            is_video_by_metadata = loader.is_video_lora(metadata)
 
-    # Find wanlora tags (same logic as standard LoRAs)
-    for match in re.finditer(wanlora_pattern, prompt_text):
-        content = match.group(1).strip()
-        # Split by last colon to separate name from strength
-        last_colon_index = content.rfind(":")
-        if last_colon_index > 0:
-            name = content[:last_colon_index].strip()
-            strength = content[last_colon_index + 1 :].strip()
+            # Determine type: metadata detection first, fallback to tag syntax
+            is_wan_tag = full_tag.startswith("<wanlora:")
+            is_video = is_video_by_metadata if metadata else is_wan_tag
 
-            wanloras.append(
-                {
-                    "name": name,
-                    "strength": strength,
-                    "type": "wanlora",
-                    "tag": match.group(0),
-                }
-            )
+            lora_data = {
+                "name": name,
+                "strength": strength,
+                "tag": full_tag,
+            }
+
+            if is_video:
+                lora_data["type"] = "wanlora"
+                wanloras.append(lora_data)
+            else:
+                lora_data["type"] = "lora"
+                standard_loras.append(lora_data)
 
     return standard_loras, wanloras
 
